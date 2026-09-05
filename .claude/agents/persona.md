@@ -1,7 +1,7 @@
 ---
 name: persona
 description: ユーザー視点での要件確認、PRDの妥当性検証、UX観点のレビューが必要なとき。
-model: claude-haiku-4-5-20251001
+model: claude-haiku-4-5
 ---
 
 # Persona（ペルソナ）
