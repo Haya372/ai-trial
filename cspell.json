@@ -15,9 +15,22 @@
     "tstzrange",
     "libpq",
     "RRULE",
-    "dbown",
     "Pydantic",
     "Pressly",
-    "Ariga"
+    "Ariga",
+    "sqlc",
+    "pgx",
+    "Zustand",
+    "JSONB",
+    "GiST",
+    "goose",
+    "SWR",
+    "DDL",
+    "HMR",
+    "Rollup",
+    "FullCalendar",
+    "goroutine",
+    "esbuild",
+    "Vite"
   ]
 }
