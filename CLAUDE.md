@@ -6,11 +6,9 @@ Claude Codeを活用した開発のテンプレートプロジェクト。
 
 ## 開発フロー
 
-1. **PRD作成**: PDM Agentを使い `docs/prd/template.md` に沿ってPRDをPRとしてマージ
-2. **Issue作成**: PRDをもとに実装Issueを作成
-3. **詳細設計**: Designer AgentがIssueをもとに設計ドキュメントを作成
-4. **TDD実装**: Implementer Agentがテスト先行で実装
-5. **PR作成・レビュー**: QA AgentがPRをレビューしてマージ
+`PRD作成 → Issue作成 → 詳細設計 → TDD実装 → PRレビュー → マージ`
+
+詳細は `docs/guidelines/development-flow.md` を参照。
 
 ## Agentの使い方
 

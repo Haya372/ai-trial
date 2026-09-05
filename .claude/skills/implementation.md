@@ -90,5 +90,5 @@ TDD（Red-Green-Refactor）サイクルで、設計ドキュメントのイン�
 
 ## 参照ドキュメント
 
-- `docs/guidelines/guidelines.md` — コーディング規約・コミット規約
+- `docs/guidelines/guidelines.md` — 設計原則・コミット規約
 - `docs/guidelines/development-flow.md` — 全体の開発フロー（PRD → Issue → 詳細設計 → TDD実装 → PRレビュー → マージ）
