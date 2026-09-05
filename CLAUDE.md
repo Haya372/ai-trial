@@ -6,9 +6,7 @@ Claude Codeを活用した開発のテンプレートプロジェクト。
 
 ## 開発フロー
 
-`PRD作成 → Issue作成 → 詳細設計 → TDD実装 → PRレビュー → マージ`
-
-詳細は `docs/guidelines/development-flow.md` を参照。
+`docs/guidelines/development-flow.md` を参照。
 
 ## Agentの使い方
 
