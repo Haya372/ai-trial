@@ -7,6 +7,17 @@
     "usecase",
     "monorepo",
     "Monorepo",
-    "workspaces"
+    "workspaces",
+    "GORM",
+    "sqlx",
+    "RDBMS",
+    "jackc",
+    "tstzrange",
+    "libpq",
+    "RRULE",
+    "dbown",
+    "Pydantic",
+    "Pressly",
+    "Ariga"
   ]
 }
