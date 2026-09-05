@@ -1,2 +1,6 @@
 [tools]
-gitleaks = "8.30.1"
+gitleaks   = "8.30.1"
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+zizmor     = "1.30.0"
+pinact     = "4.1.1"
