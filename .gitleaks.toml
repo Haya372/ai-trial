@@ -1,0 +1,5 @@
+title = "gitleaks config"
+
+[extend]
+# デフォルトルールセット（240以上のシークレットパターン）を継承する。
+useDefault = true

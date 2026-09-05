@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+    if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
+        continue
+    fi
+
+    if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+        log_opts="$local_sha"
+    else
+        log_opts="$remote_sha..$local_sha"
+    fi
+
+    gitleaks detect \
+        --config .gitleaks.toml \
+        --log-opts="$log_opts" \
+        --verbose
+done
