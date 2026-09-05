@@ -1,0 +1,12 @@
+{
+  "version": "0.2",
+  "language": "en,ja",
+  "words": [
+    "Turborepo",
+    "Polyrepo",
+    "usecase",
+    "monorepo",
+    "Monorepo",
+    "workspaces"
+  ]
+}
