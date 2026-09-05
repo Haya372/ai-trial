@@ -1,6 +1,6 @@
 ---
 name: test-design
-description: 実装前のテスト設計・テストコード作成が必要なとき。Implementerエージェントが使用する。
+description: 実装前のテスト設計・テストコード作成が必要なとき。
 ---
 
 # テスト設計スキル

@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: コードレビュー・品質チェックが必要なとき。AdvisorエージェントとQAエージェントが使用する。
+description: コードレビュー・品質チェックが必要なとき。
 ---
 
 # コードレビュースキル

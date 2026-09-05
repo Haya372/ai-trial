@@ -1,6 +1,6 @@
 ---
 name: detailed-design
-description: 詳細設計・ADR作成・ドメインモデル定義が必要なとき。Designerエージェントが使用する。
+description: 詳細設計・ADR作成・ドメインモデル定義が必要なとき。
 ---
 
 # 詳細設計スキル

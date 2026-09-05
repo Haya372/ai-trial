@@ -1,6 +1,6 @@
 ---
 name: implementation
-description: TDD（Red-Green-Refactor）で実装するとき。Implementerエージェントが使用する。
+description: TDD（Red-Green-Refactor）で実装するとき。
 ---
 
 # 実装スキル

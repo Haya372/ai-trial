@@ -1,6 +1,6 @@
 ---
 name: requirements-definition
-description: PRD作成・要件定義が必要なとき。PDMエージェントとPersonaエージェントが使用する。
+description: PRD作成・要件定義が必要なとき。
 ---
 
 # 要件定義スキル

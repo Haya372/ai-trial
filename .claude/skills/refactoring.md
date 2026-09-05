@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: リファクタリングが必要なとき。Implementerエージェントが使用する。
+description: リファクタリングが必要なとき。
 ---
 
 # リファクタリングスキル
