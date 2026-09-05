@@ -14,10 +14,15 @@ description: GitHubにIssueを起票するとき。
 | `feature.md` | PRDをもとにした機能実装Issue |
 | `task.md` | ドキュメント・設定・環境整備など |
 
+## 命名規則
+
+- **タイトル**: 英語で書く（例: `feat: Add calendar view`）
+- **本文**: 日本語で書く
+
 ## コマンド
 
 ```bash
-gh issue create --title "<type>: <タイトル>" --template <テンプレートファイル名>
+gh issue create --title "<type>: <English title>" --template <テンプレートファイル名>
 ```
 
 ## チェックリスト
