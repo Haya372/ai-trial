@@ -20,6 +20,7 @@ db/reset:
 	docker compose down -v
 
 db/psql:
-	@docker compose ps postgres --status running --quiet 2>/dev/null | grep -q . || \
+	@docker info >/dev/null 2>&1 || { echo "ERROR: Docker daemon is not running." >&2; exit 1; }
+	@docker compose ps postgres --status running --quiet | grep -q . || \
 		{ echo "ERROR: postgres is not running. Run 'make db/up' first." >&2; exit 1; }
 	docker compose exec postgres psql -U $${DB_USER:-postgres} $${DB_NAME:-ai_trial_dev}
