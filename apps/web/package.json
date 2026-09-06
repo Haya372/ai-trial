@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "format": "biome format --write .",
+    "format:check": "biome format --diagnostic-level=error .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -14,6 +16,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.12",
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
