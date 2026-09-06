@@ -1,19 +1,22 @@
 package di
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/dig"
 
+	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 )
 
 func NewContainer() (*dig.Container, error) {
 	c := dig.New()
-	for _, p := range []any{newLogger, handler.NewHealthHandler, newRouter} {
+	for _, p := range []any{newLogger, newPool, handler.NewHealthHandler, newRouter} {
 		if err := c.Provide(p); err != nil {
 			return nil, fmt.Errorf("provide %T: %w", p, err)
 		}
@@ -23,6 +26,16 @@ func NewContainer() (*dig.Container, error) {
 
 func newLogger() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, nil))
+}
+
+func newPool(logger *slog.Logger) (*pgxpool.Pool, error) {
+	dsn := os.Getenv("DATABASE_URL")
+	pool, err := db.NewPool(context.Background(), dsn)
+	if err != nil {
+		return nil, fmt.Errorf("connect to database: %w", err)
+	}
+	logger.Info("connected to database")
+	return pool, nil
 }
 
 func newRouter(h *handler.HealthHandler) *chi.Mux {
