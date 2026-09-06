@@ -6,6 +6,8 @@
 
 ADR-001で採用したClean Architectureでは、UseCase層がInfrastructure層の実装に直接依存せず、インターフェース経由で依存性を注入（DI: Dependency Injection）する。
 
+現時点のヘルスチェックAPIはUseCase層を持たないが、機能追加によりUseCase・Repository層の依存グラフが増加することを見越して、初期セットアップ時にDIコンテナを導入する。
+
 アプリケーション起動時に各層のインスタンスを組み立てる処理（コンポジションルート）が必要になる。この組み立てをどのように実装するかを決定する。
 
 候補として `google/wire`、`uber/dig`、`samber/do`、手動DIを検討する。
@@ -19,7 +21,7 @@ ADR-001で採用したClean Architectureでは、UseCase層がInfrastructure層�
 
 DIライブラリとして **`uber/dig`** を採用する。
 
-コンポジションルートは `cmd/server/main.go` に集約し、`dig.Container` にプロバイダーを登録する形で組み立てる。
+コンポジションルートは `infrastructure/di/container.go` に集約し、`dig.Container` にプロバイダーを登録する。`cmd/server/main.go` はコンテナを取得して `Invoke` で起動処理を委譲する。
 
 ## 検討した選択肢
 
