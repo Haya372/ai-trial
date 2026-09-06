@@ -15,6 +15,7 @@ func NewContainer() *dig.Container {
 	mustProvide(c, newLogger)
 	mustProvide(c, handler.NewHealthHandler)
 	mustProvide(c, newRouter)
+
 	return c
 }
 
@@ -31,5 +32,6 @@ func newLogger() *slog.Logger {
 func newRouter(h *handler.HealthHandler) *chi.Mux {
 	r := chi.NewRouter()
 	r.Get("/health", h.ServeHTTP)
+
 	return r
 }

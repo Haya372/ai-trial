@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,6 +13,11 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/di"
+)
+
+const (
+	defaultPort     = "8080"
+	shutdownTimeout = 5 * time.Second
 )
 
 func main() {
@@ -26,11 +32,12 @@ func main() {
 func run(r *chi.Mux, logger *slog.Logger) error {
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = defaultPort
 	}
 	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: r,
+		Addr:              ":" + port,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -38,7 +45,7 @@ func run(r *chi.Mux, logger *slog.Logger) error {
 
 	go func() {
 		logger.Info("server starting", "addr", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server error", "error", err)
 		}
 	}()
@@ -46,7 +53,8 @@ func run(r *chi.Mux, logger *slog.Logger) error {
 	<-ctx.Done()
 	logger.Info("shutting down server")
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
+
 	return srv.Shutdown(shutdownCtx)
 }

@@ -1,16 +1,25 @@
 version: "2"
 
 linters:
-  enable:
-    - govet
-    - errcheck
-    - staticcheck
+  default: all
+  disable:
+    - wsl
+    - wsl_v5
+    - wrapcheck
     - revive
-  settings:
-    revive:
-      rules:
-        - name: exported
-          disabled: true
+    - noinlineerr
+    - nilnil
+    - ireturn
+    - godox
+    - gochecknoinits
+    - gochecknoglobals
+    - exhaustruct
+    - paralleltest
+    - varnamelen
+    - funlen
+    - depguard
+    - nlreturn
+    - mnd
 
 formatters:
   enable:
@@ -24,3 +33,11 @@ formatters:
 issues:
   exclude-dirs:
     - vendor
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - maintidx
+        - cyclop
+        - gocognit
+        - gocyclo
