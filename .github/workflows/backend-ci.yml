@@ -5,18 +5,22 @@ on:
       - main
     paths:
       - apps/backend/**/*.go
+      - apps/backend/**/*.sql
       - apps/backend/go.mod
       - apps/backend/go.sum
       - apps/backend/.golangci.yml
       - apps/backend/Makefile
+      - apps/backend/sqlc.yaml
       - .github/workflows/backend-ci.yml
   pull_request:
     paths:
       - apps/backend/**/*.go
+      - apps/backend/**/*.sql
       - apps/backend/go.mod
       - apps/backend/go.sum
       - apps/backend/.golangci.yml
       - apps/backend/Makefile
+      - apps/backend/sqlc.yaml
       - .github/workflows/backend-ci.yml
 
 permissions:
@@ -37,6 +41,12 @@ jobs:
         with:
           go-version-file: apps/backend/go.mod
           cache: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+      - name: Generate sqlc code
+        run: make sqlc-generate
+        working-directory: apps/backend
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
@@ -57,8 +67,14 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: apps/backend/go.mod
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          install: true
+      - name: Generate sqlc code
+        run: make sqlc-generate
+        working-directory: apps/backend
       - name: Run tests with coverage
-        run: go test -coverprofile=coverage.out ./...
+        run: go test -tags=integration -coverprofile=coverage.out ./...
         working-directory: apps/backend
       - name: Upload coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,0 +1,2 @@
+-- Schema definitions go here.
+-- Add CREATE TABLE statements as domain tables are designed.

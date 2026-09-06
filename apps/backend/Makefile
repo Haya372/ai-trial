@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt vet
+.PHONY: build test lint fmt vet sqlc-generate
 
 build:
 	go build ./...
@@ -15,3 +15,6 @@ fmt:
 
 vet:
 	go vet ./...
+
+sqlc-generate:
+	sqlc generate
