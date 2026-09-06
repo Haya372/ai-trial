@@ -22,7 +22,8 @@ PR番号が会話から分からない場合は現在のブランチから取得
 gh pr view --json number,title,url
 
 # レビューコメント（インラインコメントを含む）を取得
-gh pr view <PR番号> --json reviewThreads,reviews,comments
+gh pr view <PR番号> --json reviews,comments
+gh api repos/{owner}/{repo}/pulls/<PR番号>/comments
 ```
 
 取得したコメントを一覧にして整理する。各コメントについて以下を記録する。
