@@ -1,7 +1,7 @@
 .PHONY: db/up db/down db/logs db/reset db/psql
 
 db/up:
-	docker compose up -d postgres
+	docker compose up -d --wait postgres
 
 db/down:
 	docker compose down
