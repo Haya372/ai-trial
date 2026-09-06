@@ -16,7 +16,10 @@ import (
 
 func NewContainer(ctx context.Context) (*dig.Container, error) {
 	c := dig.New()
-	for _, p := range []any{func() context.Context { return ctx }, newLogger, newPool, handler.NewHealthHandler, newRouter} {
+	for _, p := range []any{
+		func() context.Context { return ctx },
+		newLogger, newPool, handler.NewHealthHandler, newRouter,
+	} {
 		if err := c.Provide(p); err != nil {
 			return nil, fmt.Errorf("provide %T: %w", p, err)
 		}

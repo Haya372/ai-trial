@@ -22,19 +22,22 @@ const (
 )
 
 func main() {
+	if err := start(); err != nil {
+		slog.Error("fatal", "error", err)
+		os.Exit(1)
+	}
+}
+
+func start() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	c, err := di.NewContainer(ctx)
 	if err != nil {
-		slog.Error("failed to build DI container", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("build DI container: %w", err)
 	}
 
-	if err := c.Invoke(run); err != nil {
-		slog.Error("server error", "error", err)
-		os.Exit(1)
-	}
+	return c.Invoke(run)
 }
 
 func run(r *chi.Mux, logger *slog.Logger) error {
