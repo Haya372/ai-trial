@@ -20,6 +20,17 @@ linters:
     - depguard
     - nlreturn
     - mnd
+  exclusions:
+    paths:
+      - vendor
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - maintidx
+          - cyclop
+          - gocognit
+          - gocyclo
 
 formatters:
   enable:
@@ -29,15 +40,3 @@ formatters:
     goimports:
       local-prefixes:
         - github.com/Haya372/ai-trial
-
-issues:
-  exclude-dirs:
-    - vendor
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - maintidx
-        - cyclop
-        - gocognit
-        - gocyclo
