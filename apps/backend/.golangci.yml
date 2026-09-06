@@ -19,6 +19,7 @@ linters:
     - varnamelen
     - funlen
     - depguard
+    - gomodguard
     - nlreturn
     - mnd
   exclusions:
