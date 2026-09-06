@@ -1,3 +1,10 @@
+pre-push:
+  jobs:
+    - name: go-build-lint
+      glob: "apps/backend/**/*.{go,sql,yaml}"
+      root: "apps/backend"
+      run: make sqlc-generate && make build && make lint
+
 pre-commit:
   parallel: true
   jobs:
