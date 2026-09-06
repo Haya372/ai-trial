@@ -21,7 +21,11 @@ const (
 )
 
 func main() {
-	c := di.NewContainer()
+	c, err := di.NewContainer()
+	if err != nil {
+		slog.Error("failed to build DI container", "error", err)
+		os.Exit(1)
+	}
 
 	if err := c.Invoke(run); err != nil {
 		slog.Error("failed to start server", "error", err)

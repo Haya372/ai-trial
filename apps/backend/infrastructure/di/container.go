@@ -1,6 +1,7 @@
 package di
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -10,19 +11,14 @@ import (
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 )
 
-func NewContainer() *dig.Container {
+func NewContainer() (*dig.Container, error) {
 	c := dig.New()
-	mustProvide(c, newLogger)
-	mustProvide(c, handler.NewHealthHandler)
-	mustProvide(c, newRouter)
-
-	return c
-}
-
-func mustProvide(c *dig.Container, constructor any) {
-	if err := c.Provide(constructor); err != nil {
-		panic(err)
+	for _, p := range []any{newLogger, handler.NewHealthHandler, newRouter} {
+		if err := c.Provide(p); err != nil {
+			return nil, fmt.Errorf("provide %T: %w", p, err)
+		}
 	}
+	return c, nil
 }
 
 func newLogger() *slog.Logger {
