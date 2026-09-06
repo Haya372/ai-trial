@@ -23,6 +23,19 @@
       "semicolons": "asNeeded"
     }
   },
+  "css": {
+    "parser": {
+      "cssModules": false,
+      "allowWrongLineComments": false,
+      "tailwindDirectives": true
+    },
+    "formatter": {
+      "enabled": true
+    },
+    "linter": {
+      "enabled": false
+    }
+  },
   "assist": {
     "enabled": true,
     "actions": {
