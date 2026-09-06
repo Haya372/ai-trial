@@ -22,7 +22,10 @@ const (
 )
 
 func main() {
-	c, err := di.NewContainer()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	c, err := di.NewContainer(ctx)
 	if err != nil {
 		slog.Error("failed to build DI container", "error", err)
 		os.Exit(1)
