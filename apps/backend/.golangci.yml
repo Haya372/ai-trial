@@ -1,0 +1,44 @@
+version: "2"
+
+linters:
+  default: all
+  disable:
+    - wsl
+    - wsl_v5
+    - wrapcheck
+    - revive
+    - noinlineerr
+    - nilnil
+    - ireturn
+    - godox
+    - gochecknoinits
+    - gochecknoglobals
+    - exhaustruct
+    - exhaustruct_v5
+    - paralleltest
+    - varnamelen
+    - funlen
+    - depguard
+    - gomodguard
+    - nlreturn
+    - mnd
+  exclusions:
+    paths:
+      - vendor
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - maintidx
+          - cyclop
+          - gocognit
+          - gocyclo
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/Haya372/ai-trial
