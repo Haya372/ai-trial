@@ -1,5 +1,15 @@
 name: Backend CI
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/backend/**/*.go
+      - apps/backend/go.mod
+      - apps/backend/go.sum
+      - apps/backend/.golangci.yml
+      - apps/backend/Makefile
+      - .github/workflows/backend-ci.yml
   pull_request:
     paths:
       - apps/backend/**/*.go
@@ -15,6 +25,7 @@ permissions:
 jobs:
   lint:
     name: Lint
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
