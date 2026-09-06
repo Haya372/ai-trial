@@ -1,18 +1,15 @@
 package handler_test
 
 import (
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 )
 
 func TestHealthHandler_GET_returns200(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	h := handler.NewHealthHandler(logger)
+	h := handler.NewHealthHandler()
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()

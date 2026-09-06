@@ -1,18 +1,13 @@
 package handler
 
-import (
-	"log/slog"
-	"net/http"
-)
+import "net/http"
 
-type HealthHandler struct {
-	logger *slog.Logger
+type HealthHandler struct{}
+
+func NewHealthHandler() *HealthHandler {
+	return &HealthHandler{}
 }
 
-func NewHealthHandler(logger *slog.Logger) *HealthHandler {
-	return &HealthHandler{logger: logger}
-}
-
-func (h *HealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *HealthHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
