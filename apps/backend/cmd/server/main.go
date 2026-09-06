@@ -24,8 +24,12 @@ func main() {
 }
 
 func run(r *chi.Mux, logger *slog.Logger) error {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: r,
 	}
 
