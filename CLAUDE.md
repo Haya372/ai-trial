@@ -30,6 +30,7 @@ Claude Codeを活用した開発のテンプレートプロジェクト。
 ## コマンド実行
 
 - **pnpm**: corepack 経由だとシグネチャ検証エラーが出る。`mise exec -- pnpm <command>` で実行する
+- **git**: `git -C <path>` は allowlist にマッチしない。`cd <path> && git <command>` の形で実行する
 
 ## 制約
 
