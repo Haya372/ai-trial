@@ -74,7 +74,7 @@ jobs:
         run: make sqlc-generate
         working-directory: apps/backend
       - name: Run tests with coverage
-        run: go test -coverprofile=coverage.out ./...
+        run: go test -tags=integration -coverprofile=coverage.out ./...
         working-directory: apps/backend
       - name: Upload coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
