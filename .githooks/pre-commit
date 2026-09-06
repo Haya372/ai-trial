@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -z "$STAGED_GO_FILES" ]; then
+    exit 0
+fi
+
+for f in $STAGED_GO_FILES; do
+    gofmt -w "$f"
+    if command -v goimports > /dev/null 2>&1; then
+        goimports -w "$f"
+    fi
+    git add "$f"
+done
