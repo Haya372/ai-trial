@@ -12,10 +12,16 @@ import (
 
 func NewContainer() *dig.Container {
 	c := dig.New()
-	c.Provide(newLogger)
-	c.Provide(handler.NewHealthHandler)
-	c.Provide(newRouter)
+	mustProvide(c, newLogger)
+	mustProvide(c, handler.NewHealthHandler)
+	mustProvide(c, newRouter)
 	return c
+}
+
+func mustProvide(c *dig.Container, constructor any) {
+	if err := c.Provide(constructor); err != nil {
+		panic(err)
+	}
 }
 
 func newLogger() *slog.Logger {

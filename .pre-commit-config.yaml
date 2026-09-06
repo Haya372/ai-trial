@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: go-fmt
+        name: gofmt
+        language: system
+        entry: gofmt -w
+        files: \.go$
+      - id: go-imports
+        name: goimports
+        language: system
+        entry: goimports -w
+        files: \.go$

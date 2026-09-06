@@ -31,6 +31,14 @@
     "FullCalendar",
     "goroutine",
     "esbuild",
-    "Vite"
+    "Vite",
+    "golangci",
+    "gofmt",
+    "goimports",
+    "govet",
+    "errcheck",
+    "staticcheck",
+    "revive",
+    "Haya"
   ]
 }
