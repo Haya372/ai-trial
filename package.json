@@ -1,0 +1,7 @@
+{
+  "name": "ai-trial",
+  "private": true,
+  "scripts": {
+    "dev:web": "pnpm --filter web dev"
+  }
+}
