@@ -17,6 +17,60 @@
 - 成功・エラーのレスポンス形式をプロジェクト全体で統一する
 - 入力バリデーションはAPIの境界で行う
 
+### APIエラー定義
+
+エラーレスポンスの構造・フィールド定義・セキュリティ制約は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照。以下はその実装指針。
+
+#### HTTPステータスコードとエラーコードの対応
+
+| HTTPステータス | エラーコード | 用途 |
+|---|---|---|
+| 400 Bad Request | `VALIDATION_ERROR` | リクエストパラメータのバリデーション失敗 |
+| 400 Bad Request | `INVALID_REQUEST` | 構造的に不正なリクエスト（JSON parse失敗等） |
+| 401 Unauthorized | `UNAUTHORIZED` | 認証情報なし・無効 |
+| 403 Forbidden | `FORBIDDEN` | 認証済みだがリソースへのアクセス権限なし |
+| 404 Not Found | `NOT_FOUND` | リソースが存在しない |
+| 409 Conflict | `CONFLICT` | 一意制約違反など競合状態 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | サーバー内部エラー（詳細はログに記録） |
+
+新しいエラー種別が必要になった場合はこの表を更新する。
+
+#### エラーコードの命名規則
+
+- 大文字スネークケースで定義する（例: `NOT_FOUND`, `INVALID_EMAIL_FORMAT`）
+- トップレベルのコードはエラー種別を表す（例: `VALIDATION_ERROR`, `UNAUTHORIZED`）
+- `details[].code` はフィールドの制約違反を表す（例: `TOO_SHORT`, `REQUIRED`, `INVALID_FORMAT`）
+
+#### 新しいエラーを追加するとき
+
+1. HTTPステータスコードとエラーコードの対応を ADR-013 の対応表に照らして決める
+2. 対応するエラーコード定数をバックエンドに定義する
+3. `message` はバックエンドで事前定義した英語の文言を使う（ライブラリの生エラーをそのまま渡さない）
+
+```go
+// OK: 定義済みの定数と文言を使う
+const (
+    ErrCodeNotFound        = "NOT_FOUND"
+    ErrCodeValidation      = "VALIDATION_ERROR"
+    ErrCodeInternal        = "INTERNAL_ERROR"
+)
+
+writeError(w, http.StatusNotFound, ErrCodeNotFound, "Resource not found")
+
+// NG: 内部エラーをそのまま渡す
+writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+```
+
+#### セキュリティ制約
+
+レスポンスに含めてはならない情報:
+
+- スタックトレース・ファイルパス・行番号
+- SQLクエリ・テーブル名・DBのエラーメッセージ
+- 使用ライブラリの名称やバージョン
+
+`500 Internal Server Error` の `message` は常に `"Internal server error"` 固定とし、詳細はログにのみ記録する。
+
 ### ドメイン設計
 
 - ドメイン固有の用語はコード・ドキュメント全体で統一する（`docs/domain/` 参照）
