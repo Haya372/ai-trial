@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	if err := c.Invoke(run); err != nil {
-		slog.Error("failed to start server", "error", err)
+		slog.Error("server error", "error", err)
 		os.Exit(1)
 	}
 }
@@ -47,18 +48,32 @@ func run(r *chi.Mux, logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server starting", "addr", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("server error", "error", err)
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
 		}
+		close(serverErr)
 	}()
 
-	<-ctx.Done()
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			return fmt.Errorf("server failed to start: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		stop()
+	}
+
 	logger.Info("shutting down server")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	return srv.Shutdown(shutdownCtx)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("graceful shutdown: %w", err)
+	}
+	return <-serverErr
 }
