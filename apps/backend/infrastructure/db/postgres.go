@@ -2,14 +2,17 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+var ErrEmptyDSN = errors.New("database DSN is required")
+
 func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	if dsn == "" {
-		return nil, fmt.Errorf("database DSN is required")
+		return nil, ErrEmptyDSN
 	}
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {

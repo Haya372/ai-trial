@@ -25,6 +25,7 @@ linters:
   exclusions:
     paths:
       - vendor
+      - infrastructure/db/generated
     rules:
       - path: _test\.go
         linters:
