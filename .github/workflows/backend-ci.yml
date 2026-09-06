@@ -41,7 +41,7 @@ jobs:
         with:
           go-version-file: apps/backend/go.mod
           cache: false
-      - uses: jdx/mise-action@13afe6c5e6e99289dcc96c6bf5b67e50f5de4d5a # v2.2.3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           install: true
       - name: Generate sqlc code
@@ -67,7 +67,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@13afe6c5e6e99289dcc96c6bf5b67e50f5de4d5a # v2.2.3
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           install: true
       - name: Generate sqlc code
