@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "format": "biome format --write .",
-    "format:check": "biome format --diagnostic-level=error .",
+    "lint": "run-p lint:*",
+    "lint:oxlint": "oxlint",
+    "lint:biome": "biome format --diagnostic-level=error .",
+    "lint:knip": "knip",
+    "format": "run-s format:*",
+    "format:biome": "biome format --write .",
+    "format:knip": "knip --fix",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -16,11 +20,13 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.12",
+    "@biomejs/biome": "2.5.12",
     "@types/node": "26.4.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
+    "knip": "6.34.0",
+    "npm-run-all2": "9.0.3",
     "oxlint": "1.81.0",
     "typescript": "7.0.2",
     "vite": "8.2.2"
