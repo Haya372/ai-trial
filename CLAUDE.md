@@ -27,6 +27,10 @@ Claude Codeを活用した開発のテンプレートプロジェクト。
 
 各AgentはSkillを参照しながら作業する。Skillは `Skill` ツールで呼び出す。
 
+## コマンド実行
+
+- **pnpm**: corepack 経由だとシグネチャ検証エラーが出る。`mise exec -- pnpm <command>` で実行する
+
 ## 制約
 
 - TDDを必ず守る（テストを先に書いてから実装する）
