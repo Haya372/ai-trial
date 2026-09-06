@@ -1,0 +1,4 @@
+{
+  "entry": ["src/components/ui/*.{ts,tsx}", "src/lib/*.ts"],
+  "ignoreDependencies": ["lucide-react"]
+}

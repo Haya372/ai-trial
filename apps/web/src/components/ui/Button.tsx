@@ -43,4 +43,4 @@ function Button({ variant, size, ...props }: ButtonProps) {
   )
 }
 
-export { Button, buttonVariants }
+export { Button }
