@@ -2,7 +2,11 @@ name: Backend CI
 on:
   pull_request:
     paths:
-      - apps/backend/**
+      - apps/backend/**/*.go
+      - apps/backend/go.mod
+      - apps/backend/go.sum
+      - apps/backend/.golangci.yml
+      - apps/backend/Makefile
       - .github/workflows/backend-ci.yml
 
 permissions:
