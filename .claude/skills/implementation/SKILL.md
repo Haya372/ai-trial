@@ -72,7 +72,7 @@ TDD（Red-Green-Refactor）サイクルで、設計ドキュメントのイン�
 - [ ] 実装はテストを通す最小限にとどまっているか（YAGNI）
 - [ ] リファクタリング後もテストが全て通るか
 - [ ] 設計ドキュメントのインターフェースと実装が一致しているか
-- [ ] コミットメッセージはプロジェクトの規約に沿っているか
+- [ ] コミットメッセージは `commit` スキルの規約に沿っているか
 - [ ] コードコメントはWHY（理由）のみ書かれているか（WHATは書かない）
 
 ---
@@ -90,5 +90,5 @@ TDD（Red-Green-Refactor）サイクルで、設計ドキュメントのイン�
 
 ## 参照ドキュメント
 
-- `docs/guidelines/guidelines.md` — 設計原則・コミット規約
+- `docs/guidelines/guidelines.md` — 設計原則
 - `docs/guidelines/development-flow.md` — 全体の開発フロー（PRD → Issue → 詳細設計 → TDD実装 → PRレビュー → マージ）
