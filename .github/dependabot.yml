@@ -20,3 +20,13 @@ updates:
       web-dependencies:
         patterns:
           - "*"
+  - package-ecosystem: "gomod"
+    directory: "/apps/backend"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
