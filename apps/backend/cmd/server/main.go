@@ -10,32 +10,17 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/dig"
 
-	"github.com/Haya372/ai-trial/backend/interface/handler"
+	"github.com/Haya372/ai-trial/backend/infrastructure/di"
 )
 
 func main() {
-	c := dig.New()
-
-	c.Provide(newLogger)
-	c.Provide(handler.NewHealthHandler)
-	c.Provide(newRouter)
+	c := di.NewContainer()
 
 	if err := c.Invoke(run); err != nil {
 		slog.Error("failed to start server", "error", err)
 		os.Exit(1)
 	}
-}
-
-func newLogger() *slog.Logger {
-	return slog.New(slog.NewJSONHandler(os.Stdout, nil))
-}
-
-func newRouter(h *handler.HealthHandler) *chi.Mux {
-	r := chi.NewRouter()
-	r.Get("/health", h.ServeHTTP)
-	return r
 }
 
 func run(r *chi.Mux, logger *slog.Logger) error {
