@@ -37,6 +37,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,6 +46,11 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: apps/backend/go.mod
-      - name: Run tests
-        run: go test ./...
+      - name: Run tests with coverage
+        run: go test -coverprofile=coverage.out ./...
         working-directory: apps/backend
+      - name: Coverage report
+        uses: fgrosse/go-coverage-report@8c1d1a09864211d258937b1b1a5b849f7e4f2682 # v1.2.0
+        with:
+          coverage-artifact-name: go-coverage
+          coverage-file-name: apps/backend/coverage.out
