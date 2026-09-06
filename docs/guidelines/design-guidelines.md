@@ -71,6 +71,10 @@ writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 
 `500 Internal Server Error` の `message` は常に `"Internal server error"` 固定とし、詳細はログにのみ記録する。
 
+### ログ・メトリクス・トレーシング
+
+ログレベルの使い分け・構造化フィールドのルール・エラーログの出し方・メトリクス命名規則・トレーシングのスパン粒度は [オブザーバビリティガイドライン](observability-guidelines.md) を参照。
+
 ### ドメイン設計
 
 - ドメイン固有の用語はコード・ドキュメント全体で統一する（`docs/domain/` 参照）
