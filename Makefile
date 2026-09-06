@@ -10,6 +10,8 @@ db/logs:
 	docker compose logs -f postgres
 
 db/reset:
+	@echo "WARNING: This will destroy all data in the postgres volume. Ctrl+C to cancel."
+	@sleep 3
 	docker compose down -v
 
 db/psql:
