@@ -14,7 +14,7 @@ func TestHealthHandler_GET_returns200(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	h := handler.NewHealthHandler(logger)
 
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
 
 	h.ServeHTTP(rec, req)
