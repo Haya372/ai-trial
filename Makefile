@@ -4,7 +4,7 @@ db/up:
 	docker compose up -d --wait postgres
 
 db/down:
-	docker compose down
+	docker compose rm -sf postgres
 
 db/logs:
 	docker compose logs -f postgres
