@@ -1,0 +1,17 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      glob: "apps/web/**/*.{ts,tsx,js,jsx,json,css}"
+      run: ./apps/web/node_modules/.bin/biome format --write {staged_files}
+      stage_fixed: true
+    - name: go-format
+      glob: "apps/backend/**/*.go"
+      run: |
+        if ! command -v goimports > /dev/null 2>&1; then
+          echo "ERROR: goimports not found. Install: go install golang.org/x/tools/cmd/goimports@latest" >&2
+          exit 1
+        fi
+        gofmt -w {staged_files}
+        goimports -w {staged_files}
+      stage_fixed: true

@@ -1,0 +1,15 @@
+{
+  "name": "ai-trial",
+  "private": true,
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "lint": "turbo lint",
+    "format": "turbo format",
+    "build": "turbo build"
+  },
+  "devDependencies": {
+    "lefthook": "2.1.12",
+    "turbo": "2.10.12"
+  }
+}
