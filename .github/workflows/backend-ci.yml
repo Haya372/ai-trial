@@ -38,7 +38,7 @@ jobs:
           go-version-file: apps/backend/go.mod
           cache: false
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6.5.2
+        uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7.0.1
         with:
           working-directory: apps/backend
           version: v2.13.2
@@ -60,6 +60,11 @@ jobs:
       - name: Run tests with coverage
         run: go test -coverprofile=coverage.out ./...
         working-directory: apps/backend
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: go-coverage
+          path: apps/backend/coverage.out
       - name: Coverage report
         uses: fgrosse/go-coverage-report@8c1d1a09864211d258937b1b1a5b849f7e4f2682 # v1.2.0
         with:
