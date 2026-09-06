@@ -58,7 +58,7 @@ mainブランチの最新状態から作成する。
 
 | 作業の性質 | 次のスキル |
 |---|---|
-| 機能が複雑・設計が必要 | `detailed-design` スキル → `implementation` スキル |
+| 機能が複雑・設計が必要 | `specification` スキル → `detailed-design` スキル → `implementation` スキル |
 | シンプルな設定・ファイル追加 | そのまま実装 |
 | バグ修正 | `systematic-debugging` スキル |
 
