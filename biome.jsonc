@@ -1,5 +1,8 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+  // ルートではすべて無効にし、各アプリが自身の biome.jsonc で設定を上書きする。
+  // フォーマットは apps/web/biome.jsonc で有効化済み。
+  // リンターは oxlint が担当するため無効のまま。
   "linter": {
     "enabled": false
   },
