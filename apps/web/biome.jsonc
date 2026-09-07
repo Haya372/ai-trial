@@ -14,6 +14,7 @@
     "indentStyle": "space",
     "indentWidth": 2
   },
+  // リンターは oxlint が担当するため Biome のリンターは無効にする。
   "linter": {
     "enabled": false
   },
