@@ -17,3 +17,26 @@
 
 - [開発ガイドライン](docs/guidelines/guidelines.md)
 - [ADR](docs/adr/)
+
+## Claude Code スキル
+
+### PRレビュー (`review-pr`)
+
+PR差分をカテゴリ別（frontend / backend / document）にサブAgentで並列レビューし、スコア7以上の指摘のみGitHub PRにインラインコメントとして投稿する。
+
+**使い方:**
+
+```
+/review-pr 42
+```
+
+または
+
+```
+PR #42 をレビューして
+```
+
+**レビュー観点:**
+- [フロントエンド](docs/guidelines/review-criteria/frontend.md)
+- [バックエンド](docs/guidelines/review-criteria/backend.md)
+- [ドキュメント](docs/guidelines/review-criteria/document.md)
