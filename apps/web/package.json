@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "lint": "run-p lint:*",
-    "lint:oxlint": "oxlint",
+    "lint:oxlint": "oxlint --ignore-pattern src/api",
     "lint:biome": "biome format --diagnostic-level=error .",
     "lint:knip": "knip",
     "format": "run-s format:*",

@@ -1,0 +1,9 @@
+{
+  "entry": ["src/components/ui/*.{ts,tsx}", "src/lib/*.ts"],
+  "ignoreDependencies": [
+    "lucide-react",
+    // orval の生成コードが src/api/ にコミットされないため、knip がインポートを検出できない
+    "@tanstack/react-query",
+    "axios"
+  ]
+}
