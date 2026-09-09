@@ -9,12 +9,6 @@ description: PRをカテゴリ別サブAgentでレビューし、スコア7以�
 
 PR差分をカテゴリ別（frontend / backend / document）に分析し、重要度の高い指摘のみGitHub PRにインラインコメントとして投稿する。レビュー処理をサブAgentに委譲することでメインAgentのコンテキスト消費を最小化する。
 
-## 前提
-
-- `gh` CLIが認証済みであること
-- カレントディレクトリがレビュー対象リポジトリのルートであること
-- `.claude/settings.json` に `gh api *` のallowlistが追加されていること
-
 ---
 
 ## 手順
@@ -34,25 +28,25 @@ gh pr view <PR番号> --json files -q '.files[].path'
 
 ### ステップ 2: カテゴリ判定
 
-変更ファイルのパス・拡張子から対象カテゴリを判定する。
+変更ファイルの拡張子から対象カテゴリを判定する。拡張子だけでは判断できない場合（`.ts` など）はファイルパスやdiff内容から総合的に判断する。
 
-| カテゴリ | 対象ファイルパターン |
-|----------|-------------------|
-| frontend | `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.css`, `*.html`, `src/components/**`, `src/pages/**`, `src/app/**` |
-| backend | `*.go`, `*.py`, `server/**`, `api/**`, `handler/**`, `internal/**`, `pkg/**`, `*.sql` |
-| document | `docs/**`, `*.md`, `.github/**`, `*.yaml`（`docs/`配下） |
+| カテゴリ | 主な拡張子 |
+|----------|-----------|
+| frontend | `.tsx`, `.jsx`, `.vue`, `.svelte`, `.css`, `.html` |
+| backend | `.go`, `.py`, `.rs`, `.java`, `.sql` |
+| document | `.md`, `.yaml`, `.json`（設定ファイル） |
 
 - 複数のカテゴリに該当するファイルが存在する場合は、複数のカテゴリを対象にする
 - どのカテゴリにも該当しない場合はユーザーに通知して終了する
 
 ### ステップ 3: カテゴリ別サブAgentの起動
 
-該当カテゴリごとに `Agent` ツールでサブAgentを起動する。複数カテゴリがある場合は並列実行する。
+該当カテゴリごとに `Agent` ツール（`subagent_type: "general-purpose"`）でサブAgentを起動する。複数カテゴリがある場合は並列実行する。
 
 各サブAgentへのプロンプト：
 
 ```
-あなたはPRレビュアーです。以下の差分を `docs/guidelines/review-criteria/<カテゴリ>.md` の観点に従ってレビューしてください。
+あなたはPRレビュアーです。以下の差分を `docs/guidelines/<カテゴリ>-review-criteria.md` の観点に従ってレビューしてください。
 
 ## 差分
 <該当カテゴリのファイルのdiff内容>
@@ -152,6 +146,6 @@ JSON
 
 ## 参照ドキュメント
 
-- `docs/guidelines/review-criteria/frontend.md` — フロントエンドレビュー観点
-- `docs/guidelines/review-criteria/backend.md` — バックエンドレビュー観点
-- `docs/guidelines/review-criteria/document.md` — ドキュメントレビュー観点
+- `docs/guidelines/frontend-review-criteria.md` — フロントエンドレビュー観点
+- `docs/guidelines/backend-review-criteria.md` — バックエンドレビュー観点
+- `docs/guidelines/document-review-criteria.md` — ドキュメントレビュー観点
