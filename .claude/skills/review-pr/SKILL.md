@@ -144,14 +144,6 @@ JSON
 
 ---
 
-## allowlist設定
-
-`gh api` によるインラインコメント投稿を承認なしで実行するには `.claude/settings.json` に以下を追加する。リポジトリ名は必ず限定すること（`repos/*` のようなワイルドカードは使わない）。
-
-```json
-"Bash(gh api repos/<owner>/<repo>/pulls/*/reviews)"
-```
-
 ## 参照ドキュメント
 
 - `docs/guidelines/frontend-review-criteria.md` — フロントエンドレビュー観点
