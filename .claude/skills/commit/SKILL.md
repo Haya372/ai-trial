@@ -64,6 +64,8 @@ large-scale code searches.
 
 ## コマンド
 
+> **注意**: `git -C <path>` は allowlist にマッチしないため使わない。カレントディレクトリがプロジェクトルートなら `git` をそのまま実行する。パス移動が必要な場合は `cd <path> && git <command>` の形にする。
+
 ```bash
 # ステージング
 git add <file>...

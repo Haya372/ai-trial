@@ -14,6 +14,8 @@ description: GitHubにPRを作成するとき。
 
 ## コマンド
 
+> **注意**: `git -C <path>` は allowlist にマッチしないため使わない。カレントディレクトリがプロジェクトルートなら `git push` などをそのまま実行する。パス移動が必要な場合は `cd <path> && git <command>` の形にする。
+
 `.github/PULL_REQUEST_TEMPLATE.md` の構成を参照しながら、各セクションの内容を実際の値で埋めてbodyを構築する。
 
 ```bash
