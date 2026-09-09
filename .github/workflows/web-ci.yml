@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - apps/web/**
+      - packages/schema/**
       - pnpm-lock.yaml
       - .github/workflows/web-ci.yml
 
@@ -25,6 +26,8 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Generate TypeScript code
+        run: pnpm --filter @ai-trial/schema generate:frontend
       - name: Lint (includes format check)
         run: pnpm lint
       - name: Build

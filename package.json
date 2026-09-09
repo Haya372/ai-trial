@@ -6,10 +6,14 @@
     "dev:web": "pnpm --filter web dev",
     "lint": "turbo lint",
     "format": "turbo format",
-    "build": "turbo build"
+    "build": "turbo build",
+    "generate": "run-s generate:backend generate:frontend",
+    "generate:backend": "make -C apps/backend oapi-codegen-generate",
+    "generate:frontend": "pnpm --filter @ai-trial/schema generate:frontend"
   },
   "devDependencies": {
     "lefthook": "2.1.12",
+    "npm-run-all2": "9.0.3",
     "turbo": "2.10.12"
   }
 }
