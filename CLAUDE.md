@@ -37,3 +37,4 @@ Claude Codeを活用した開発のテンプレートプロジェクト。
 - TDDを必ず守る（テストを先に書いてから実装する）
 - Linterで守れるコーディング規約はAgentのコンテキストに含めない
 - 技術スタック決定後は `.claude/settings.local.json` のHookにLinterコマンドを追加する
+- 新規ドキュメント（ガイドライン・review-criteria等）を作成する前に、`docs/guidelines/` 配下の既存ドキュメントを確認し、内容の重複を避ける
