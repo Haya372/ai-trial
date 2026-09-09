@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt vet sqlc-generate migrate-up migrate-down migrate-version
+.PHONY: build test lint fmt vet sqlc-generate oapi-codegen-generate migrate-up migrate-down migrate-version
 
 DB_USER     ?= postgres
 DB_PASSWORD ?= postgres
@@ -27,6 +27,9 @@ vet:
 
 sqlc-generate:
 	sqlc generate
+
+oapi-codegen-generate:
+	go tool oapi-codegen -config ../../packages/schema/oapi-codegen.yaml ../../packages/schema/openapi.yaml
 
 migrate-up:
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" up

@@ -38,6 +38,9 @@
     "govet",
     "errcheck",
     "staticcheck",
-    "revive"
+    "revive",
+    "oapi",
+    "codegen",
+    "orval"
   ]
 }

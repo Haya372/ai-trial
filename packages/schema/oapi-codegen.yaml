@@ -1,0 +1,9 @@
+package: api
+generate:
+  models: true
+  chi-server: true
+  strict-server: true
+  embedded-spec: true
+output: ../../apps/backend/interface/api/generated/api.gen.go
+output-options:
+  skip-prune: true

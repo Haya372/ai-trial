@@ -1,0 +1,11 @@
+{
+  "name": "@ai-trial/schema",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "generate:frontend": "orval --config orval.config.ts"
+  },
+  "devDependencies": {
+    "orval": "7.10.0"
+  }
+}
