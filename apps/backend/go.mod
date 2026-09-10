@@ -3,9 +3,9 @@ module github.com/Haya372/ai-trial/backend
 go 1.25.0
 
 require (
-	github.com/getkin/kin-openapi v0.142.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/oapi-codegen/runtime v1.7.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.44.0
 	go.uber.org/dig v1.19.0
 )
@@ -28,6 +28,7 @@ require (
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
+	github.com/getkin/kin-openapi v0.142.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
