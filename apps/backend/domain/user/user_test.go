@@ -4,24 +4,32 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/Haya372/ai-trial/backend/domain/user"
 )
 
-func TestUser_fields(t *testing.T) {
-	u := user.User{
-		Email:       "test@example.com",
-		DisplayName: "Test User",
+func TestNewUser_returnsAccessibleFields(t *testing.T) {
+	email, _ := user.NewEmail("test@example.com")
+	id := uuid.New()
+	u := user.New(id, email, "Test User", "hash")
+
+	if u.ID() != id {
+		t.Errorf("ID() = %v, want %v", u.ID(), id)
 	}
-	if u.Email != "test@example.com" {
-		t.Errorf("expected email test@example.com, got %s", u.Email)
+	if u.Email() != email {
+		t.Errorf("Email() = %v, want %v", u.Email(), email)
 	}
-	if u.DisplayName != "Test User" {
-		t.Errorf("expected display name Test User, got %s", u.DisplayName)
+	if u.DisplayName() != "Test User" {
+		t.Errorf("DisplayName() = %q, want %q", u.DisplayName(), "Test User")
+	}
+	if u.PasswordHash() != "hash" {
+		t.Errorf("PasswordHash() = %q, want %q", u.PasswordHash(), "hash")
 	}
 }
 
 func TestUserErrors_areDistinct(t *testing.T) {
-	if errors.Is(user.ErrNotFound, user.ErrEmailTaken) {
-		t.Error("ErrNotFound and ErrEmailTaken must be distinct")
+	if errors.Is(user.ErrUserNotFound, user.ErrEmailTaken) {
+		t.Error("ErrUserNotFound and ErrEmailTaken must be distinct")
 	}
 }
