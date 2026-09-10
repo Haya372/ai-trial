@@ -20,6 +20,7 @@
 | ツール | 用途 |
 |---|---|
 | [mise](https://mise.jdx.dev/) | ツールバージョン管理 |
+| [gh-stack](https://github.com/github/gh-stack) | スタックPR管理（`gh extension install github/gh-stack`） |
 
 ### セットアップ手順
 
