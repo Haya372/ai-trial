@@ -19,9 +19,7 @@
 
 | ツール | 用途 |
 |---|---|
-| [mise](https://mise.jdx.dev/) | ツールバージョン管理 |
-| Node.js | Javascriptランタイム（バージョンは `mise.toml` で管理） |
-| pnpm | パッケージマネージャー（バージョンは `mise.toml` で管理） |
+| [mise](https://mise.jdx.dev/) | ツールバージョン管理（Node.js, pnpm 等は `mise install` で一括インストール） |
 
 ### セットアップ手順
 
