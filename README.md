@@ -40,6 +40,7 @@ mise exec -- pnpm exec lefthook install
 
 # 5. gh-stack をインストール（スタックPR管理用）
 gh extension install github/gh-stack
+gh skill install github/gh-stackも
 ```
 
 ### コマンド実行の注意事項
