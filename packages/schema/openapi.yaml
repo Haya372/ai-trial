@@ -40,19 +40,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/ValidationErrorResponse"
         "409":
           description: Email already registered
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/ConflictErrorResponse"
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/InternalErrorResponse"
   /auth/login:
     post:
       operationId: login
@@ -77,19 +77,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/ValidationErrorResponse"
         "401":
           description: Invalid credentials
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/UnauthorizedErrorResponse"
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/InternalErrorResponse"
   /auth/logout:
     post:
       operationId: logout
@@ -104,13 +104,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/UnauthorizedErrorResponse"
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/InternalErrorResponse"
   /auth/me:
     get:
       operationId: getMe
@@ -129,13 +129,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/UnauthorizedErrorResponse"
         "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/InternalErrorResponse"
 components:
   schemas:
     HealthResponse:
@@ -197,23 +197,7 @@ components:
         displayName:
           type: string
           example: "John Doe"
-    ErrorResponse:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: string
-          example: "VALIDATION_ERROR"
-        message:
-          type: string
-          example: "Validation failed"
-        details:
-          type: array
-          items:
-            $ref: "#/components/schemas/ErrorDetail"
-    ErrorDetail:
+    ValidationErrorDetail:
       type: object
       required:
         - field
@@ -225,7 +209,71 @@ components:
           example: "email"
         code:
           type: string
+          enum:
+            - REQUIRED
+            - INVALID_FORMAT
+            - TOO_SHORT
+            - TOO_LONG
+            - INVALID_CHARACTER
+            - INSUFFICIENT_COMPLEXITY
           example: "INVALID_FORMAT"
         message:
           type: string
           example: "Invalid email format"
+    ValidationErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+        - details
+      properties:
+        code:
+          type: string
+          enum: ["VALIDATION_ERROR"]
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          example: "Validation failed"
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationErrorDetail"
+    UnauthorizedErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum: ["UNAUTHORIZED"]
+          example: "UNAUTHORIZED"
+        message:
+          type: string
+          example: "Authentication required"
+    ConflictErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum: ["CONFLICT"]
+          example: "CONFLICT"
+        message:
+          type: string
+          example: "Email already registered"
+    InternalErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum: ["INTERNAL_ERROR"]
+          example: "INTERNAL_ERROR"
+        message:
+          type: string
+          example: "Internal server error"
