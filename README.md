@@ -13,6 +13,46 @@
 
 **拓也（42歳）** — 外回り営業部長。朝にその日の流れをパッと把握したい。アポを即登録したい。
 
+## 環境構築
+
+### 必要なツール
+
+| ツール | バージョン | 用途 |
+|---|---|---|
+| [mise](https://mise.jdx.dev/) | 最新 | ツールバージョン管理 |
+| Node.js | 26.8.1 | Javascriptランタイム |
+| pnpm | 12.3.4 | パッケージマネージャー |
+
+### セットアップ手順
+
+```bash
+# 1. リポジトリをクローン
+git clone <repository-url>
+cd ai-trial
+
+# 2. mise でツールをインストール（Node.js, pnpm 等）
+mise install
+
+# 3. 依存パッケージをインストール
+mise exec -- pnpm install
+
+# 4. git hooks をセットアップ
+mise exec -- pnpm exec lefthook install
+```
+
+### コマンド実行の注意事項
+
+pnpm は corepack 経由で実行するとシグネチャ検証エラーが発生する場合がある。
+必ず `mise exec --` を前置して実行すること。
+
+```bash
+# OK
+mise exec -- pnpm <command>
+
+# NG（シグネチャ検証エラーが発生する可能性あり）
+pnpm <command>
+```
+
 ## ドキュメント
 
 - [開発ガイドライン](docs/guidelines/guidelines.md)
