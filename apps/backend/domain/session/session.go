@@ -13,7 +13,8 @@ type Session struct {
 }
 
 type WithUser struct {
-	Session
 	Email       string
 	DisplayName string
+
+	Session
 }

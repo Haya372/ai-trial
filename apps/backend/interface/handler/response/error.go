@@ -1,6 +1,7 @@
 package response
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 )
@@ -17,16 +18,23 @@ type errorBody struct {
 	Details []ErrorDetail `json:"details,omitempty"`
 }
 
-func WriteError(w http.ResponseWriter, status int, code, message string) {
+func writeJSON(w http.ResponseWriter, status int, body errorBody) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(body); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(errorBody{Code: code, Message: message})
+	_, _ = buf.WriteTo(w)
+}
+
+func WriteError(w http.ResponseWriter, status int, code, message string) {
+	writeJSON(w, status, errorBody{Code: code, Message: message})
 }
 
 func WriteValidationError(w http.ResponseWriter, details []ErrorDetail) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	_ = json.NewEncoder(w).Encode(errorBody{
+	writeJSON(w, http.StatusBadRequest, errorBody{
 		Code:    "VALIDATION_ERROR",
 		Message: "Validation failed",
 		Details: details,

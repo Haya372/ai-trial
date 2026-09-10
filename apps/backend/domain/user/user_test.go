@@ -1,6 +1,7 @@
 package user_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Haya372/ai-trial/backend/domain/user"
@@ -20,7 +21,7 @@ func TestUser_fields(t *testing.T) {
 }
 
 func TestUserErrors_areDistinct(t *testing.T) {
-	if user.ErrNotFound == user.ErrEmailTaken {
+	if errors.Is(user.ErrNotFound, user.ErrEmailTaken) {
 		t.Error("ErrNotFound and ErrEmailTaken must be distinct")
 	}
 }
