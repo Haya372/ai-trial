@@ -19,7 +19,7 @@
 
 | ツール | 用途 |
 |---|---|
-| [mise](https://mise.jdx.dev/) | ツールバージョン管理（Node.js, pnpm 等は `mise install` で一括インストール） |
+| [mise](https://mise.jdx.dev/) | ツールバージョン管理 |
 
 ### セットアップ手順
 
