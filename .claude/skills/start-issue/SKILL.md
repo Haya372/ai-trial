@@ -58,7 +58,7 @@ mainブランチの最新状態から作成する。
 
 | 作業の性質 | 次のスキル |
 |---|---|
-| アプリケーション機能が複雑・設計が必要 | `specification` スキル → `detailed-design` スキル → `implementation` スキル |
+| アプリケーション機能が複雑・設計が必要 | `docs/guidelines/development-flow.md` を読んでフローを確認してからユーザーに提示する |
 | Claude Codeスキル・ガイドライン・ワークフロー等の開発者ツール系 | そのまま実装（specification / detailed-design はスキップ） |
 | シンプルな設定・ファイル追加 | そのまま実装 |
 | バグ修正 | `systematic-debugging` スキル |

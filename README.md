@@ -20,6 +20,7 @@
 | ツール | 用途 |
 |---|---|
 | [mise](https://mise.jdx.dev/) | ツールバージョン管理 |
+| [gh-stack](https://github.com/github/gh-stack) | スタックPR管理（`gh extension install github/gh-stack`） |
 
 ### セットアップ手順
 
@@ -28,7 +29,7 @@
 git clone <repository-url>
 cd ai-trial
 
-# 2. mise でツールをインストール（Node.js, pnpm 等）
+# 2. mise でツールをインストール（Node.js, pnpm, gh 等が一括でインストールされる）
 mise install
 
 # 3. 依存パッケージをインストール
@@ -36,6 +37,10 @@ mise exec -- pnpm install
 
 # 4. git hooks をセットアップ
 mise exec -- pnpm exec lefthook install
+
+# 5. gh-stack をインストール（スタックPR管理用）
+gh extension install github/gh-stack
+gh skill install github/gh-stackも
 ```
 
 ### コマンド実行の注意事項
