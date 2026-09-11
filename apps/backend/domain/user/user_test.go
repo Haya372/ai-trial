@@ -12,7 +12,7 @@ import (
 func TestNewUser_returnsAccessibleFields(t *testing.T) {
 	email, _ := user.NewEmail("test@example.com")
 	id := uuid.New()
-	u := user.New(id, email, "Test User", "hash")
+	u := user.New(id, email, "Test User", "$2a$10$hash")
 
 	if u.ID() != id {
 		t.Errorf("ID() = %v, want %v", u.ID(), id)
@@ -23,8 +23,8 @@ func TestNewUser_returnsAccessibleFields(t *testing.T) {
 	if u.DisplayName() != "Test User" {
 		t.Errorf("DisplayName() = %q, want %q", u.DisplayName(), "Test User")
 	}
-	if u.PasswordHash() != "hash" {
-		t.Errorf("PasswordHash() = %q, want %q", u.PasswordHash(), "hash")
+	if u.PasswordHash() != "$2a$10$hash" {
+		t.Errorf("PasswordHash() = %q, want %q", u.PasswordHash(), "$2a$10$hash")
 	}
 }
 
