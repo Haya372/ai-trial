@@ -8,48 +8,30 @@
 
 | 用語 | 説明 |
 |---|---|
-| User | システムに登録されたアカウント。`ID`, `Email`, `DisplayName`, `PasswordHash` を持つ |
-| Email | メールアドレスを表す値オブジェクト。RFC準拠の形式検証済み |
-
-## エンティティ
-
-### User（インターフェース）
-
-```go
-type User interface {
-    ID() uuid.UUID
-    Email() Email
-    DisplayName() string
-    PasswordHash() string
-}
-```
-
-インスタンス生成には `user.New(id, email, displayName, passwordHash)` を使用する。内部実装（`userEntity`）は非公開。
-
-### Email（値オブジェクト）
-
-```go
-type Email string
-
-func NewEmail(s string) (Email, error)
-```
-
-- 生成時に正規表現でフォーマット検証を行う
-- 検証失敗時はエラーを返す（ゼロ値の Email は存在しない）
+| User | システムに登録されたアカウント。ID・メールアドレス・表示名・パスワードハッシュを持つ |
+| Email | メールアドレスを表す値オブジェクト。生成時にフォーマット検証を行い、不正な値は生成できない |
+| Password | パスワードを表す値オブジェクト。生成時に長さを検証し bcrypt でハッシュ化する。User が保持するのはハッシュのみ |
 
 ## ビジネスルール
 
-- メールアドレスはシステム全体で一意でなければならない（`ErrEmailTaken`）
-- パスワードは保存前に必ずハッシュ化する（平文は保持しない）
+- メールアドレスはシステム全体で一意でなければならない
+- パスワードは 8 文字以上 128 文字以下でなければならない
+- パスワードは平文のまま保存してはならない（常にハッシュ化して保存する）
+- ユーザー作成時には Password 値オブジェクトを介してのみパスワードを受け付ける
 
 ## エラー
 
-| エラー | 意味 |
+| エラー | 発生条件 |
 |---|---|
 | `ErrUserNotFound` | 指定した ID またはメールアドレスのユーザーが存在しない |
 | `ErrEmailTaken` | 登録しようとしたメールアドレスがすでに使われている |
+| `ErrInvalidEmail` | メールアドレスのフォーマットが不正 |
+| `ErrPasswordTooShort` | パスワードが 8 文字未満 |
+| `ErrPasswordTooLong` | パスワードが 128 文字を超えている |
 
 ## 関連ドキュメント
 
+- [PRD-001: ユーザー認証](../prd/PRD-001-auth.md)
+- [SPEC-001: ユーザー認証仕様](../spec/SPEC-001-auth.md)
 - [ADR-001: クリーンアーキテクチャ採用](../adr/ADR-001.md)
 - [Session ドメイン](./session.md)
