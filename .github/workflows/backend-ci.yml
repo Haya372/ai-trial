@@ -94,4 +94,4 @@ jobs:
         continue-on-error: true
         with:
           coverage-artifact-name: go-coverage
-          coverage-file-name: apps/backend/coverage.out
+          coverage-file-name: coverage.out
