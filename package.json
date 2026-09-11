@@ -4,6 +4,8 @@
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev:web": "pnpm --filter web dev",
+    "dev:schema": "pnpm --filter @ai-trial/schema dev",
+    "lint:schema": "pnpm --filter @ai-trial/schema lint",
     "lint": "turbo lint",
     "format": "turbo format",
     "build": "turbo build",

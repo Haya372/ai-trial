@@ -12,6 +12,9 @@ pre-commit:
       glob: "apps/web/**/*.{ts,tsx,js,jsx,json,css}"
       run: ./apps/web/node_modules/.bin/biome format --write {staged_files}
       stage_fixed: true
+    - name: schema-lint
+      glob: "packages/schema/**/*.{yaml,yml}"
+      run: mise exec -- pnpm --filter @ai-trial/schema lint
     - name: go-format
       glob: "apps/backend/**/*.go"
       run: |

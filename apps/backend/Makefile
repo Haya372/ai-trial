@@ -29,7 +29,7 @@ sqlc-generate:
 	sqlc generate
 
 oapi-codegen-generate:
-	go tool oapi-codegen -config ../../packages/schema/oapi-codegen.yaml ../../packages/schema/openapi.yaml
+	go tool oapi-codegen -config ../../packages/schema/oapi-codegen.yaml ../../packages/schema/dist/openapi.yaml
 
 migrate-up:
 	$(MIGRATE) -path $(MIGRATIONS_DIR) -database "$(DATABASE_URL)" up

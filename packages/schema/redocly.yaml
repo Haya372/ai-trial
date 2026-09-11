@@ -1,0 +1,10 @@
+apis:
+  main:
+    root: ./openapi.yaml
+
+rules:
+  no-unused-components: error
+  operation-operationId: error
+  operation-summary: error
+  tag-description: warn
+  no-ambiguous-paths: error
