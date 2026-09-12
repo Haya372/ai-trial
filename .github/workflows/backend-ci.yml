@@ -29,9 +29,8 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Lint
-    if: github.event_name == 'pull_request'
+  generate:
+    name: Generate
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -42,7 +41,6 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-          cache: false
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           install: true
@@ -55,12 +53,73 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Bundle schema
         run: pnpm --filter @ai-trial/schema bundle
+      - name: Cache sqlc generated files
+        id: cache-sqlc
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/backend/infrastructure/db/generated/
+          key: sqlc-${{ hashFiles('apps/backend/**/*.sql', 'apps/backend/sqlc.yaml') }}
       - name: Generate sqlc code
+        if: steps.cache-sqlc.outputs.cache-hit != 'true'
         run: make sqlc-generate
         working-directory: apps/backend
-      - name: Generate code
-        run: make generate
+      - name: Cache oapi-codegen generated files
+        id: cache-oapi
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/backend/interface/api/generated/
+          key: oapi-${{ hashFiles('packages/schema/**') }}
+      - name: Generate oapi-codegen code
+        if: steps.cache-oapi.outputs.cache-hit != 'true'
+        run: make oapi-codegen-generate
         working-directory: apps/backend
+      - name: Cache mockery generated files
+        id: cache-mockery
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            apps/backend/domain/session/generated/
+            apps/backend/domain/user/generated/
+            apps/backend/infrastructure/db/mock/
+          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
+      - name: Generate mock code
+        if: steps.cache-mockery.outputs.cache-hit != 'true'
+        run: go generate ./...
+        working-directory: apps/backend
+
+  lint:
+    name: Lint
+    needs: [generate]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: apps/backend/go.mod
+          cache: false
+      - name: Restore sqlc generated files
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/backend/infrastructure/db/generated/
+          key: sqlc-${{ hashFiles('apps/backend/**/*.sql', 'apps/backend/sqlc.yaml') }}
+      - name: Restore oapi-codegen generated files
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/backend/interface/api/generated/
+          key: oapi-${{ hashFiles('packages/schema/**') }}
+      - name: Restore mockery generated files
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            apps/backend/domain/session/generated/
+            apps/backend/domain/user/generated/
+            apps/backend/infrastructure/db/mock/
+          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
@@ -69,6 +128,7 @@ jobs:
 
   test:
     name: Test
+    needs: [generate]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -84,21 +144,24 @@ jobs:
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
         with:
           install: true
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Restore sqlc generated files
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          node-version: "26"
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Bundle schema
-        run: pnpm --filter @ai-trial/schema bundle
-      - name: Generate sqlc code
-        run: make sqlc-generate
-        working-directory: apps/backend
-      - name: Generate code
-        run: make generate
-        working-directory: apps/backend
+          path: apps/backend/infrastructure/db/generated/
+          key: sqlc-${{ hashFiles('apps/backend/**/*.sql', 'apps/backend/sqlc.yaml') }}
+      - name: Restore oapi-codegen generated files
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/backend/interface/api/generated/
+          key: oapi-${{ hashFiles('packages/schema/**') }}
+      - name: Restore mockery generated files
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            apps/backend/domain/session/generated/
+            apps/backend/domain/user/generated/
+            apps/backend/infrastructure/db/mock/
+          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Run tests with coverage
         run: make test-coverage TAGS=integration
         working-directory: apps/backend
