@@ -1,2 +1,3 @@
 infrastructure/db/generated/
 interface/api/generated/
+domain/*/generated/

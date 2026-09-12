@@ -1,5 +1,7 @@
 package user
 
+//go:generate go tool mockgen -destination=generated/repository.go -package=mock github.com/Haya372/ai-trial/backend/domain/user Repository
+
 import (
 	"context"
 

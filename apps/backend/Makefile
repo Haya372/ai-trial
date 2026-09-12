@@ -1,4 +1,4 @@
-.PHONY: build test test-coverage lint fmt vet sqlc-generate oapi-codegen-generate migrate-up migrate-down migrate-version
+.PHONY: build test test-coverage lint fmt vet generate sqlc-generate oapi-codegen-generate migrate-up migrate-down migrate-version
 
 DB_USER     ?= postgres
 DB_PASSWORD ?= postgres
@@ -29,6 +29,9 @@ fmt:
 
 vet:
 	go vet ./...
+
+generate: oapi-codegen-generate
+	go generate ./...
 
 sqlc-generate:
 	sqlc generate
