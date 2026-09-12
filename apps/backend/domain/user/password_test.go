@@ -36,9 +36,26 @@ func TestNewPassword_tooLong(t *testing.T) {
 }
 
 func TestNewPassword_maxLength(t *testing.T) {
-	_, err := user.NewPassword(strings.Repeat("a", 72))
+	// 72-char password that satisfies all complexity requirements
+	p72 := "SecurePass1!" + strings.Repeat("a", 60)
+	_, err := user.NewPassword(p72)
 	if err != nil {
 		t.Errorf("NewPassword() unexpected error for 72-char password: %v", err)
+	}
+}
+
+func TestNewPassword_insufficientComplexity(t *testing.T) {
+	cases := []string{
+		"alllowercase1!", // no uppercase
+		"ALLUPPERCASE1!", // no lowercase
+		"NoDigitsHere!!", // no digit
+		"NoSymbols1234A", // no symbol
+	}
+	for _, tc := range cases {
+		_, err := user.NewPassword(tc)
+		if !errors.Is(err, user.ErrPasswordInsufficientComplexity) {
+			t.Errorf("NewPassword(%q) error = %v, want ErrPasswordInsufficientComplexity", tc, err)
+		}
 	}
 }
 
