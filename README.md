@@ -56,6 +56,24 @@ mise exec -- pnpm <command>
 pnpm <command>
 ```
 
+## Claude レビュー環境のセットアップ
+
+PRが作成・更新されると Claude が自動でコードレビューを実行する。初回のみ以下の手順が必要。
+
+**前提条件:** リポジトリの管理者権限が必要。
+
+```bash
+# Claude Code CLI で GitHub App をインストール（GitHub App + Secrets を一括設定）
+/install-github-app
+```
+
+コマンドを実行すると以下が自動でセットアップされる:
+
+- Anthropic GitHub App のリポジトリへのインストール
+- `ANTHROPIC_API_KEY` の GitHub Secrets への登録
+
+> **注意:** フォークからのPRでは GitHub Secrets にアクセスできないため、自動レビューは実行されない。
+
 ## ドキュメント
 
 - [開発ガイドライン](docs/guidelines/guidelines.md)
