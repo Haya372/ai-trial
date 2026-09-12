@@ -26,7 +26,14 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Cache frontend generated files
+        id: cache-frontend
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/web/src/api/generated.ts
+          key: frontend-gen-${{ hashFiles('packages/schema/**') }}
       - name: Generate TypeScript code
+        if: steps.cache-frontend.outputs.cache-hit != 'true'
         run: pnpm --filter @ai-trial/schema generate:frontend
       - name: Lint (includes format check)
         run: pnpm lint
