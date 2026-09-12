@@ -83,7 +83,7 @@ jobs:
             apps/backend/domain/session/generated/
             apps/backend/domain/user/generated/
             apps/backend/infrastructure/db/mock/
-          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/infrastructure/db/tx_manager.go', 'apps/backend/domain/session/repository.go', 'apps/backend/domain/user/repository.go') }}
+          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Generate mock code
         if: steps.cache-mockery.outputs.cache-hit != 'true'
         run: go generate ./...
@@ -148,7 +148,7 @@ jobs:
             apps/backend/domain/session/generated/
             apps/backend/domain/user/generated/
             apps/backend/infrastructure/db/mock/
-          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/infrastructure/db/tx_manager.go', 'apps/backend/domain/session/repository.go', 'apps/backend/domain/user/repository.go') }}
+          key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Generate mock code
         if: steps.cache-mockery.outputs.cache-hit != 'true'
         run: go generate ./...
