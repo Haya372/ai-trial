@@ -50,6 +50,18 @@ func TestUser_ComparePassword_wrong(t *testing.T) {
 	}
 }
 
+func TestUser_ComparePassword_wrong_returnsErrPasswordMismatch(t *testing.T) {
+	pw, _ := user.NewPassword("SecurePass1!")
+	wrongPw, _ := user.NewPassword("WrongPass1!")
+	email, _ := user.NewEmail("test@example.com")
+	u := user.New(uuid.New(), email, "Test User", pw.Hash())
+
+	err := u.ComparePassword(wrongPw)
+	if !errors.Is(err, user.ErrPasswordMismatch) {
+		t.Errorf("ComparePassword() wrong password: got %v, want ErrPasswordMismatch", err)
+	}
+}
+
 func TestUserErrors_areDistinct(t *testing.T) {
 	if errors.Is(user.ErrUserNotFound, user.ErrEmailTaken) {
 		t.Error("ErrUserNotFound and ErrEmailTaken must be distinct")
