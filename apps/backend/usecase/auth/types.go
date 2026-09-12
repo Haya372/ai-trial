@@ -9,10 +9,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/user"
 )
 
-const (
-	sessionExpiry              = 30 * 24 * time.Hour
-	CodeInsufficientComplexity = "INSUFFICIENT_COMPLEXITY"
-)
+const sessionExpiry = 30 * 24 * time.Hour
 
 var ErrInvalidCredentials = errors.New("invalid email or password")
 

@@ -131,7 +131,7 @@ func TestSignupCommand_Execute_PasswordMissingComplexity_ReturnsValidationError(
 	if !errors.As(err, &ve) {
 		t.Errorf("expected *ValidationError, got %T: %v", err, err)
 	}
-	if len(ve.Details) == 0 || ve.Details[0].Code != authuc.CodeInsufficientComplexity {
+	if len(ve.Details) == 0 || ve.Details[0].Code != user.CodePasswordInsufficientComplexity {
 		t.Errorf("expected INSUFFICIENT_COMPLEXITY, got %v", ve.Details)
 	}
 }

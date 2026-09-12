@@ -2,6 +2,7 @@ package user
 
 import (
 	"fmt"
+	"unicode"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -14,9 +15,10 @@ type Password struct {
 }
 
 const (
-	CodePasswordTooShort = "TOO_SHORT"
-	CodePasswordTooLong  = "TOO_LONG"
-	CodePasswordNotASCII = "INVALID_CHARACTER" //nolint:gosec
+	CodePasswordTooShort               = "TOO_SHORT"
+	CodePasswordTooLong                = "TOO_LONG"
+	CodePasswordNotASCII               = "INVALID_CHARACTER" //nolint:gosec
+	CodePasswordInsufficientComplexity = "INSUFFICIENT_COMPLEXITY"
 )
 
 var (
@@ -31,6 +33,10 @@ var (
 	ErrPasswordNotASCII = &domain.DomainError{
 		Code:    CodePasswordNotASCII,
 		Message: "Password must contain only ASCII printable characters",
+	}
+	ErrPasswordInsufficientComplexity = &domain.DomainError{
+		Code:    CodePasswordInsufficientComplexity,
+		Message: "Password must contain uppercase, lowercase, digit, and symbol",
 	}
 )
 
@@ -48,6 +54,9 @@ func NewPassword(plain string) (Password, error) {
 	if len(plain) > 72 {
 		return Password{}, fmt.Errorf("%w", ErrPasswordTooLong)
 	}
+	if err := checkComplexity(plain); err != nil {
+		return Password{}, err
+	}
 	hashed, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
 	if err != nil {
 		return Password{}, fmt.Errorf("failed to hash password: %w", err)
@@ -61,4 +70,24 @@ func NewPasswordFromHash(hash string) Password {
 
 func (p Password) Hash() string {
 	return p.hash
+}
+
+func checkComplexity(p string) error {
+	var hasUpper, hasLower, hasDigit, hasSymbol bool
+	for _, r := range p {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsLower(r):
+			hasLower = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		default:
+			hasSymbol = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit || !hasSymbol {
+		return fmt.Errorf("%w", ErrPasswordInsufficientComplexity)
+	}
+	return nil
 }

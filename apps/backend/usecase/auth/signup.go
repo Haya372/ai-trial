@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
@@ -46,8 +45,6 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 	password, pwErr := user.NewPassword(in.Password)
 	if pwErr != nil {
 		details = append(details, toValidationDetail(fieldPassword, pwErr))
-	} else if d := checkPasswordComplexity(in.Password); d != nil {
-		details = append(details, *d)
 	}
 
 	if len([]rune(in.DisplayName)) > maxDisplayName {
@@ -92,28 +89,4 @@ func toValidationDetail(field string, err error) domain.ValidationDetail {
 		return domain.ValidationDetail{Field: field, Code: domErr.Code, Message: domErr.Message}
 	}
 	return domain.ValidationDetail{Field: field, Code: "INVALID", Message: err.Error()}
-}
-
-func checkPasswordComplexity(p string) *domain.ValidationDetail {
-	var hasUpper, hasLower, hasDigit, hasSymbol bool
-	for _, r := range p {
-		switch {
-		case unicode.IsUpper(r):
-			hasUpper = true
-		case unicode.IsLower(r):
-			hasLower = true
-		case unicode.IsDigit(r):
-			hasDigit = true
-		default:
-			hasSymbol = true
-		}
-	}
-	if !hasUpper || !hasLower || !hasDigit || !hasSymbol {
-		return &domain.ValidationDetail{
-			Field:   fieldPassword,
-			Code:    CodeInsufficientComplexity,
-			Message: "Password must contain uppercase, lowercase, digit, and symbol",
-		}
-	}
-	return nil
 }
