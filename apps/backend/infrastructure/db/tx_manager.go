@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,9 +28,12 @@ func (m *PgxTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context)
 
 	txCtx := setTx(ctx, tx)
 
-	if err := fn(txCtx); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
+	if fnErr := fn(txCtx); fnErr != nil {
+		// TODO: ロールバック失敗のユニットテストを追加する（pool.Begin の抽象化が必要）
+		if rbErr := tx.Rollback(ctx); rbErr != nil {
+			return errors.Join(fnErr, fmt.Errorf("rollback: %w", rbErr))
+		}
+		return fnErr
 	}
 
 	if err := tx.Commit(ctx); err != nil {
