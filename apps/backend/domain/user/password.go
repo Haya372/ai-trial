@@ -8,7 +8,8 @@ import (
 )
 
 type Password struct {
-	hash string
+	plain string
+	hash  string
 }
 
 var (
@@ -35,7 +36,7 @@ func NewPassword(plain string) (Password, error) {
 	if err != nil {
 		return Password{}, fmt.Errorf("failed to hash password: %w", err)
 	}
-	return Password{hash: string(hashed)}, nil
+	return Password{plain: plain, hash: string(hashed)}, nil
 }
 
 func NewPasswordFromHash(hash string) Password {

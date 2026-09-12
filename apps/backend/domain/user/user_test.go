@@ -23,8 +23,30 @@ func TestNewUser_returnsAccessibleFields(t *testing.T) {
 	if u.DisplayName() != "Test User" {
 		t.Errorf("DisplayName() = %q, want %q", u.DisplayName(), "Test User")
 	}
-	if u.PasswordHash() != "$2a$10$hash" {
-		t.Errorf("PasswordHash() = %q, want %q", u.PasswordHash(), "$2a$10$hash")
+}
+
+func TestUser_ComparePassword_correct(t *testing.T) {
+	plain := "SecurePass1!"
+	pw, err := user.NewPassword(plain)
+	if err != nil {
+		t.Fatalf("NewPassword() unexpected error: %v", err)
+	}
+	email, _ := user.NewEmail("test@example.com")
+	u := user.New(uuid.New(), email, "Test User", pw.Hash())
+
+	if err := u.ComparePassword(pw); err != nil {
+		t.Errorf("ComparePassword() with matching password returned error: %v", err)
+	}
+}
+
+func TestUser_ComparePassword_wrong(t *testing.T) {
+	pw, _ := user.NewPassword("SecurePass1!")
+	wrongPw, _ := user.NewPassword("WrongPass1!")
+	email, _ := user.NewEmail("test@example.com")
+	u := user.New(uuid.New(), email, "Test User", pw.Hash())
+
+	if err := u.ComparePassword(wrongPw); err == nil {
+		t.Error("ComparePassword() with wrong password expected error, got nil")
 	}
 }
 
