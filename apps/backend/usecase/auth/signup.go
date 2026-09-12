@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 )
@@ -37,16 +38,12 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 
 	email, emailErr := user.NewEmail(in.Email)
 	if emailErr != nil {
-		details = append(details, ValidationDetail{
-			Field:   "email",
-			Code:    "INVALID_FORMAT",
-			Message: "Invalid email format",
-		})
+		details = append(details, toValidationDetail("email", emailErr))
 	}
 
 	password, pwErr := user.NewPassword(in.Password)
 	if pwErr != nil {
-		details = append(details, passwordErrorDetail(pwErr))
+		details = append(details, toValidationDetail(fieldPassword, pwErr))
 	} else if d := checkPasswordComplexity(in.Password); d != nil {
 		details = append(details, *d)
 	}
@@ -81,21 +78,12 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 	return &AuthOutput{User: u, SessionID: sess.ID()}, nil
 }
 
-func passwordErrorDetail(err error) ValidationDetail {
-	switch {
-	case errors.Is(err, user.ErrPasswordTooShort):
-		return ValidationDetail{Field: fieldPassword, Code: "TOO_SHORT", Message: "Password must be at least 8 characters"}
-	case errors.Is(err, user.ErrPasswordTooLong):
-		return ValidationDetail{Field: fieldPassword, Code: "TOO_LONG", Message: "Password must be at most 72 characters"}
-	case errors.Is(err, user.ErrPasswordNotASCII):
-		return ValidationDetail{
-			Field:   fieldPassword,
-			Code:    "INVALID_CHARACTER",
-			Message: "Password must contain only ASCII printable characters",
-		}
-	default:
-		return ValidationDetail{Field: fieldPassword, Code: "INVALID", Message: err.Error()}
+func toValidationDetail(field string, err error) ValidationDetail {
+	var domErr *domain.DomainError
+	if errors.As(err, &domErr) {
+		return ValidationDetail{Field: field, Code: domErr.Code, Message: domErr.Message}
 	}
+	return ValidationDetail{Field: field, Code: "INVALID", Message: err.Error()}
 }
 
 func checkPasswordComplexity(p string) *ValidationDetail {

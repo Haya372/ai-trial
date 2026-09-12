@@ -1,10 +1,11 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/Haya372/ai-trial/backend/domain"
 )
 
 type Password struct {
@@ -12,10 +13,25 @@ type Password struct {
 	hash  string
 }
 
+const (
+	CodePasswordTooShort = "TOO_SHORT"
+	CodePasswordTooLong  = "TOO_LONG"
+	CodePasswordNotASCII = "INVALID_CHARACTER" //nolint:gosec
+)
+
 var (
-	ErrPasswordTooShort = errors.New("password too short: minimum 8 characters")
-	ErrPasswordTooLong  = errors.New("password too long: maximum 72 characters")
-	ErrPasswordNotASCII = errors.New("password must contain only ASCII printable characters (0x20-0x7E)")
+	ErrPasswordTooShort = &domain.DomainError{
+		Code:    CodePasswordTooShort,
+		Message: "Password must be at least 8 characters",
+	}
+	ErrPasswordTooLong = &domain.DomainError{
+		Code:    CodePasswordTooLong,
+		Message: "Password must be at most 72 characters",
+	}
+	ErrPasswordNotASCII = &domain.DomainError{
+		Code:    CodePasswordNotASCII,
+		Message: "Password must contain only ASCII printable characters",
+	}
 )
 
 func NewPassword(plain string) (Password, error) {
