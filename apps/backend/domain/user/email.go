@@ -1,15 +1,18 @@
 package user
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
+
+	"github.com/Haya372/ai-trial/backend/domain"
 )
 
 type Email string
 
+const CodeInvalidEmailFormat = "INVALID_FORMAT"
+
 var (
-	ErrInvalidEmail = errors.New("invalid email address")
+	ErrInvalidEmail = &domain.DomainError{Code: CodeInvalidEmailFormat, Message: "Invalid email format"}
 	emailRegex      = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 )
 

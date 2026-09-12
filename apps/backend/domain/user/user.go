@@ -31,7 +31,7 @@ func (u *userEntity) DisplayName() string { return u.displayName }
 
 func (u *userEntity) ComparePassword(password Password) error {
 	if err := bcrypt.CompareHashAndPassword([]byte(u.passwordHash), []byte(password.plain)); err != nil {
-		return fmt.Errorf("password mismatch: %w", err)
+		return fmt.Errorf("%w", ErrPasswordMismatch)
 	}
 	return nil
 }
