@@ -38,7 +38,7 @@ packages/ui にUIコンポーネントを集約するMonorepo構成（ADR-002）
 #### メリット
 
 - React 19・Vite 8・Tailwind CSS 4 のいずれにも対応実績があり、互換性リスクが低い
-- `@storybook/react-vite` により既存のVite設定（Tailwind CSS PostCSS等）をそのまま再利用できる
+- `@storybook/react-vite` により既存のVite設定（Tailwind CSS（`@tailwindcss/vite`）等）をそのまま再利用できる
 - Monorepoでのpackages/ui配置に対するリファレンス実装が豊富で、セットアップコストが低い
 - アドオン（`@storybook/addon-a11y`、`@storybook/addon-interactions` 等）が充実しており、後からアクセシビリティ検査・インタラクションテストを追加できる
 - CSF形式はStorybookに固有ではなく、Ladle等の他ツールでも読める可換なフォーマット
@@ -84,7 +84,7 @@ Vue向けに設計されたコンポーネントカタログ。Reactサポート
 ## 決定理由
 
 - **互換性の確実性**: React 19 + Vite 8 + Tailwind CSS 4 という最新スタックにおいて、Storybookは `@storybook/react-vite` ビルダーを通じた対応実績が最も豊富。Ladleは軽量だが、この組み合わせでの事例が少なく互換性リスクがある
-- **既存Vite設定の再利用**: `@storybook/react-vite` はプロジェクトのVite設定（Tailwind CSS PostCSS含む）を継承するため、二重管理が発生しない
+- **既存Vite設定の再利用**: `@storybook/react-vite` はプロジェクトのVite設定（Tailwind CSS Viteプラグイン含む）を継承するため、二重管理が発生しない
 - **Monorepo対応**: packages/ui を対象としたStorybook構成のリファレンスが豊富で、ワークスペースパッケージの解決も標準的に動作する
 - **CSF形式の可換性**: StorybookのStoryはCSF形式で記述するため、将来ツールを変更しても移行コストが限定的
 - **拡張性**: 現時点ではStory作成が主目的だが、アクセシビリティ検査（`@storybook/addon-a11y`）やインタラクションテストを後から追加できるアドオン基盤があることは長期的に有益
