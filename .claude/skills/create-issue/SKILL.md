@@ -36,8 +36,8 @@ gh issue create --title "<type>: <English title>" --body "<テンプレートを
 
 - **ラベル**: `--label` フラグは使わない。ラベルの存在確認もしない。
 - **関連PRD**: ファイルパスではなく、GitHubのファイルURLをMarkdownリンクで記載する。
-  - リポジトリのURLは `gh repo view --json nameWithOwner,defaultBranchRef` で取得する。
-  - 形式: `[docs/prd/PRD-XXX.md](https://github.com/<owner>/<repo>/blob/<branch>/docs/prd/PRD-XXX.md)`
+  - URLは `https://github.com/Haya372/ai-trial/blob/main/<path>` の形式で直接組み立てる。
+  - 形式: `[docs/prd/PRD-XXX.md](https://github.com/Haya372/ai-trial/blob/main/docs/prd/PRD-XXX.md)`
 - **ユーザーへの確認**: ラベルやその他の設定について確認のために止まらない。すぐに起票する。
 
 ## チェックリスト
