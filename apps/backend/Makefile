@@ -15,8 +15,10 @@ build:
 test:
 	go test $(shell go list ./... | grep -v generated)
 
+TAGS ?=
+
 test-coverage:
-	go test -coverprofile=coverage.out $(shell go list ./... | grep -v generated)
+	go test $(if $(TAGS),-tags=$(TAGS),) -coverprofile=coverage.out $(shell go list ./... | grep -v generated)
 
 lint:
 	mise exec -- golangci-lint run ./...
