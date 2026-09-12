@@ -1,0 +1,33 @@
+{
+  "name": "@repo/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "run-p lint:*",
+    "lint:oxlint": "oxlint src",
+    "lint:biome": "biome format --diagnostic-level=error .",
+    "format": "run-s format:*",
+    "format:biome": "biome format --write ."
+  },
+  "dependencies": {
+    "@base-ui/react": "1.8.0",
+    "class-variance-authority": "0.7.1",
+    "cn": "0.2.5"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "npm-run-all2": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

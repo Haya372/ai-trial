@@ -1,18 +1,16 @@
-name: Web CI
+name: UI CI
 on:
   pull_request:
     paths:
-      - apps/web/**
-      - packages/schema/**
       - packages/ui/**
       - pnpm-lock.yaml
-      - .github/workflows/web-ci.yml
+      - .github/workflows/ui-ci.yml
 
 permissions:
   contents: read
 
 jobs:
-  lint-and-build:
+  lint-and-typecheck:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,16 +25,7 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Cache frontend generated files
-        id: cache-frontend
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: apps/web/src/api/generated.ts
-          key: frontend-gen-${{ hashFiles('packages/schema/**') }}
-      - name: Generate TypeScript code
-        if: steps.cache-frontend.outputs.cache-hit != 'true'
-        run: pnpm --filter @ai-trial/schema generate:frontend
       - name: Lint (includes format check)
-        run: pnpm lint
-      - name: Build
-        run: pnpm build
+        run: pnpm --filter @repo/ui lint
+      - name: Type check
+        run: pnpm --filter @repo/ui exec tsc --noEmit
