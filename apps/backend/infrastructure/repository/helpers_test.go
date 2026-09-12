@@ -4,17 +4,24 @@ package repository_test
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/pgx/v5"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 )
 
-func setupPostgres(t *testing.T) *pgxpool.Pool {
-	t.Helper()
+var testPool *pgxpool.Pool
+
+func TestMain(m *testing.M) {
 	ctx := context.Background()
+
 	c, err := tcpostgres.Run(ctx, "postgres:17-alpine",
 		tcpostgres.WithDatabase("testdb"),
 		tcpostgres.WithUsername("test"),
@@ -22,49 +29,38 @@ func setupPostgres(t *testing.T) *pgxpool.Pool {
 		tcpostgres.BasicWaitStrategies(),
 	)
 	if err != nil {
-		t.Fatalf("start postgres container: %v", err)
+		panic("start postgres container: " + err.Error())
 	}
-	t.Cleanup(func() { _ = c.Terminate(context.Background()) })
+	defer func() { _ = c.Terminate(ctx) }()
 
 	dsn, err := c.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		t.Fatalf("get connection string: %v", err)
+		panic("get connection string: " + err.Error())
 	}
 
-	pool, err := db.NewPool(ctx, dsn)
+	testPool, err = db.NewPool(ctx, dsn)
 	if err != nil {
-		t.Fatalf("connect to postgres: %v", err)
+		panic("connect to postgres: " + err.Error())
 	}
-	t.Cleanup(pool.Close)
+	defer testPool.Close()
 
-	applySchema(t, pool)
-	return pool
+	// golang-migrate の pgx5 ドライバは pgx5:// スキームを要求する
+	migrateDSN := strings.Replace(dsn, "postgres://", "pgx5://", 1)
+	mg, err := migrate.New("file://../../db/migrations", migrateDSN)
+	if err != nil {
+		panic("create migrate: " + err.Error())
+	}
+	if err := mg.Up(); err != nil && err != migrate.ErrNoChange {
+		panic("migrate up: " + err.Error())
+	}
+
+	os.Exit(m.Run())
 }
 
-func applySchema(t *testing.T, pool *pgxpool.Pool) {
+func truncateTables(t *testing.T) {
 	t.Helper()
-	ctx := context.Background()
-
-	queries := []string{
-		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
-		`CREATE TABLE users (
-			id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-			email         TEXT        NOT NULL UNIQUE,
-			display_name  TEXT        NOT NULL,
-			password_hash TEXT        NOT NULL,
-			created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-		`CREATE TABLE sessions (
-			id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-			user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-			expires_at TIMESTAMPTZ NOT NULL,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-	}
-	for _, q := range queries {
-		if _, err := pool.Exec(ctx, q); err != nil {
-			t.Fatalf("apply schema: %v", err)
-		}
+	_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE")
+	if err != nil {
+		t.Fatalf("truncate tables: %v", err)
 	}
 }

@@ -12,9 +12,9 @@ import (
 )
 
 func TestSessionRepository_Create_and_FindByID(t *testing.T) {
-	pool := setupPostgres(t)
-	userRepo := repository.NewUserRepository(pool)
-	sessRepo := repository.NewSessionRepository(pool)
+	truncateTables(t)
+	userRepo := repository.NewUserRepository(testPool)
+	sessRepo := repository.NewSessionRepository(testPool)
 
 	email, _ := user.NewEmail("sess@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -45,9 +45,9 @@ func TestSessionRepository_Create_and_FindByID(t *testing.T) {
 }
 
 func TestSessionRepository_Delete_removes_session(t *testing.T) {
-	pool := setupPostgres(t)
-	userRepo := repository.NewUserRepository(pool)
-	sessRepo := repository.NewSessionRepository(pool)
+	truncateTables(t)
+	userRepo := repository.NewUserRepository(testPool)
+	sessRepo := repository.NewSessionRepository(testPool)
 
 	email, _ := user.NewEmail("del@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -70,9 +70,9 @@ func TestSessionRepository_Delete_removes_session(t *testing.T) {
 }
 
 func TestSessionRepository_FindByID_expiredSession_returnsNil(t *testing.T) {
-	pool := setupPostgres(t)
-	userRepo := repository.NewUserRepository(pool)
-	sessRepo := repository.NewSessionRepository(pool)
+	truncateTables(t)
+	userRepo := repository.NewUserRepository(testPool)
+	sessRepo := repository.NewSessionRepository(testPool)
 
 	email, _ := user.NewEmail("expired@example.com")
 	password, _ := user.NewPassword("SecurePass1!")

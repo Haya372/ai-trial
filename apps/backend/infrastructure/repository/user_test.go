@@ -12,8 +12,8 @@ import (
 )
 
 func TestUserRepository_Create_success(t *testing.T) {
-	pool := setupPostgres(t)
-	repo := repository.NewUserRepository(pool)
+	truncateTables(t)
+	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("test@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -31,8 +31,8 @@ func TestUserRepository_Create_success(t *testing.T) {
 }
 
 func TestUserRepository_FindByEmail_success(t *testing.T) {
-	pool := setupPostgres(t)
-	repo := repository.NewUserRepository(pool)
+	truncateTables(t)
+	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("find@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -51,8 +51,8 @@ func TestUserRepository_FindByEmail_success(t *testing.T) {
 }
 
 func TestUserRepository_FindByEmail_notFound(t *testing.T) {
-	pool := setupPostgres(t)
-	repo := repository.NewUserRepository(pool)
+	truncateTables(t)
+	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("notfound@example.com")
 	_, err := repo.FindByEmail(context.Background(), email)
@@ -62,8 +62,8 @@ func TestUserRepository_FindByEmail_notFound(t *testing.T) {
 }
 
 func TestUserRepository_Create_duplicateEmail_returnsEmailTaken(t *testing.T) {
-	pool := setupPostgres(t)
-	repo := repository.NewUserRepository(pool)
+	truncateTables(t)
+	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("dup@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
