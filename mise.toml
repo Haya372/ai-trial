@@ -11,3 +11,7 @@ node          = "26.8.1"
 sqlc          = "1.31.1"
 gomigrate     = "4.19.1"
 gh            = "2.100.0"
+
+[tasks.git-clean]
+run = "bash scripts/git-clean-branches.sh"
+description = "Delete local branches whose remote is gone"
