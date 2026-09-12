@@ -1,0 +1,12 @@
+type: object
+required:
+  - code
+  - message
+properties:
+  code:
+    type: string
+    enum: ["UNAUTHORIZED"]
+    example: "UNAUTHORIZED"
+  message:
+    type: string
+    example: "Authentication required"

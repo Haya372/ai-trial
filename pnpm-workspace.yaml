@@ -3,6 +3,8 @@ packages:
   - "packages/*"
 allowBuilds:
   '@scarf/scarf': false
+  core-js: true
   esbuild: true
   lefthook: true
+  protobufjs: true
 auditLevel: moderate

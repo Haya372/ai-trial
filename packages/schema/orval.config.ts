@@ -3,7 +3,7 @@ import { defineConfig } from "orval";
 export default defineConfig({
 	"ai-trial": {
 		input: {
-			target: "./openapi.yaml",
+			target: "./dist/openapi.yaml",
 		},
 		output: {
 			target: "../../apps/web/src/api/generated.ts",

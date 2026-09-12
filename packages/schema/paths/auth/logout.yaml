@@ -1,0 +1,20 @@
+post:
+  operationId: logout
+  summary: Logout current session
+  tags:
+    - auth
+  responses:
+    "204":
+      description: Logout successful
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
