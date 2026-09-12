@@ -12,16 +12,15 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Haya372/ai-trial/backend/domain/session"
-	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
 
 type sessionRepository struct {
-	pool *pgxpool.Pool
+	baseRepository
 }
 
 func NewSessionRepository(pool *pgxpool.Pool) session.Repository {
-	return &sessionRepository{pool: pool}
+	return &sessionRepository{baseRepository{pool: pool}}
 }
 
 func (r *sessionRepository) Create(
@@ -61,11 +60,4 @@ func (r *sessionRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (s
 
 func (r *sessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.querier(ctx).DeleteSession(ctx, pgtype.UUID{Bytes: id, Valid: true})
-}
-
-func (r *sessionRepository) querier(ctx context.Context) *query.Queries {
-	if tx, ok := db.GetTx(ctx); ok {
-		return query.New(tx)
-	}
-	return query.New(r.pool)
 }

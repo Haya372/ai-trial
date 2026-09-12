@@ -12,16 +12,15 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Haya372/ai-trial/backend/domain/user"
-	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
 
 type userRepository struct {
-	pool *pgxpool.Pool
+	baseRepository
 }
 
 func NewUserRepository(pool *pgxpool.Pool) user.Repository {
-	return &userRepository{pool: pool}
+	return &userRepository{baseRepository{pool: pool}}
 }
 
 func (r *userRepository) Create(
@@ -66,11 +65,4 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (user.User,
 		return nil, err
 	}
 	return user.New(uuid.UUID(row.ID.Bytes), email, row.DisplayName, row.PasswordHash), nil
-}
-
-func (r *userRepository) querier(ctx context.Context) *query.Queries {
-	if tx, ok := db.GetTx(ctx); ok {
-		return query.New(tx)
-	}
-	return query.New(r.pool)
 }
