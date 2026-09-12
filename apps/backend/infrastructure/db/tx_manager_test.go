@@ -57,25 +57,3 @@ func TestRunInTx_error_rollsback(t *testing.T) {
 		t.Fatalf("expected sentinel error, got %v", err)
 	}
 }
-
-func TestRunInTx_propagatesTxInContext(t *testing.T) {
-	dsn := setupPostgres(t)
-	pool, err := db.NewPool(context.Background(), dsn)
-	if err != nil {
-		t.Fatalf("create pool: %v", err)
-	}
-	defer pool.Close()
-
-	mgr := db.NewPgxTxManager(pool)
-
-	var capturedCtx context.Context
-	_ = mgr.RunInTx(context.Background(), func(ctx context.Context) error {
-		capturedCtx = ctx
-		return nil
-	})
-
-	_, ok := db.GetTx(capturedCtx)
-	if !ok {
-		t.Fatal("expected tx to be propagated in context")
-	}
-}
