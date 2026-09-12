@@ -57,10 +57,12 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func truncateTables(t *testing.T) {
+func setupTest(t *testing.T) {
 	t.Helper()
-	_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE")
-	if err != nil {
-		t.Fatalf("truncate tables: %v", err)
-	}
+	t.Cleanup(func() {
+		_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE")
+		if err != nil {
+			t.Errorf("truncate tables: %v", err)
+		}
+	})
 }

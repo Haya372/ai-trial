@@ -12,7 +12,7 @@ import (
 )
 
 func TestUserRepository_Create_success(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("test@example.com")
@@ -31,7 +31,7 @@ func TestUserRepository_Create_success(t *testing.T) {
 }
 
 func TestUserRepository_FindByEmail_success(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("find@example.com")
@@ -51,7 +51,7 @@ func TestUserRepository_FindByEmail_success(t *testing.T) {
 }
 
 func TestUserRepository_FindByEmail_notFound(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("notfound@example.com")
@@ -62,7 +62,7 @@ func TestUserRepository_FindByEmail_notFound(t *testing.T) {
 }
 
 func TestUserRepository_Create_duplicateEmail_returnsEmailTaken(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	repo := repository.NewUserRepository(testPool)
 
 	email, _ := user.NewEmail("dup@example.com")

@@ -12,7 +12,7 @@ import (
 )
 
 func TestSessionRepository_Create_and_FindByID(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	userRepo := repository.NewUserRepository(testPool)
 	sessRepo := repository.NewSessionRepository(testPool)
 
@@ -45,7 +45,7 @@ func TestSessionRepository_Create_and_FindByID(t *testing.T) {
 }
 
 func TestSessionRepository_Delete_removes_session(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	userRepo := repository.NewUserRepository(testPool)
 	sessRepo := repository.NewSessionRepository(testPool)
 
@@ -70,7 +70,7 @@ func TestSessionRepository_Delete_removes_session(t *testing.T) {
 }
 
 func TestSessionRepository_FindByID_expiredSession_returnsNil(t *testing.T) {
-	truncateTables(t)
+	setupTest(t)
 	userRepo := repository.NewUserRepository(testPool)
 	sessRepo := repository.NewSessionRepository(testPool)
 
