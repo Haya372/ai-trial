@@ -8,3 +8,9 @@ SELECT id, email, display_name, password_hash, created_at, updated_at
 FROM users
 WHERE email = $1
 LIMIT 1;
+
+-- name: FindUserByID :one
+SELECT id, email, display_name, password_hash, created_at, updated_at
+FROM users
+WHERE id = $1
+LIMIT 1;
