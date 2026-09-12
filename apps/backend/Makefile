@@ -1,4 +1,4 @@
-.PHONY: build test lint fmt vet sqlc-generate oapi-codegen-generate migrate-up migrate-down migrate-version
+.PHONY: build test test-coverage lint fmt vet sqlc-generate oapi-codegen-generate migrate-up migrate-down migrate-version
 
 DB_USER     ?= postgres
 DB_PASSWORD ?= postgres
@@ -14,6 +14,9 @@ build:
 
 test:
 	go test $(shell go list ./... | grep -v generated)
+
+test-coverage:
+	go test -coverprofile=coverage.out $(shell go list ./... | grep -v generated)
 
 lint:
 	mise exec -- golangci-lint run ./...
