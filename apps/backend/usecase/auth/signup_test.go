@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,6 +134,27 @@ func TestSignupCommand_Execute_PasswordMissingComplexity_ReturnsValidationError(
 	}
 	if len(ve.Details) == 0 || ve.Details[0].Code != user.CodePasswordInsufficientComplexity {
 		t.Errorf("expected INSUFFICIENT_COMPLEXITY, got %v", ve.Details)
+	}
+}
+
+func TestSignupCommand_Execute_TooLongDisplayName_ReturnsValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	cmd := authuc.NewSignupCommand(
+		usermock.NewMockRepository(ctrl),
+		sessionmock.NewMockRepository(ctrl),
+		&testutil.StubTxManager{},
+	)
+	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
+		Email:       testEmail,
+		Password:    testPassword,
+		DisplayName: strings.Repeat("a", 51),
+	})
+	var ve *domain.ValidationError
+	if !errors.As(err, &ve) {
+		t.Errorf("expected *ValidationError, got %T: %v", err, err)
+	}
+	if len(ve.Details) == 0 || ve.Details[0].Field != "displayName" {
+		t.Errorf("expected displayName validation error, got %v", ve.Details)
 	}
 }
 

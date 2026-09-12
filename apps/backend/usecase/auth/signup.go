@@ -13,10 +13,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/usecase"
 )
 
-const (
-	maxDisplayName = 50
-	fieldPassword  = "password"
-)
+const fieldPassword = "password"
 
 type SignupInput struct {
 	Email       string
@@ -47,12 +44,8 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 		details = append(details, toValidationDetail(fieldPassword, pwErr))
 	}
 
-	if len([]rune(in.DisplayName)) > maxDisplayName {
-		details = append(details, domain.ValidationDetail{
-			Field:   "displayName",
-			Code:    "TOO_LONG",
-			Message: fmt.Sprintf("Display name must be at most %d characters", maxDisplayName),
-		})
+	if _, dnErr := user.NewDisplayName(in.DisplayName); dnErr != nil {
+		details = append(details, toValidationDetail("displayName", dnErr))
 	}
 
 	if len(details) > 0 {
