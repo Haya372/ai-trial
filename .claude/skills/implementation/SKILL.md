@@ -92,3 +92,4 @@ TDD（Red-Green-Refactor）サイクルで、設計ドキュメントのイン�
 
 - `docs/guidelines/guidelines.md` — 設計原則
 - `docs/guidelines/development-flow.md` — 全体の開発フロー（PRD → Issue → 詳細設計 → TDD実装 → PRレビュー → マージ）
+- `docs/guidelines/transaction-guidelines.md` — トランザクション管理（DBへの書き込みを伴うCommandを実装するとき）
