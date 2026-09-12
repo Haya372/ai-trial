@@ -72,6 +72,8 @@ func (p Password) Hash() string {
 	return p.hash
 }
 
+// checkComplexity checks character class coverage. Called only after NewPassword
+// has validated that p consists solely of ASCII printable characters (0x20-0x7E).
 func checkComplexity(p string) error {
 	var hasUpper, hasLower, hasDigit, hasSymbol bool
 	for _, r := range p {
