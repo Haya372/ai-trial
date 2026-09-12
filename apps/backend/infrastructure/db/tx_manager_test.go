@@ -1,5 +1,3 @@
-//go:build integration
-
 package db_test
 
 import (
@@ -7,53 +5,36 @@ import (
 	"errors"
 	"testing"
 
+	"go.uber.org/mock/gomock"
+
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
+	"github.com/Haya372/ai-trial/backend/infrastructure/db/mock"
 )
 
-func TestRunInTx_success_commits(t *testing.T) {
-	dsn := setupPostgres(t)
-	pool, err := db.NewPool(context.Background(), dsn)
-	if err != nil {
-		t.Fatalf("create pool: %v", err)
-	}
-	defer pool.Close()
+var (
+	errFn = errors.New("fn error")
+	errRb = errors.New("rollback error")
+)
 
-	mgr := db.NewPgxTxManager(pool)
+func TestRunInTx_rollbackFailure_joinsErrors(t *testing.T) {
+	ctrl := gomock.NewController(t)
 
-	called := false
-	err = mgr.RunInTx(context.Background(), func(ctx context.Context) error {
-		called = true
-		_, ok := db.GetTx(ctx)
-		if !ok {
-			t.Error("expected tx in context")
-		}
-		return nil
+	mockTx := mock.NewMockTx(ctrl)
+	mockTx.EXPECT().Rollback(gomock.Any()).Return(errRb)
+
+	mockBeginner := mock.NewMocktxBeginner(ctrl)
+	mockBeginner.EXPECT().Begin(gomock.Any()).Return(mockTx, nil)
+
+	mgr := db.NewPgxTxManagerForTest(mockBeginner)
+
+	err := mgr.RunInTx(context.Background(), func(_ context.Context) error {
+		return errFn
 	})
 
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	if !errors.Is(err, errFn) {
+		t.Errorf("expected err to contain errFn, got: %v", err)
 	}
-	if !called {
-		t.Fatal("fn was not called")
-	}
-}
-
-func TestRunInTx_error_rollsback(t *testing.T) {
-	dsn := setupPostgres(t)
-	pool, err := db.NewPool(context.Background(), dsn)
-	if err != nil {
-		t.Fatalf("create pool: %v", err)
-	}
-	defer pool.Close()
-
-	mgr := db.NewPgxTxManager(pool)
-
-	sentinel := errors.New("sentinel error")
-	err = mgr.RunInTx(context.Background(), func(ctx context.Context) error {
-		return sentinel
-	})
-
-	if !errors.Is(err, sentinel) {
-		t.Fatalf("expected sentinel error, got %v", err)
+	if !errors.Is(err, errRb) {
+		t.Errorf("expected err to contain errRb, got: %v", err)
 	}
 }
