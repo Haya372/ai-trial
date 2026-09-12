@@ -1,0 +1,36 @@
+post:
+  operationId: signup
+  summary: Create a new account
+  tags:
+    - auth
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/SignupRequest.yaml"
+  responses:
+    "201":
+      description: Account created
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UserResponse.yaml"
+    "400":
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
+    "409":
+      description: Email already registered
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ConflictErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"

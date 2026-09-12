@@ -1,0 +1,12 @@
+type: object
+required:
+  - code
+  - message
+properties:
+  code:
+    type: string
+    enum: ["CONFLICT"]
+    example: "CONFLICT"
+  message:
+    type: string
+    example: "Email already registered"

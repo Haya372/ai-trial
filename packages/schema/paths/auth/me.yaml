@@ -1,0 +1,24 @@
+get:
+  operationId: getMe
+  summary: Get current authenticated user
+  tags:
+    - auth
+  responses:
+    "200":
+      description: Current user
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UserResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"

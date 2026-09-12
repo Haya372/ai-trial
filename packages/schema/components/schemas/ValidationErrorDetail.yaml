@@ -1,0 +1,22 @@
+type: object
+required:
+  - field
+  - code
+  - message
+properties:
+  field:
+    type: string
+    example: "email"
+  code:
+    type: string
+    enum:
+      - REQUIRED
+      - INVALID_FORMAT
+      - TOO_SHORT
+      - TOO_LONG
+      - INVALID_CHARACTER
+      - INSUFFICIENT_COMPLEXITY
+    example: "INVALID_FORMAT"
+  message:
+    type: string
+    example: "Invalid email format"

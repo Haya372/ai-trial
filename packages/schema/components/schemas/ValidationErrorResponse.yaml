@@ -1,0 +1,17 @@
+type: object
+required:
+  - code
+  - message
+  - details
+properties:
+  code:
+    type: string
+    enum: ["VALIDATION_ERROR"]
+    example: "VALIDATION_ERROR"
+  message:
+    type: string
+    example: "Validation failed"
+  details:
+    type: array
+    items:
+      $ref: "./ValidationErrorDetail.yaml"

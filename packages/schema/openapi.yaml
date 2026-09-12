@@ -5,7 +5,31 @@ info:
 paths:
   /health:
     $ref: "./paths/health.yaml"
+  /auth/signup:
+    $ref: "./paths/auth/signup.yaml"
+  /auth/login:
+    $ref: "./paths/auth/login.yaml"
+  /auth/logout:
+    $ref: "./paths/auth/logout.yaml"
+  /auth/me:
+    $ref: "./paths/auth/me.yaml"
 components:
   schemas:
     HealthResponse:
       $ref: "./components/schemas/HealthResponse.yaml"
+    SignupRequest:
+      $ref: "./components/schemas/SignupRequest.yaml"
+    LoginRequest:
+      $ref: "./components/schemas/LoginRequest.yaml"
+    UserResponse:
+      $ref: "./components/schemas/UserResponse.yaml"
+    ValidationErrorDetail:
+      $ref: "./components/schemas/ValidationErrorDetail.yaml"
+    ValidationErrorResponse:
+      $ref: "./components/schemas/ValidationErrorResponse.yaml"
+    UnauthorizedErrorResponse:
+      $ref: "./components/schemas/UnauthorizedErrorResponse.yaml"
+    ConflictErrorResponse:
+      $ref: "./components/schemas/ConflictErrorResponse.yaml"
+    InternalErrorResponse:
+      $ref: "./components/schemas/InternalErrorResponse.yaml"

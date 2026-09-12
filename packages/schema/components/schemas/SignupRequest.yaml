@@ -1,0 +1,18 @@
+type: object
+required:
+  - email
+  - password
+properties:
+  email:
+    type: string
+    format: email
+    example: "user@example.com"
+  password:
+    type: string
+    minLength: 8
+    maxLength: 128
+    example: "SecurePass1!"
+  displayName:
+    type: string
+    maxLength: 50
+    example: "John Doe"
