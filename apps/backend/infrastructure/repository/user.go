@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Haya372/ai-trial/backend/domain/user"
+	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
 
@@ -26,8 +27,7 @@ func NewUserRepository(pool *pgxpool.Pool) user.Repository {
 func (r *userRepository) Create(
 	ctx context.Context, email user.Email, displayName string, password user.Password,
 ) (user.User, error) {
-	q := query.New(r.pool)
-	row, err := q.InsertUser(ctx, query.InsertUserParams{
+	row, err := r.querier(ctx).InsertUser(ctx, query.InsertUserParams{
 		Email:        string(email),
 		DisplayName:  displayName,
 		PasswordHash: password.Hash(),
@@ -43,8 +43,7 @@ func (r *userRepository) Create(
 }
 
 func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (user.User, error) {
-	q := query.New(r.pool)
-	row, err := q.FindUserByEmail(ctx, string(email))
+	row, err := r.querier(ctx).FindUserByEmail(ctx, string(email))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, user.ErrUserNotFound
 	}
@@ -55,25 +54,23 @@ func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (use
 }
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (user.User, error) {
-	row := r.pool.QueryRow(ctx,
-		`SELECT id, email, display_name, password_hash FROM users WHERE id = $1`,
-		pgtype.UUID{Bytes: id, Valid: true},
-	)
-	var (
-		pgID         pgtype.UUID
-		emailStr     string
-		displayName  string
-		passwordHash string
-	)
-	if err := row.Scan(&pgID, &emailStr, &displayName, &passwordHash); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, user.ErrUserNotFound
-		}
-		return nil, err
+	row, err := r.querier(ctx).FindUserByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, user.ErrUserNotFound
 	}
-	email, err := user.NewEmail(emailStr)
 	if err != nil {
 		return nil, err
 	}
-	return user.New(uuid.UUID(pgID.Bytes), email, displayName, passwordHash), nil
+	email, err := user.NewEmail(row.Email)
+	if err != nil {
+		return nil, err
+	}
+	return user.New(uuid.UUID(row.ID.Bytes), email, row.DisplayName, row.PasswordHash), nil
+}
+
+func (r *userRepository) querier(ctx context.Context) *query.Queries {
+	if tx, ok := db.GetTx(ctx); ok {
+		return query.New(tx)
+	}
+	return query.New(r.pool)
 }
