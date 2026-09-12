@@ -9,7 +9,7 @@
     "lint": "turbo lint",
     "format": "turbo format",
     "build": "turbo build",
-    "generate": "run-s generate:backend generate:frontend",
+    "generate": "turbo generate:backend && pnpm generate:frontend",
     "generate:backend": "make -C apps/backend oapi-codegen-generate",
     "generate:frontend": "pnpm --filter @ai-trial/schema generate:frontend"
   },

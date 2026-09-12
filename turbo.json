@@ -7,6 +7,12 @@
     },
     "test": {},
     "lint": {},
-    "format": {}
+    "format": {},
+    "bundle": {
+      "outputs": ["dist/**"]
+    },
+    "generate:backend": {
+      "dependsOn": ["@ai-trial/schema#bundle"]
+    }
   }
 }
