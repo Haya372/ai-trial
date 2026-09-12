@@ -7,7 +7,4 @@ const (
 	testPassword = "SecurePass1!"
 )
 
-var (
-	errPasswordMismatch = errors.New("mismatch")
-	errDBFailure        = errors.New("db error")
-)
+var errDBFailure = errors.New("db error")

@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,8 +9,6 @@ import (
 )
 
 const sessionExpiry = 30 * 24 * time.Hour
-
-var ErrInvalidCredentials = errors.New("invalid email or password")
 
 type AuthOutput struct {
 	User      user.User

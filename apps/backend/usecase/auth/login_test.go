@@ -61,11 +61,11 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 	}
 }
 
-func TestLoginCommand_Execute_WrongPassword_ReturnsInvalidCredentials(t *testing.T) {
+func TestLoginCommand_Execute_WrongPassword_ReturnsPasswordMismatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	email, _ := user.NewEmail("u@ex.com")
-	stub := &stubUser{id: uuid.New(), email: email, compareErr: errPasswordMismatch}
+	stub := &stubUser{id: uuid.New(), email: email, compareErr: user.ErrPasswordMismatch}
 
 	mockUserRepo := usermock.NewMockRepository(ctrl)
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
@@ -79,12 +79,12 @@ func TestLoginCommand_Execute_WrongPassword_ReturnsInvalidCredentials(t *testing
 		Email:    "u@ex.com",
 		Password: "WrongPass1!",
 	})
-	if !errors.Is(err, authuc.ErrInvalidCredentials) {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
+	if !errors.Is(err, user.ErrPasswordMismatch) {
+		t.Errorf("expected ErrPasswordMismatch, got %v", err)
 	}
 }
 
-func TestLoginCommand_Execute_UnknownEmail_ReturnsInvalidCredentials(t *testing.T) {
+func TestLoginCommand_Execute_UnknownEmail_ReturnsUserNotFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	email, _ := user.NewEmail("no@ex.com")
@@ -99,12 +99,12 @@ func TestLoginCommand_Execute_UnknownEmail_ReturnsInvalidCredentials(t *testing.
 		Email:    "no@ex.com",
 		Password: testPassword,
 	})
-	if !errors.Is(err, authuc.ErrInvalidCredentials) {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
+	if !errors.Is(err, user.ErrUserNotFound) {
+		t.Errorf("expected ErrUserNotFound, got %v", err)
 	}
 }
 
-func TestLoginCommand_Execute_InvalidEmailFormat_ReturnsInvalidCredentials(t *testing.T) {
+func TestLoginCommand_Execute_InvalidEmailFormat_ReturnsEmailValidationError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cmd := authuc.NewLoginCommand(
 		usermock.NewMockRepository(ctrl),
@@ -114,7 +114,7 @@ func TestLoginCommand_Execute_InvalidEmailFormat_ReturnsInvalidCredentials(t *te
 		Email:    "not-an-email",
 		Password: testPassword,
 	})
-	if !errors.Is(err, authuc.ErrInvalidCredentials) {
-		t.Errorf("expected ErrInvalidCredentials, got %v", err)
+	if !errors.Is(err, user.ErrInvalidEmail) {
+		t.Errorf("expected ErrInvalidEmail, got %v", err)
 	}
 }
