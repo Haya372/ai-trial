@@ -11,6 +11,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
+	"github.com/Haya372/ai-trial/backend/usecase"
 )
 
 const (
@@ -27,10 +28,11 @@ type SignupInput struct {
 type SignupCommand struct {
 	userRepo    user.Repository
 	sessionRepo session.Repository
+	txManager   usecase.TransactionManager
 }
 
-func NewSignupCommand(ur user.Repository, sr session.Repository) *SignupCommand {
-	return &SignupCommand{userRepo: ur, sessionRepo: sr}
+func NewSignupCommand(ur user.Repository, sr session.Repository, tx usecase.TransactionManager) *SignupCommand {
+	return &SignupCommand{userRepo: ur, sessionRepo: sr, txManager: tx}
 }
 
 func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutput, error) {
@@ -65,17 +67,23 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 		displayName = strings.SplitN(in.Email, "@", 2)[0]
 	}
 
-	u, err := c.userRepo.Create(ctx, email, displayName, password)
-	if err != nil {
+	var out *AuthOutput
+	if err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
+		u, err := c.userRepo.Create(ctx, email, displayName, password)
+		if err != nil {
+			return err
+		}
+		sess, err := c.sessionRepo.Create(ctx, u.ID(), time.Now().Add(sessionExpiry))
+		if err != nil {
+			return fmt.Errorf("create session: %w", err)
+		}
+		out = &AuthOutput{User: u, SessionID: sess.ID()}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 
-	sess, err := c.sessionRepo.Create(ctx, u.ID(), time.Now().Add(sessionExpiry))
-	if err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
-	}
-
-	return &AuthOutput{User: u, SessionID: sess.ID()}, nil
+	return out, nil
 }
 
 func toValidationDetail(field string, err error) domain.ValidationDetail {
