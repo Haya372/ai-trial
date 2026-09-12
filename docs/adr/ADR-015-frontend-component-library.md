@@ -1,6 +1,30 @@
 # ADR-015: フロントエンドコンポーネントライブラリ
 
-- ステータス: 承認済
+- ステータス: 改訂済（2026-09-13 に Base UI へ変更。詳細は「変更履歴」を参照）
+
+## 変更履歴
+
+### 2026-09-13: Radix UI → Base UI へ変更
+
+**変更前の決定**: shadcn/ui（Tailwind CSS + Radix UI）  
+**変更後の決定**: Base UI + Tailwind CSS（自前ラッパー）
+
+#### 変更理由
+
+- **Base UI v1 正式リリース（2025年）**: MUI チームが開発するヘッドレス UI ライブラリの安定版がリリースされ、Radix UI と同等のアクセシビリティ・カスタマイズ性を持ちながら、より一貫した API 設計と活発なメンテナンスが見込めるようになった
+- **shadcn/ui の「コピーペースト」モデルからの脱却**: shadcn/ui はコンポーネントソースをプロジェクトに直接コピーする設計だが、`packages/ui` パッケージでラッパーを管理する現アーキテクチャ（ADR-002 モノレポ）では、npm パッケージとして依存関係を持つ方が変更管理がシンプル
+- **API の一貫性**: Base UI は全コンポーネントで一貫した Props パターン（`data-slot`・`data-[state]` 属性・`render` prop）を持ち、独自ラッパーとの統合がしやすい
+- **元の ADR の主目的は満たしている**: カスタマイズ性・アクセシビリティ・TypeScript 対応・Tailwind CSS との統合という選択理由は Base UI でも同様に達成できる
+
+#### 変更に伴うコンポーネントの実装ルール更新
+
+元の「shadcn/ui の CLI でソースをコピー」方式に代わり、以下のルールを採用する：
+
+- `@base-ui/react/[component]` のプリミティブをラップして `packages/ui/src/` に配置する
+- `className` prop は外部に公開しない（variant/size prop のみ）
+- スタイリングは `cva`（class-variance-authority）+ Tailwind CSS で行う
+
+---
 
 ## コンテキスト
 
@@ -26,7 +50,9 @@ ADR-005でReact + TypeScript、ADR-006でViteを採用した。これを前提�
 
 ## 決定
 
-コンポーネントライブラリとして **shadcn/ui**（Tailwind CSS + Radix UI）を採用する。
+~~コンポーネントライブラリとして **shadcn/ui**（Tailwind CSS + Radix UI）を採用する。~~
+
+**【改訂】** コンポーネントライブラリとして **Base UI + Tailwind CSS**（自前ラッパー）を採用する。`@base-ui/react` のプリミティブを `packages/ui` でラップし、`cva` によるバリアントスタイリングと組み合わせる。
 
 ## 検討した選択肢
 
