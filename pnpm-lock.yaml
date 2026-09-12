@@ -105,6 +105,33 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@biomejs/biome':
+      specifier: 2.5.12
+      version: 2.5.12
+    '@types/react':
+      specifier: 19.2.18
+      version: 19.2.18
+    '@types/react-dom':
+      specifier: 19.2.7
+      version: 19.2.7
+    npm-run-all2:
+      specifier: 9.0.3
+      version: 9.0.3
+    oxlint:
+      specifier: 1.81.0
+      version: 1.81.0
+    react:
+      specifier: 19.2.8
+      version: 19.2.8
+    react-dom:
+      specifier: 19.2.8
+      version: 19.2.8
+    typescript:
+      specifier: 7.0.2
+      version: 7.0.2
+
 importers:
 
   .:
@@ -222,29 +249,29 @@ importers:
         specifier: 0.2.5
         version: 0.2.5
       react:
-        specifier: '>=19.0.0'
+        specifier: 'catalog:'
         version: 19.2.8
       react-dom:
-        specifier: '>=19.0.0'
+        specifier: 'catalog:'
         version: 19.2.8(react@19.2.8)
     devDependencies:
       '@biomejs/biome':
-        specifier: 2.5.12
+        specifier: 'catalog:'
         version: 2.5.12
       '@types/react':
-        specifier: 19.2.18
+        specifier: 'catalog:'
         version: 19.2.18
       '@types/react-dom':
-        specifier: 19.2.7
+        specifier: 'catalog:'
         version: 19.2.7(@types/react@19.2.18)
       npm-run-all2:
-        specifier: 9.0.3
+        specifier: 'catalog:'
         version: 9.0.3
       oxlint:
-        specifier: 1.81.0
+        specifier: 'catalog:'
         version: 1.81.0
       typescript:
-        specifier: 7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
 
 packages:

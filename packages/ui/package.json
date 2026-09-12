@@ -19,15 +19,15 @@
     "cn": "0.2.5"
   },
   "peerDependencies": {
-    "react": ">=19.0.0",
-    "react-dom": ">=19.0.0"
+    "react": "catalog:",
+    "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.12",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
-    "npm-run-all2": "9.0.3",
-    "oxlint": "1.81.0",
-    "typescript": "7.0.2"
+    "@biomejs/biome": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "npm-run-all2": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
   }
 }

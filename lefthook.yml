@@ -9,7 +9,7 @@ pre-commit:
   piped: true
   jobs:
     - name: format
-      glob: "apps/web/**/*.{ts,tsx,js,jsx,json,css}"
+      glob: "{apps/web,packages/ui}/**/*.{ts,tsx,js,jsx,json,css}"
       run: ./apps/web/node_modules/.bin/biome format --write {staged_files}
       stage_fixed: true
     - name: schema-lint
