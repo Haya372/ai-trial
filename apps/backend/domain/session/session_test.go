@@ -26,3 +26,17 @@ func TestNewSession_returnsAccessibleFields(t *testing.T) {
 		t.Errorf("ExpiresAt() = %v, want %v", s.ExpiresAt(), expiresAt)
 	}
 }
+
+func TestSession_IsExpired_notExpired(t *testing.T) {
+	s := session.New(uuid.New(), uuid.New(), time.Now().Add(time.Hour))
+	if s.IsExpired() {
+		t.Error("IsExpired() = true, want false for future expiry")
+	}
+}
+
+func TestSession_IsExpired_expired(t *testing.T) {
+	s := session.New(uuid.New(), uuid.New(), time.Now().Add(-time.Second))
+	if !s.IsExpired() {
+		t.Error("IsExpired() = false, want true for past expiry")
+	}
+}
