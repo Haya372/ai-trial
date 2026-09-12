@@ -6,7 +6,7 @@ pre-push:
       run: make sqlc-generate && make build && make lint
 
 pre-commit:
-  parallel: true
+  piped: true
   jobs:
     - name: format
       glob: "apps/web/**/*.{ts,tsx,js,jsx,json,css}"
@@ -25,3 +25,7 @@ pre-commit:
         gofmt -w {staged_files}
         goimports -w {staged_files}
       stage_fixed: true
+    - name: go-lint
+      glob: "apps/backend/**/*.go"
+      root: "apps/backend"
+      run: mise exec -- golangci-lint run ./...

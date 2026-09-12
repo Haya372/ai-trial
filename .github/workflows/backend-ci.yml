@@ -102,6 +102,11 @@ jobs:
       - name: Run tests with coverage
         run: make test-coverage TAGS=integration
         working-directory: apps/backend
+      - name: Fix coverage paths for monorepo
+        # go-coverage-report uses github.com/<repo>/<changed-file-path> as the lookup key.
+        # Our module is at apps/backend/ so coverage paths use "backend/" but the action
+        # expects "apps/backend/". This sed replaces the module path to match.
+        run: sed -i 's|github.com/Haya372/ai-trial/backend/|github.com/Haya372/ai-trial/apps/backend/|g' apps/backend/coverage.out
       - name: Upload coverage artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
