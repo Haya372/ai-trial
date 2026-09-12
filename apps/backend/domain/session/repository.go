@@ -1,5 +1,7 @@
 package session
 
+//go:generate go tool mockgen -destination=generated/repository.go -package=mock github.com/Haya372/ai-trial/backend/domain/session Repository
+
 import (
 	"context"
 	"time"
