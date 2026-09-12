@@ -90,6 +90,15 @@ export const Large: Story = {
 export const Disabled: Story = {
   args: {
     children: 'Button',
+    variant: 'primary',
+    disabled: true,
+  },
+}
+
+export const DisabledDestructive: Story = {
+  args: {
+    children: 'Delete',
+    variant: 'destructive',
     disabled: true,
   },
 }
