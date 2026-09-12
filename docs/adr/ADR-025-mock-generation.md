@@ -19,7 +19,7 @@ ADR-001でClean Architectureを採用し、UseCase・Handler層のユニット�
 
 - `go tool mockgen` でインターフェースからモックを自動生成する
 - `//go:generate` ディレクティブをインターフェース定義ファイルに記述する
-- 生成先は `<package>/generated/` ディレクティブで統一し、gitignore対象とする
+- 生成先は `<package>/generated/` ディレクトリで統一し、gitignore対象とする
 - `go generate ./...` でプロジェクト全体のモックを一括再生成できる
 
 ## 検討した選択肢
@@ -91,4 +91,4 @@ Uberが管理する `go.uber.org/mock` パッケージ。もともとはGoogle�
 
 ### 悪い影響
 
-- モックの再生成を忘れてインターフェースとズレた状態になるリスクがある（CIの `generate` ステップで検知する）
+- モックの再生成を忘れてインターフェースとズレた状態になるリスクがある。ただし、生成ファイルをgitignore対象にしてCIでモックを毎回新規生成することで、このリスクは回避できる
