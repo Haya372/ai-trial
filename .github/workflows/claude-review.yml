@@ -1,0 +1,57 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    runs-on: ubuntu-latest
+    # pull_request: ドラフト以外 / issue_comment: PRへのコメントかつ @claude を含む場合のみ実行
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '@claude'))
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@4169884de317bc1b4cb1b47f4476d76fed92b384 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: "true"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+
+            このPRをレビューしてください。
+
+            ## レビュー手順
+
+            1. `gh pr diff` で差分を確認する
+            2. 変更ファイルの種別に応じて `docs/guidelines/` 内のレビュー基準を参照する
+               - バックエンド (.go, .sql): `docs/guidelines/backend-review-criteria.md`
+               - フロントエンド (.tsx, .css): `docs/guidelines/frontend-review-criteria.md`
+               - ドキュメント (.md, .yaml, .json): `docs/guidelines/document-review-criteria.md`
+               - 共通設計原則: `docs/guidelines/guidelines.md`
+
+            ## 出力ルール
+
+            - スコア7以上（重大・要修正）の問題のみ指摘する（軽微な問題・スタイルはスキップ）
+            - 特定のコード行への指摘は `mcp__github_inline_comment__create_inline_comment` でインラインコメントを使う
+            - 全体サマリーを `gh pr comment` でトップレベルに投稿する
+            - 問題がなければ「指摘なし」とだけコメントする
+
+          claude_args: >-
+            --allowedTools
+            "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read"
