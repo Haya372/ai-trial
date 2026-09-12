@@ -1,8 +1,8 @@
 package user
 
-import "errors"
+import "github.com/Haya372/ai-trial/backend/domain"
 
 var (
-	ErrUserNotFound = errors.New("user not found")
-	ErrEmailTaken   = errors.New("email already registered")
+	ErrUserNotFound = &domain.DomainError{Code: "USER_NOT_FOUND", Message: "user not found"}
+	ErrEmailTaken   = &domain.DomainError{Code: "EMAIL_TAKEN", Message: "email already registered"}
 )
