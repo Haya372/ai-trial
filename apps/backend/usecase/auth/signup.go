@@ -34,7 +34,7 @@ func NewSignupCommand(ur user.Repository, sr session.Repository) *SignupCommand 
 }
 
 func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutput, error) {
-	var details []ValidationDetail
+	var details []domain.ValidationDetail
 
 	email, emailErr := user.NewEmail(in.Email)
 	if emailErr != nil {
@@ -49,7 +49,7 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 	}
 
 	if len([]rune(in.DisplayName)) > maxDisplayName {
-		details = append(details, ValidationDetail{
+		details = append(details, domain.ValidationDetail{
 			Field:   "displayName",
 			Code:    "TOO_LONG",
 			Message: fmt.Sprintf("Display name must be at most %d characters", maxDisplayName),
@@ -57,7 +57,7 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 	}
 
 	if len(details) > 0 {
-		return nil, &ValidationError{Details: details}
+		return nil, &domain.ValidationError{Details: details}
 	}
 
 	displayName := in.DisplayName
@@ -78,15 +78,15 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 	return &AuthOutput{User: u, SessionID: sess.ID()}, nil
 }
 
-func toValidationDetail(field string, err error) ValidationDetail {
+func toValidationDetail(field string, err error) domain.ValidationDetail {
 	var domErr *domain.DomainError
 	if errors.As(err, &domErr) {
-		return ValidationDetail{Field: field, Code: domErr.Code, Message: domErr.Message}
+		return domain.ValidationDetail{Field: field, Code: domErr.Code, Message: domErr.Message}
 	}
-	return ValidationDetail{Field: field, Code: "INVALID", Message: err.Error()}
+	return domain.ValidationDetail{Field: field, Code: "INVALID", Message: err.Error()}
 }
 
-func checkPasswordComplexity(p string) *ValidationDetail {
+func checkPasswordComplexity(p string) *domain.ValidationDetail {
 	var hasUpper, hasLower, hasDigit, hasSymbol bool
 	for _, r := range p {
 		switch {
@@ -101,9 +101,9 @@ func checkPasswordComplexity(p string) *ValidationDetail {
 		}
 	}
 	if !hasUpper || !hasLower || !hasDigit || !hasSymbol {
-		return &ValidationDetail{
+		return &domain.ValidationDetail{
 			Field:   fieldPassword,
-			Code:    "INSUFFICIENT_COMPLEXITY",
+			Code:    CodeInsufficientComplexity,
 			Message: "Password must contain uppercase, lowercase, digit, and symbol",
 		}
 	}

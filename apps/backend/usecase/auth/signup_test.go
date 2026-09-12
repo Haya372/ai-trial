@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	sessionmock "github.com/Haya372/ai-trial/backend/domain/session/generated"
 	"github.com/Haya372/ai-trial/backend/domain/user"
@@ -90,7 +91,7 @@ func TestSignupCommand_Execute_InvalidEmail_ReturnsValidationError(t *testing.T)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var ve *authuc.ValidationError
+	var ve *domain.ValidationError
 	if !errors.As(err, &ve) {
 		t.Errorf("expected *ValidationError, got %T: %v", err, err)
 	}
@@ -106,7 +107,7 @@ func TestSignupCommand_Execute_ShortPassword_ReturnsValidationError(t *testing.T
 		Email:    testEmail,
 		Password: "Ab1!",
 	})
-	var ve *authuc.ValidationError
+	var ve *domain.ValidationError
 	if !errors.As(err, &ve) {
 		t.Errorf("expected *ValidationError, got %T: %v", err, err)
 	}
@@ -122,11 +123,11 @@ func TestSignupCommand_Execute_PasswordMissingComplexity_ReturnsValidationError(
 		Email:    testEmail,
 		Password: "alllowercase",
 	})
-	var ve *authuc.ValidationError
+	var ve *domain.ValidationError
 	if !errors.As(err, &ve) {
 		t.Errorf("expected *ValidationError, got %T: %v", err, err)
 	}
-	if len(ve.Details) == 0 || ve.Details[0].Code != "INSUFFICIENT_COMPLEXITY" {
+	if len(ve.Details) == 0 || ve.Details[0].Code != authuc.CodeInsufficientComplexity {
 		t.Errorf("expected INSUFFICIENT_COMPLEXITY, got %v", ve.Details)
 	}
 }
