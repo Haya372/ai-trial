@@ -19,8 +19,8 @@ var (
 )
 
 func NewPassword(plain string) (Password, error) {
-	for i := 0; i < len(plain); i++ {
-		if plain[i] < 0x20 || plain[i] > 0x7E {
+	for _, b := range []byte(plain) {
+		if b < 0x20 || b > 0x7E {
 			return Password{}, fmt.Errorf("%w", ErrPasswordNotASCII)
 		}
 	}
