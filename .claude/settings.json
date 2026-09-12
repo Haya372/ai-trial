@@ -29,7 +29,11 @@
       "Bash(shellcheck *)",
       "Bash(gitleaks *)",
       "Bash(zizmor *)",
-      "Bash(pinact *)"
+      "Bash(pinact *)",
+      "Bash(go build *)",
+      "Bash(go vet *)",
+      "Bash(gh api repos/Haya372/ai-trial/pulls/*/comments)",
+      "Bash(gh api repos/Haya372/ai-trial/pulls/*/comments/*/replies *)"
     ],
     "deny": [
       "Bash(gh config *)",
