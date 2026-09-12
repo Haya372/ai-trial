@@ -4,6 +4,11 @@ VALUES ($1, $2)
 RETURNING *;
 
 -- name: FindSessionByID :one
+SELECT id, user_id, expires_at, created_at FROM sessions
+WHERE id = $1
+LIMIT 1;
+
+-- name: FindActiveSessionByID :one
 SELECT
     s.id,
     s.user_id,

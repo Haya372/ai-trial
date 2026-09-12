@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Haya372/ai-trial/backend/domain/session"
+	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
 
@@ -26,8 +27,7 @@ func NewSessionRepository(pool *pgxpool.Pool) session.Repository {
 func (r *sessionRepository) Create(
 	ctx context.Context, userID uuid.UUID, expiresAt time.Time,
 ) (session.Session, error) {
-	q := query.New(r.pool)
-	row, err := q.InsertSession(ctx, query.InsertSessionParams{
+	row, err := r.querier(ctx).InsertSession(ctx, query.InsertSessionParams{
 		UserID:    pgtype.UUID{Bytes: userID, Valid: true},
 		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	})
@@ -38,8 +38,18 @@ func (r *sessionRepository) Create(
 }
 
 func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session.Session, error) {
-	q := query.New(r.pool)
-	row, err := q.FindSessionByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	row, err := r.querier(ctx).FindSessionByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return session.New(uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes), row.ExpiresAt.Time), nil
+}
+
+func (r *sessionRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (session.Session, error) {
+	row, err := r.querier(ctx).FindActiveSessionByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -50,6 +60,12 @@ func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session
 }
 
 func (r *sessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	q := query.New(r.pool)
-	return q.DeleteSession(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	return r.querier(ctx).DeleteSession(ctx, pgtype.UUID{Bytes: id, Valid: true})
+}
+
+func (r *sessionRepository) querier(ctx context.Context) *query.Queries {
+	if tx, ok := db.GetTx(ctx); ok {
+		return query.New(tx)
+	}
+	return query.New(r.pool)
 }
