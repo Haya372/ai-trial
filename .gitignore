@@ -2,3 +2,4 @@ node_modules
 .turbo
 .env
 packages/schema/dist
+packages/ui/storybook-static
