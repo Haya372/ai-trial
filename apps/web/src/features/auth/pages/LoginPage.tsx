@@ -1,15 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Button, Input, Label, Text } from '@repo/ui'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import { login } from '../../../api/generated'
 import { useAuthStore } from '../../../stores/auth'
-
-const loginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Invalid email format'),
-  password: z.string().min(1, 'Password is required'),
-})
-
-type LoginForm = z.infer<typeof loginSchema>
+import { type LoginFormValues, loginSchema } from '../types'
 
 interface LoginPageProps {
   onSuccess?: () => void
@@ -22,9 +16,9 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
+  } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) })
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: LoginFormValues) => {
     try {
       const res = await login({ email: data.email, password: data.password })
       setUser(res.data)
@@ -39,43 +33,43 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
     >
-      <h1 className="text-2xl font-bold">Login</h1>
+      <Text variant="h2">Login</Text>
       <div className="flex flex-col gap-1">
-        <label htmlFor="email">Email</label>
-        <input
+        <Label htmlFor="email">Email</Label>
+        <Input
           id="email"
           type="email"
+          state={errors.email ? 'error' : 'default'}
+          aria-invalid={!!errors.email}
           {...register('email')}
-          className="border rounded px-3 py-2"
         />
         {errors.email && (
-          <span className="text-red-500 text-sm">{errors.email.message}</span>
+          <span className="text-destructive text-sm">
+            {errors.email.message}
+          </span>
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="password">Password</label>
-        <input
+        <Label htmlFor="password">Password</Label>
+        <Input
           id="password"
           type="password"
+          state={errors.password ? 'error' : 'default'}
+          aria-invalid={!!errors.password}
           {...register('password')}
-          className="border rounded px-3 py-2"
         />
         {errors.password && (
-          <span className="text-red-500 text-sm">
+          <span className="text-destructive text-sm">
             {errors.password.message}
           </span>
         )}
       </div>
       {errors.root && (
-        <span className="text-red-500 text-sm">{errors.root.message}</span>
+        <span className="text-destructive text-sm">{errors.root.message}</span>
       )}
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="bg-blue-600 text-white rounded px-4 py-2"
-      >
+      <Button type="submit" variant="primary" disabled={isSubmitting}>
         {isSubmitting ? 'Logging in…' : 'Login'}
-      </button>
+      </Button>
     </form>
   )
 }
