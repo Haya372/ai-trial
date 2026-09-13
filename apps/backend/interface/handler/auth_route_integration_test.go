@@ -94,13 +94,61 @@ func setupRouteTest(t *testing.T) {
 	})
 }
 
+// --- DB assertion helpers ---
+
+func assertSessionExistsInDB(t *testing.T, sessionID string) {
+	t.Helper()
+	var count int
+	err := routeTestPool.QueryRow(context.Background(),
+		"SELECT COUNT(*) FROM sessions WHERE id = $1", sessionID).Scan(&count)
+	if err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if count == 0 {
+		t.Errorf("expected session %s to exist in DB", sessionID)
+	}
+}
+
+func assertSessionNotExistsInDB(t *testing.T, sessionID string) {
+	t.Helper()
+	var count int
+	err := routeTestPool.QueryRow(context.Background(),
+		"SELECT COUNT(*) FROM sessions WHERE id = $1", sessionID).Scan(&count)
+	if err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expected session %s to be deleted from DB, but it still exists", sessionID)
+	}
+}
+
+func assertUserExistsInDB(t *testing.T, email string) {
+	t.Helper()
+	var count int
+	err := routeTestPool.QueryRow(context.Background(),
+		"SELECT COUNT(*) FROM users WHERE email = $1", email).Scan(&count)
+	if err != nil {
+		t.Fatalf("query user: %v", err)
+	}
+	if count == 0 {
+		t.Errorf("expected user with email %s to exist in DB", email)
+	}
+}
+
+// --- Request / response helpers ---
+
+func authBody(t *testing.T, method, path string, body any) *http.Request {
+	t.Helper()
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequestWithContext(t.Context(), method, path, bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
 func signupAndGetCookie(t *testing.T, router *chi.Mux, email string) *http.Cookie {
 	t.Helper()
-	body, _ := json.Marshal(map[string]string{"email": email, "password": testPassword})
-	req := httptest.NewRequest(http.MethodPost, "/auth/signup", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	router.ServeHTTP(rec, signupRequest(t, email))
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("signup failed: %d %s", rec.Code, rec.Body.String())
 	}
@@ -113,24 +161,182 @@ func signupAndGetCookie(t *testing.T, router *chi.Mux, email string) *http.Cooki
 	return nil
 }
 
-func TestRoute_Logout_withoutSession_returns401(t *testing.T) {
+func responseCode(t *testing.T, router *chi.Mux, req *http.Request) int {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec.Code
+}
+
+// --- Signup ---
+
+func TestRoute_Signup_validInput_creates_user_and_session_in_DB(t *testing.T) {
 	setupRouteTest(t)
 	router := buildRouteTestRouter()
 
-	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
+	router.ServeHTTP(rec, signupRequest(t, "new@ex.com"))
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	assertUserExistsInDB(t, "new@ex.com")
+
+	var sessionCookie *http.Cookie
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == testSessionCookieName {
+			sessionCookie = c
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("no session cookie")
+	}
+	assertSessionExistsInDB(t, sessionCookie.Value)
+}
+
+func TestRoute_Signup_invalidEmail_returns400_with_validationError(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, authBody(t, http.MethodPost, "/auth/signup", map[string]string{
+		"email": "not-an-email", "password": testPassword,
+	}))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	_ = json.NewDecoder(rec.Body).Decode(&body)
+	if body["code"] != "VALIDATION_ERROR" {
+		t.Errorf("expected VALIDATION_ERROR, got %v", body["code"])
+	}
+}
+
+func TestRoute_Signup_weakPassword_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, authBody(t, http.MethodPost, "/auth/signup", map[string]string{
+		"email": "weak@ex.com", "password": "password",
+	}))
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	_ = json.NewDecoder(rec.Body).Decode(&body)
+	if body["code"] != "VALIDATION_ERROR" {
+		t.Errorf("expected VALIDATION_ERROR, got %v", body["code"])
+	}
+}
+
+func TestRoute_Signup_duplicateEmail_returns409(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	router.ServeHTTP(httptest.NewRecorder(), signupRequest(t, "dup@ex.com"))
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, signupRequest(t, "dup@ex.com"))
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRoute_Signup_invalidJSON_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/signup",
+		strings.NewReader("not json"))
+	req.Header.Set("Content-Type", "application/json")
+
+	if code := responseCode(t, router, req); code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", code)
+	}
+}
+
+// --- Login ---
+
+func TestRoute_Login_validCredentials_returns200_and_new_session_in_DB(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	signupAndGetCookie(t, router, "login@ex.com")
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, loginRequest(t, "login@ex.com"))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == testSessionCookieName {
+			assertSessionExistsInDB(t, c.Value)
+			return
+		}
+	}
+	t.Error("no session cookie in login response")
+}
+
+func TestRoute_Login_wrongPassword_returns401(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	signupAndGetCookie(t, router, "wp@ex.com")
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, authBody(t, http.MethodPost, "/auth/login", map[string]string{
+		"email": "wp@ex.com", "password": "WrongPass1!",
+	}))
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
 }
 
-func TestRoute_Signup_then_Logout_succeeds(t *testing.T) {
+func TestRoute_Login_unknownEmail_returns401(t *testing.T) {
 	setupRouteTest(t)
 	router := buildRouteTestRouter()
 
-	cookie := signupAndGetCookie(t, router, "logout@ex.com")
+	if code := responseCode(t, router, loginRequest(t, "nobody@ex.com")); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", code)
+	}
+}
+
+func TestRoute_Login_invalidJSON_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/login",
+		strings.NewReader("not json"))
+	req.Header.Set("Content-Type", "application/json")
+
+	if code := responseCode(t, router, req); code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", code)
+	}
+}
+
+// --- Logout ---
+
+func TestRoute_Logout_withoutSession_returns401(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	if code := responseCode(t, router, httptest.NewRequest(http.MethodPost, "/auth/logout", nil)); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", code)
+	}
+}
+
+func TestRoute_Logout_deletesSessionFromDB(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "dellogout@ex.com")
+	assertSessionExistsInDB(t, cookie.Value)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 	req.AddCookie(cookie)
@@ -140,18 +346,34 @@ func TestRoute_Signup_then_Logout_succeeds(t *testing.T) {
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
 	}
+	assertSessionNotExistsInDB(t, cookie.Value)
 }
+
+func TestRoute_Logout_reusingSessionAfterLogout_returns401(t *testing.T) {
+	setupRouteTest(t)
+	router := buildRouteTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "reuse@ex.com")
+
+	logoutReq := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	logoutReq.AddCookie(cookie)
+	router.ServeHTTP(httptest.NewRecorder(), logoutReq)
+
+	getMeReq := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+	getMeReq.AddCookie(cookie)
+	if code := responseCode(t, router, getMeReq); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 after logout, got %d", code)
+	}
+}
+
+// --- GetMe ---
 
 func TestRoute_GetMe_withoutSession_returns401(t *testing.T) {
 	setupRouteTest(t)
 	router := buildRouteTestRouter()
 
-	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d", rec.Code)
+	if code := responseCode(t, router, httptest.NewRequest(http.MethodGet, "/auth/me", nil)); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", code)
 	}
 }
 
