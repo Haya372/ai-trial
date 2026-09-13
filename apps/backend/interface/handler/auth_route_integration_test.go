@@ -194,68 +194,71 @@ func TestRoute_Signup_validInput_creates_user_and_session_in_DB(t *testing.T) {
 	assertSessionExistsInDB(t, sessionCookie.Value)
 }
 
-func TestRoute_Signup_invalidEmail_returns400_with_validationError(t *testing.T) {
+func TestRoute_Signup_errorCases(t *testing.T) {
 	setupRouteTest(t)
 	router := buildRouteTestRouter()
 
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, authBody(t, http.MethodPost, "/auth/signup", map[string]string{
-		"email": "not-an-email", "password": testPassword,
-	}))
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-	var body map[string]any
-	_ = json.NewDecoder(rec.Body).Decode(&body)
-	if body["code"] != "VALIDATION_ERROR" {
-		t.Errorf("expected VALIDATION_ERROR, got %v", body["code"])
-	}
-}
-
-func TestRoute_Signup_weakPassword_returns400(t *testing.T) {
-	setupRouteTest(t)
-	router := buildRouteTestRouter()
-
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, authBody(t, http.MethodPost, "/auth/signup", map[string]string{
-		"email": "weak@ex.com", "password": "password",
-	}))
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
-	}
-	var body map[string]any
-	_ = json.NewDecoder(rec.Body).Decode(&body)
-	if body["code"] != "VALIDATION_ERROR" {
-		t.Errorf("expected VALIDATION_ERROR, got %v", body["code"])
-	}
-}
-
-func TestRoute_Signup_duplicateEmail_returns409(t *testing.T) {
-	setupRouteTest(t)
-	router := buildRouteTestRouter()
-
+	// pre-create user for duplicate test
 	router.ServeHTTP(httptest.NewRecorder(), signupRequest(t, "dup@ex.com"))
 
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, signupRequest(t, "dup@ex.com"))
-
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	tests := []struct {
+		name        string
+		reqFn       func() *http.Request
+		wantCode    int
+		wantErrCode string
+	}{
+		{
+			name: "invalid email returns 400 with validation error",
+			reqFn: func() *http.Request {
+				return authBody(t, http.MethodPost, "/auth/signup", map[string]string{
+					"email": "not-an-email", "password": testPassword,
+				})
+			},
+			wantCode:    http.StatusBadRequest,
+			wantErrCode: "VALIDATION_ERROR",
+		},
+		{
+			name: "weak password returns 400 with validation error",
+			reqFn: func() *http.Request {
+				return authBody(t, http.MethodPost, "/auth/signup", map[string]string{
+					"email": "weak@ex.com", "password": "password",
+				})
+			},
+			wantCode:    http.StatusBadRequest,
+			wantErrCode: "VALIDATION_ERROR",
+		},
+		{
+			name:     "duplicate email returns 409",
+			reqFn:    func() *http.Request { return signupRequest(t, "dup@ex.com") },
+			wantCode: http.StatusConflict,
+		},
+		{
+			name: "invalid JSON returns 400",
+			reqFn: func() *http.Request {
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/signup",
+					strings.NewReader("not json"))
+				req.Header.Set("Content-Type", "application/json")
+				return req
+			},
+			wantCode: http.StatusBadRequest,
+		},
 	}
-}
 
-func TestRoute_Signup_invalidJSON_returns400(t *testing.T) {
-	setupRouteTest(t)
-	router := buildRouteTestRouter()
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/signup",
-		strings.NewReader("not json"))
-	req.Header.Set("Content-Type", "application/json")
-
-	if code := responseCode(t, router, req); code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", code)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, tt.reqFn())
+			if rec.Code != tt.wantCode {
+				t.Fatalf("expected %d, got %d: %s", tt.wantCode, rec.Code, rec.Body.String())
+			}
+			if tt.wantErrCode != "" {
+				var body map[string]any
+				_ = json.NewDecoder(rec.Body).Decode(&body)
+				if body["code"] != tt.wantErrCode {
+					t.Errorf("expected %s, got %v", tt.wantErrCode, body["code"])
+				}
+			}
+		})
 	}
 }
 
@@ -282,41 +285,50 @@ func TestRoute_Login_validCredentials_returns200_and_new_session_in_DB(t *testin
 	t.Error("no session cookie in login response")
 }
 
-func TestRoute_Login_wrongPassword_returns401(t *testing.T) {
+func TestRoute_Login_errorCases(t *testing.T) {
 	setupRouteTest(t)
 	router := buildRouteTestRouter()
 
+	// pre-create user for wrong password test
 	signupAndGetCookie(t, router, "wp@ex.com")
 
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, authBody(t, http.MethodPost, "/auth/login", map[string]string{
-		"email": "wp@ex.com", "password": "WrongPass1!",
-	}))
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d", rec.Code)
+	tests := []struct {
+		name     string
+		reqFn    func() *http.Request
+		wantCode int
+	}{
+		{
+			name: "wrong password returns 401",
+			reqFn: func() *http.Request {
+				return authBody(t, http.MethodPost, "/auth/login", map[string]string{
+					"email": "wp@ex.com", "password": "WrongPass1!",
+				})
+			},
+			wantCode: http.StatusUnauthorized,
+		},
+		{
+			name:     "unknown email returns 401",
+			reqFn:    func() *http.Request { return loginRequest(t, "nobody@ex.com") },
+			wantCode: http.StatusUnauthorized,
+		},
+		{
+			name: "invalid JSON returns 400",
+			reqFn: func() *http.Request {
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/login",
+					strings.NewReader("not json"))
+				req.Header.Set("Content-Type", "application/json")
+				return req
+			},
+			wantCode: http.StatusBadRequest,
+		},
 	}
-}
 
-func TestRoute_Login_unknownEmail_returns401(t *testing.T) {
-	setupRouteTest(t)
-	router := buildRouteTestRouter()
-
-	if code := responseCode(t, router, loginRequest(t, "nobody@ex.com")); code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d", code)
-	}
-}
-
-func TestRoute_Login_invalidJSON_returns400(t *testing.T) {
-	setupRouteTest(t)
-	router := buildRouteTestRouter()
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/login",
-		strings.NewReader("not json"))
-	req.Header.Set("Content-Type", "application/json")
-
-	if code := responseCode(t, router, req); code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d", code)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if code := responseCode(t, router, tt.reqFn()); code != tt.wantCode {
+				t.Fatalf("expected %d, got %d", tt.wantCode, code)
+			}
+		})
 	}
 }
 
