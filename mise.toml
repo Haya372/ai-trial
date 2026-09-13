@@ -12,6 +12,10 @@ sqlc          = "1.31.1"
 gomigrate     = "4.19.1"
 gh            = "2.100.0"
 
+[env]
+_.file = ".env.example"
+DATABASE_URL = "postgres://{{env.DB_USER}}:{{env.DB_PASSWORD}}@{{env.DB_HOST}}:{{env.DB_PORT}}/{{env.DB_NAME}}?sslmode=disable"
+
 [tasks.git-clean]
 run = "bash scripts/git-clean-branches.sh"
 description = "Delete local branches whose remote is gone"
