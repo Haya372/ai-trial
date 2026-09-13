@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/dig"
 
-	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
@@ -82,8 +81,8 @@ func newLogoutExecutor(sr session.Repository) handler.LogoutExecutor {
 	return authuc.NewLogoutCommand(sr)
 }
 
-func newListEventsExecutor(r event.QueryRepository) handler.ListEventsExecutor {
-	return eventuc.NewListEventsQuery(r)
+func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
+	return eventuc.NewListEventsQuery(s)
 }
 
 func newRouter(

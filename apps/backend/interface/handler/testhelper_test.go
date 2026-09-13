@@ -2,6 +2,7 @@ package handler_test
 
 import (
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ const (
 var (
 	errUnexpected = errors.New("unexpected error")
 	errInternal   = errors.New("internal error")
+	testLogger    = slog.New(slog.DiscardHandler)
 )
 
 func mustParseDate(t *testing.T, s string) openapi_types.Date {

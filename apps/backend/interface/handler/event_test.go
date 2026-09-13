@@ -67,7 +67,7 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(stub)
+	h := handler.NewEventHandler(stub, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
@@ -96,7 +96,7 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 
 func TestEventHandler_GetEvents_Unauthorized(t *testing.T) {
 	stub := &stubListEventsExec{}
-	h := handler.NewEventHandler(stub)
+	h := handler.NewEventHandler(stub, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	w := httptest.NewRecorder()
@@ -118,7 +118,7 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 			return nil, errInternal
 		},
 	}
-	h := handler.NewEventHandler(stub)
+	h := handler.NewEventHandler(stub, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))

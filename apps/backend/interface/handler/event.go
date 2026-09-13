@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -22,10 +23,11 @@ type ListEventsExecutor interface {
 
 type EventHandler struct {
 	listEvents ListEventsExecutor
+	logger     *slog.Logger
 }
 
-func NewEventHandler(l ListEventsExecutor) *EventHandler {
-	return &EventHandler{listEvents: l}
+func NewEventHandler(l ListEventsExecutor, logger *slog.Logger) *EventHandler {
+	return &EventHandler{listEvents: l, logger: logger}
 }
 
 func bindDateParam(r *http.Request, name string, dest any) error {
@@ -49,6 +51,7 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params api.GetEventsParams) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
+		h.logger.Warn("unauthorized access to GET /events", "path", r.URL.Path)
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -59,6 +62,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 	}
 	events, err := h.listEvents.Execute(r.Context(), u.ID(), in)
 	if err != nil {
+		h.logger.Error("failed to list events", "error", err, "userID", u.ID())
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}
@@ -81,6 +85,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 
 	body, err := json.Marshal(resp)
 	if err != nil {
+		h.logger.Error("failed to marshal events response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}

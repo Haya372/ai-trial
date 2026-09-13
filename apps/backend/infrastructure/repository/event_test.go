@@ -9,9 +9,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
+	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
 func createTestUser(t *testing.T) user.User {
@@ -30,7 +30,7 @@ func TestEventQueryRepository_List_ReturnsEventsInRange(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	start := now
@@ -38,7 +38,7 @@ func TestEventQueryRepository_List_ReturnsEventsInRange(t *testing.T) {
 
 	insertEvent(t, u.ID(), "In-range event", start, end)
 
-	filter := event.ListFilter{
+	filter := eventuc.ListFilter{
 		UserID:    u.ID(),
 		StartDate: now.Add(-time.Hour),
 		EndDate:   now.Add(2 * time.Hour),
@@ -50,8 +50,8 @@ func TestEventQueryRepository_List_ReturnsEventsInRange(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if events[0].Title() != "In-range event" {
-		t.Errorf("title mismatch: got %q", events[0].Title())
+	if events[0].Title != "In-range event" {
+		t.Errorf("title mismatch: got %q", events[0].Title)
 	}
 }
 
@@ -59,14 +59,13 @@ func TestEventQueryRepository_List_ExcludesOutOfRangeEvents(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
 
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// 検索範囲外（未来）
 	insertEvent(t, u.ID(), "Future event", now.Add(10*time.Hour), now.Add(11*time.Hour))
 
-	filter := event.ListFilter{
+	filter := eventuc.ListFilter{
 		UserID:    u.ID(),
 		StartDate: now,
 		EndDate:   now.Add(time.Hour),
@@ -85,13 +84,13 @@ func TestEventQueryRepository_List_OnlyReturnsUserEvents(t *testing.T) {
 	u1 := createTestUser(t)
 	u2 := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	insertEvent(t, u1.ID(), "User1 event", now, now.Add(time.Hour))
 	insertEvent(t, u2.ID(), "User2 event", now, now.Add(time.Hour))
 
-	filter := event.ListFilter{
+	filter := eventuc.ListFilter{
 		UserID:    u1.ID(),
 		StartDate: now.Add(-time.Hour),
 		EndDate:   now.Add(2 * time.Hour),
@@ -103,8 +102,8 @@ func TestEventQueryRepository_List_OnlyReturnsUserEvents(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if events[0].Title() != "User1 event" {
-		t.Errorf("title mismatch: got %q", events[0].Title())
+	if events[0].Title != "User1 event" {
+		t.Errorf("title mismatch: got %q", events[0].Title)
 	}
 }
 

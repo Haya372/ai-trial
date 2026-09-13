@@ -6,37 +6,40 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"go.uber.org/mock/gomock"
 
-	"github.com/Haya372/ai-trial/backend/domain/event"
-	mock "github.com/Haya372/ai-trial/backend/domain/event/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
-func makeEvent(t *testing.T, title string, start, end time.Time) event.Event {
-	t.Helper()
-	e, err := event.New(uuid.New(), uuid.New(), title, "", start, end)
-	if err != nil {
-		t.Fatalf("make event: %v", err)
+type stubQueryService struct {
+	fn func(context.Context, eventuc.ListFilter) ([]eventuc.EventReadModel, error)
+}
+
+func (s *stubQueryService) List(ctx context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+	if s.fn == nil {
+		return nil, nil
 	}
-	return e
+	return s.fn(ctx, filter)
 }
 
 func TestListEventsQuery_Execute_ReturnsEvents(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock.NewMockQueryRepository(ctrl)
-
 	userID := uuid.New()
 	now := time.Now()
 	start := now
 	end := now.Add(24 * time.Hour)
 
-	ev := makeEvent(t, "Team meeting", start, start.Add(time.Hour))
-	repo.EXPECT().
-		List(gomock.Any(), event.ListFilter{UserID: userID, StartDate: start, EndDate: end}).
-		Return([]event.Event{ev}, nil)
+	eventID := uuid.New()
+	stub := &stubQueryService{
+		fn: func(_ context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			if filter.UserID != userID {
+				t.Errorf("userID mismatch: got %v, want %v", filter.UserID, userID)
+			}
+			return []eventuc.EventReadModel{
+				{ID: eventID, Title: "Team meeting", StartAt: start, EndAt: start.Add(time.Hour)},
+			}, nil
+		},
+	}
 
-	q := eventuc.NewListEventsQuery(repo)
+	q := eventuc.NewListEventsQuery(stub)
 	result, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
 		StartDate: start,
 		EndDate:   end,
@@ -53,18 +56,16 @@ func TestListEventsQuery_Execute_ReturnsEvents(t *testing.T) {
 }
 
 func TestListEventsQuery_Execute_RepoError(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock.NewMockQueryRepository(ctrl)
-
 	userID := uuid.New()
 	now := time.Now()
-	repoErr := errDBFailure
 
-	repo.EXPECT().
-		List(gomock.Any(), gomock.Any()).
-		Return(nil, repoErr)
+	stub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return nil, errDBFailure
+		},
+	}
 
-	q := eventuc.NewListEventsQuery(repo)
+	q := eventuc.NewListEventsQuery(stub)
 	_, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
 		StartDate: now,
 		EndDate:   now.Add(24 * time.Hour),
@@ -75,17 +76,16 @@ func TestListEventsQuery_Execute_RepoError(t *testing.T) {
 }
 
 func TestListEventsQuery_Execute_EmptyResult(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	repo := mock.NewMockQueryRepository(ctrl)
-
 	userID := uuid.New()
 	now := time.Now()
 
-	repo.EXPECT().
-		List(gomock.Any(), gomock.Any()).
-		Return([]event.Event{}, nil)
+	stub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{}, nil
+		},
+	}
 
-	q := eventuc.NewListEventsQuery(repo)
+	q := eventuc.NewListEventsQuery(stub)
 	result, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
 		StartDate: now,
 		EndDate:   now.Add(24 * time.Hour),

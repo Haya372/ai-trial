@@ -4,6 +4,7 @@ package repository_test
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -17,7 +18,10 @@ import (
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 )
 
-var testPool *pgxpool.Pool
+var (
+	testPool   *pgxpool.Pool
+	testLogger = slog.New(slog.DiscardHandler)
+)
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
