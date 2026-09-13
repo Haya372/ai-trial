@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 func setupTest(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
-		_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE")
+		_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE events, sessions, users RESTART IDENTITY CASCADE")
 		if err != nil {
 			t.Errorf("truncate tables: %v", err)
 		}
