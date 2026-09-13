@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/backend/interface/api/generated/
-          key: oapi-${{ hashFiles('packages/schema/**') }}
+          key: oapi-${{ hashFiles('packages/schema/openapi.yaml', 'packages/schema/oapi-codegen.yaml', 'packages/schema/paths/**', 'packages/schema/components/**') }}
       - name: Generate oapi-codegen code
         if: steps.cache-oapi.outputs.cache-hit != 'true'
         run: make oapi-codegen-generate
@@ -111,7 +111,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/backend/interface/api/generated/
-          key: oapi-${{ hashFiles('packages/schema/**') }}
+          key: oapi-${{ hashFiles('packages/schema/openapi.yaml', 'packages/schema/oapi-codegen.yaml', 'packages/schema/paths/**', 'packages/schema/components/**') }}
       - name: Restore mockery generated files
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -153,7 +153,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/backend/interface/api/generated/
-          key: oapi-${{ hashFiles('packages/schema/**') }}
+          key: oapi-${{ hashFiles('packages/schema/openapi.yaml', 'packages/schema/oapi-codegen.yaml', 'packages/schema/paths/**', 'packages/schema/components/**') }}
       - name: Restore mockery generated files
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:

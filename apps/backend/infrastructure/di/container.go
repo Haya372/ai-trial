@@ -10,18 +10,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/dig"
 
+	"github.com/Haya372/ai-trial/backend/domain/session"
+	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
+	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
+	mw "github.com/Haya372/ai-trial/backend/interface/middleware"
+	"github.com/Haya372/ai-trial/backend/usecase"
+	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
 
 func NewContainer(ctx context.Context) (*dig.Container, error) {
 	c := dig.New()
 	for _, p := range []any{
 		func() context.Context { return ctx },
-		newLogger, newPool, handler.NewHealthHandler, newRouter,
+		newLogger,
+		newPool,
+		newTxManager,
+		repository.NewUserRepository,
+		repository.NewSessionRepository,
+		newSignupExecutor,
+		newLoginExecutor,
+		newLogoutExecutor,
+		handler.NewHealthHandler,
+		handler.NewAuthHandler,
+		newRouter,
 	} {
 		if err := c.Provide(p); err != nil {
-			return nil, fmt.Errorf("provide %T: %w", p, err)
+			return nil, fmt.Errorf("provide: %w", err)
 		}
 	}
 	return c, nil
@@ -41,9 +57,37 @@ func newPool(ctx context.Context, logger *slog.Logger) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func newRouter(h *handler.HealthHandler) *chi.Mux {
-	r := chi.NewRouter()
-	r.Get("/health", h.ServeHTTP)
+func newTxManager(pool *pgxpool.Pool) usecase.TransactionManager {
+	return db.NewPgxTxManager(pool)
+}
 
+func newSignupExecutor(
+	ur user.Repository,
+	sr session.Repository,
+	tx usecase.TransactionManager,
+) handler.SignupExecutor {
+	return authuc.NewSignupCommand(ur, sr, tx)
+}
+
+func newLoginExecutor(ur user.Repository, sr session.Repository) handler.LoginExecutor {
+	return authuc.NewLoginCommand(ur, sr)
+}
+
+func newLogoutExecutor(sr session.Repository) handler.LogoutExecutor {
+	return authuc.NewLogoutCommand(sr)
+}
+
+func newRouter(
+	health *handler.HealthHandler,
+	auth *handler.AuthHandler,
+	sessRepo session.Repository,
+	userRepo user.Repository,
+) *chi.Mux {
+	r := chi.NewRouter()
+	r.Get("/health", health.ServeHTTP)
+	r.Post("/auth/signup", auth.Signup)
+	r.Post("/auth/login", auth.Login)
+	r.With(mw.RequireAuth(sessRepo, userRepo)).Post("/auth/logout", auth.Logout)
+	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/auth/me", auth.GetMe)
 	return r
 }
