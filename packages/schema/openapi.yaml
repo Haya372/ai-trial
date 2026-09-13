@@ -13,6 +13,8 @@ paths:
     $ref: "./paths/auth/logout.yaml"
   /auth/me:
     $ref: "./paths/auth/me.yaml"
+  /events:
+    $ref: "./paths/events/list.yaml"
 components:
   schemas:
     HealthResponse:
@@ -33,3 +35,7 @@ components:
       $ref: "./components/schemas/ConflictErrorResponse.yaml"
     InternalErrorResponse:
       $ref: "./components/schemas/InternalErrorResponse.yaml"
+    EventResponse:
+      $ref: "./components/schemas/EventResponse.yaml"
+    EventsListResponse:
+      $ref: "./components/schemas/EventsListResponse.yaml"
