@@ -87,7 +87,7 @@ func newRouter(
 	r.Get("/health", health.ServeHTTP)
 	r.Post("/auth/signup", auth.Signup)
 	r.Post("/auth/login", auth.Login)
-	r.Post("/auth/logout", auth.Logout)
+	r.With(mw.RequireAuth(sessRepo, userRepo)).Post("/auth/logout", auth.Logout)
 	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/auth/me", auth.GetMe)
 	return r
 }
