@@ -1,10 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, Label, Text, toast } from '@repo/ui'
+import {
+  Button,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Text,
+  toast,
+} from '@repo/ui'
 import { useForm } from 'react-hook-form'
 import { login } from '../../../api/generated'
 import { useAuthStore } from '../../../stores/auth'
-import { getLoginErrorMessage } from '../utils'
 import { type LoginFormValues, loginSchema } from '../types'
+import { getLoginErrorMessage } from '../utils'
 
 interface LoginPageProps {
   onSuccess?: () => void
@@ -12,13 +22,10 @@ interface LoginPageProps {
 
 export default function LoginPage({ onSuccess }: LoginPageProps) {
   const setUser = useAuthStore((s) => s.setUser)
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<LoginFormValues>({
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     mode: 'onTouched',
+    defaultValues: { email: '', password: '' },
   })
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -33,44 +40,54 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
-    >
-      <Text variant="h2">ログイン</Text>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="email">メールアドレス</Label>
-        <Input
-          id="email"
-          type="email"
-          state={errors.email ? 'error' : 'default'}
-          aria-invalid={!!errors.email}
-          {...register('email')}
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
+      >
+        <Text variant="h2">ログイン</Text>
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field, fieldState }) => (
+            <FormItem>
+              <FormLabel>メールアドレス</FormLabel>
+              <Input
+                id={field.name}
+                type="email"
+                state={fieldState.error ? 'error' : 'default'}
+                aria-invalid={!!fieldState.error}
+                {...field}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.email && (
-          <span className="text-destructive text-sm">
-            {errors.email.message}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="password">パスワード</Label>
-        <Input
-          id="password"
-          type="password"
-          state={errors.password ? 'error' : 'default'}
-          aria-invalid={!!errors.password}
-          {...register('password')}
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field, fieldState }) => (
+            <FormItem>
+              <FormLabel>パスワード</FormLabel>
+              <Input
+                id={field.name}
+                type="password"
+                state={fieldState.error ? 'error' : 'default'}
+                aria-invalid={!!fieldState.error}
+                {...field}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.password && (
-          <span className="text-destructive text-sm">
-            {errors.password.message}
-          </span>
-        )}
-      </div>
-      <Button type="submit" variant="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'ログイン中…' : 'ログイン'}
-      </Button>
-    </form>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? 'ログイン中…' : 'ログイン'}
+        </Button>
+      </form>
+    </Form>
   )
 }

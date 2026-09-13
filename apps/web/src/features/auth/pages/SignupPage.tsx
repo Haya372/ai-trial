@@ -1,10 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, Label, Text, toast } from '@repo/ui'
+import {
+  Button,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Text,
+  toast,
+} from '@repo/ui'
 import { useForm } from 'react-hook-form'
 import { signup } from '../../../api/generated'
 import { useAuthStore } from '../../../stores/auth'
-import { getSignupErrorMessage } from '../utils'
 import { type SignupFormValues, signupSchema } from '../types'
+import { getSignupErrorMessage } from '../utils'
 
 interface SignupPageProps {
   onSuccess?: () => void
@@ -12,13 +22,10 @@ interface SignupPageProps {
 
 export default function SignupPage({ onSuccess }: SignupPageProps) {
   const setUser = useAuthStore((s) => s.setUser)
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<SignupFormValues>({
+  const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     mode: 'onTouched',
+    defaultValues: { email: '', password: '', displayName: '' },
   })
 
   const onSubmit = async (data: SignupFormValues) => {
@@ -37,53 +44,65 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
-    >
-      <Text variant="h2">新規登録</Text>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="email">メールアドレス</Label>
-        <Input
-          id="email"
-          type="email"
-          state={errors.email ? 'error' : 'default'}
-          aria-invalid={!!errors.email}
-          {...register('email')}
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
+      >
+        <Text variant="h2">新規登録</Text>
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field, fieldState }) => (
+            <FormItem>
+              <FormLabel>メールアドレス</FormLabel>
+              <Input
+                id={field.name}
+                type="email"
+                state={fieldState.error ? 'error' : 'default'}
+                aria-invalid={!!fieldState.error}
+                {...field}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.email && (
-          <span className="text-destructive text-sm">
-            {errors.email.message}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="password">パスワード</Label>
-        <Input
-          id="password"
-          type="password"
-          state={errors.password ? 'error' : 'default'}
-          aria-invalid={!!errors.password}
-          {...register('password')}
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field, fieldState }) => (
+            <FormItem>
+              <FormLabel>パスワード</FormLabel>
+              <Input
+                id={field.name}
+                type="password"
+                state={fieldState.error ? 'error' : 'default'}
+                aria-invalid={!!fieldState.error}
+                {...field}
+              />
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.password && (
-          <span className="text-destructive text-sm">
-            {errors.password.message}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-1">
-        <Label htmlFor="displayName">表示名</Label>
-        <Input id="displayName" type="text" {...register('displayName')} />
-        {errors.displayName && (
-          <span className="text-destructive text-sm">
-            {errors.displayName.message}
-          </span>
-        )}
-      </div>
-      <Button type="submit" variant="primary" disabled={isSubmitting}>
-        {isSubmitting ? '登録中…' : '登録'}
-      </Button>
-    </form>
+        <FormField
+          control={form.control}
+          name="displayName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>表示名</FormLabel>
+              <Input id={field.name} type="text" {...field} />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? '登録中…' : '登録'}
+        </Button>
+      </form>
+    </Form>
   )
 }
