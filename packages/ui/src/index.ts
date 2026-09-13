@@ -1,4 +1,5 @@
 export { Alert, AlertDescription, AlertTitle } from './Alert'
+export { Form, FormField, FormItem, FormLabel, FormMessage } from './Form'
 export {
   AlertDialog,
   AlertDialogAction,
