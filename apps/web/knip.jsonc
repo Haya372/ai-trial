@@ -1,5 +1,4 @@
 {
-  "entry": ["src/lib/*.ts"],
   "ignoreDependencies": [
     "lucide-react",
     // orval の生成コードが src/api/ にコミットされないため、knip がインポートを検出できない
