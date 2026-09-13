@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import SignupPage from './SignupPage'
 
-vi.mock('../api/generated', () => ({
+vi.mock('../../../api/generated', () => ({
   signup: vi.fn(),
 }))
 

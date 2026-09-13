@@ -1,36 +1,47 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { login } from '../api/generated'
-import { useAuthStore } from '../stores/auth'
+import { signup } from '../../../api/generated'
+import { useAuthStore } from '../../../stores/auth'
 
-const loginSchema = z.object({
+const signupSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email format'),
-  password: z.string().min(1, 'Password is required'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be at most 128 characters'),
+  displayName: z
+    .string()
+    .max(50, 'Display name must be at most 50 characters')
+    .optional(),
 })
 
-type LoginForm = z.infer<typeof loginSchema>
+type SignupForm = z.infer<typeof signupSchema>
 
-interface LoginPageProps {
+interface SignupPageProps {
   onSuccess?: () => void
 }
 
-export default function LoginPage({ onSuccess }: LoginPageProps) {
+export default function SignupPage({ onSuccess }: SignupPageProps) {
   const setUser = useAuthStore((s) => s.setUser)
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-  } = useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
+  } = useForm<SignupForm>({ resolver: zodResolver(signupSchema) })
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: SignupForm) => {
     try {
-      const res = await login({ email: data.email, password: data.password })
+      const res = await signup({
+        email: data.email,
+        password: data.password,
+        displayName: data.displayName,
+      })
       setUser(res.data)
       onSuccess?.()
     } catch {
-      setError('root', { message: 'Invalid email or password' })
+      setError('root', { message: 'Signup failed. Please try again.' })
     }
   }
 
@@ -39,7 +50,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
     >
-      <h1 className="text-2xl font-bold">Login</h1>
+      <h1 className="text-2xl font-bold">Sign Up</h1>
       <div className="flex flex-col gap-1">
         <label htmlFor="email">Email</label>
         <input
@@ -66,6 +77,20 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
           </span>
         )}
       </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor="displayName">Display Name</label>
+        <input
+          id="displayName"
+          type="text"
+          {...register('displayName')}
+          className="border rounded px-3 py-2"
+        />
+        {errors.displayName && (
+          <span className="text-red-500 text-sm">
+            {errors.displayName.message}
+          </span>
+        )}
+      </div>
       {errors.root && (
         <span className="text-red-500 text-sm">{errors.root.message}</span>
       )}
@@ -74,7 +99,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         disabled={isSubmitting}
         className="bg-blue-600 text-white rounded px-4 py-2"
       >
-        {isSubmitting ? 'Logging in…' : 'Login'}
+        {isSubmitting ? 'Signing up…' : 'Sign Up'}
       </button>
     </form>
   )
