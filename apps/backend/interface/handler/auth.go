@@ -12,19 +12,19 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
+	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
 
-type contextKey string
-
-// ContextKeyUser is the context key used to store the authenticated user.
-// Middleware sets this value; handlers read it.
-const ContextKeyUser contextKey = "auth_user"
-
 const (
-	sessionCookieName = "session_id"
-	sessionMaxAge     = 30 * 24 * 60 * 60
+	cookieName   = "session_id"
+	cookieMaxAge = 30 * 24 * 60 * 60
+
+	errCodeConflict     = "CONFLICT"
+	errCodeUnauthorized = "UNAUTHORIZED"
+	errCodeInternal     = "INTERNAL_ERROR"
+	errCodeValidation   = "VALIDATION_ERROR"
 )
 
 type SignupExecutor interface {
@@ -52,7 +52,7 @@ func NewAuthHandler(s SignupExecutor, l LoginExecutor, lo LogoutExecutor) *AuthH
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 	var body api.SignupRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		response.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body")
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid request body")
 		return
 	}
 
@@ -67,16 +67,21 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	respBody, err := marshalUserResponse(out.User)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
+		return
+	}
 	setSessionCookie(w, out.SessionID.String())
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	writeUserResponse(w, out.User)
+	_, _ = w.Write(respBody)
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var body api.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		response.WriteError(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body")
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid request body")
 		return
 	}
 
@@ -89,25 +94,29 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	respBody, err := marshalUserResponse(out.User)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
+		return
+	}
 	setSessionCookie(w, out.SessionID.String())
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	writeUserResponse(w, out.User)
+	_, _ = w.Write(respBody)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie(sessionCookieName)
+	cookie, err := r.Cookie(cookieName)
 	if err != nil {
-		response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
 	sessionID, err := uuid.Parse(cookie.Value)
 	if err != nil {
-		response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
 	if err := h.logout.Execute(r.Context(), sessionID); err != nil {
-		response.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}
 	clearSessionCookie(w)
@@ -115,14 +124,18 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
-	u, ok := r.Context().Value(ContextKeyUser).(user.User)
+	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
+		return
+	}
+	respBody, err := marshalUserResponse(u)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	writeUserResponse(w, u)
+	_, _ = w.Write(respBody) //nolint:gosec
 }
 
 func (h *AuthHandler) writeAuthError(w http.ResponseWriter, err error) {
@@ -139,33 +152,31 @@ func (h *AuthHandler) writeAuthError(w http.ResponseWriter, err error) {
 	case errors.As(err, &de):
 		switch de.Code {
 		case user.CodeEmailTaken:
-			response.WriteError(w, http.StatusConflict, "CONFLICT", de.Message)
+			response.WriteError(w, http.StatusConflict, errCodeConflict, de.Message)
 		case user.CodeUserNotFound, user.CodePasswordMismatch:
-			response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid email or password")
+			response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Invalid email or password")
 		default:
-			response.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+			response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		}
 	default:
-		response.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 	}
 }
 
-func writeUserResponse(w http.ResponseWriter, u user.User) {
-	if err := json.NewEncoder(w).Encode(api.UserResponse{
+func marshalUserResponse(u user.User) ([]byte, error) {
+	return json.Marshal(api.UserResponse{
 		Id:          u.ID(),
 		Email:       openapi_types.Email(u.Email()),
 		DisplayName: u.DisplayName(),
-	}); err != nil {
-		response.WriteError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
-	}
+	})
 }
 
 func setSessionCookie(w http.ResponseWriter, sessionID string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     cookieName,
 		Value:    sessionID,
 		Path:     "/",
-		MaxAge:   sessionMaxAge,
+		MaxAge:   cookieMaxAge,
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
@@ -174,7 +185,7 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 
 func clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
+		Name:     cookieName,
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,

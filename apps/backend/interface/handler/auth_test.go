@@ -13,6 +13,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
+	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
@@ -319,7 +320,7 @@ func TestAuthHandler_GetMe_withUserInContext_returns200_and_user_body(t *testing
 	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{})
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/me", nil)
-	req = req.WithContext(context.WithValue(req.Context(), handler.ContextKeyUser, u))
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, u))
 	rec := httptest.NewRecorder()
 	h.GetMe(rec, req)
 

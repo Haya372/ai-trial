@@ -8,7 +8,7 @@ import (
 
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
-	"github.com/Haya372/ai-trial/backend/interface/handler"
+	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
 )
 
@@ -35,7 +35,7 @@ func RequireAuth(sessionRepo session.Repository, userRepo user.Repository) func(
 				response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
 				return
 			}
-			ctx := context.WithValue(r.Context(), handler.ContextKeyUser, u)
+			ctx := context.WithValue(r.Context(), ctxkey.User, u)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
