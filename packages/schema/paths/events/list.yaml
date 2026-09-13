@@ -25,6 +25,12 @@ get:
         application/json:
           schema:
             $ref: "../../components/schemas/EventsListResponse.yaml"
+    "400":
+      description: Invalid query parameters
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
     "401":
       description: Not authenticated
       content:
