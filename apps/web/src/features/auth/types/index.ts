@@ -1,19 +1,25 @@
 import { z } from 'zod'
 
 export const loginSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Invalid email format'),
-  password: z.string().min(1, 'Password is required'),
+  email: z
+    .string()
+    .min(1, 'メールアドレスを入力してください')
+    .email('正しいメールアドレスを入力してください'),
+  password: z.string().min(1, 'パスワードを入力してください'),
 })
 
 export const signupSchema = z.object({
-  email: z.string().min(1, 'Email is required').email('Invalid email format'),
+  email: z
+    .string()
+    .min(1, 'メールアドレスを入力してください')
+    .email('正しいメールアドレスを入力してください'),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password must be at most 128 characters'),
+    .min(8, 'パスワードは8文字以上で入力してください')
+    .max(128, 'パスワードは128文字以内で入力してください'),
   displayName: z
     .string()
-    .max(50, 'Display name must be at most 50 characters')
+    .max(50, '表示名は50文字以内で入力してください')
     .optional(),
 })
 

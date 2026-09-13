@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, Label, Text } from '@repo/ui'
+import { Button, Input, Label, Text, toast } from '@repo/ui'
 import { useForm } from 'react-hook-form'
 import { signup } from '../../../api/generated'
 import { useAuthStore } from '../../../stores/auth'
+import { getSignupErrorMessage } from '../utils'
 import { type SignupFormValues, signupSchema } from '../types'
 
 interface SignupPageProps {
@@ -15,8 +16,10 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
-  } = useForm<SignupFormValues>({ resolver: zodResolver(signupSchema) })
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    mode: 'onTouched',
+  })
 
   const onSubmit = async (data: SignupFormValues) => {
     try {
@@ -26,9 +29,10 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
         displayName: data.displayName,
       })
       setUser(res.data)
+      toast.success('アカウントを作成しました')
       onSuccess?.()
-    } catch {
-      setError('root', { message: 'Signup failed. Please try again.' })
+    } catch (error) {
+      toast.error(getSignupErrorMessage(error))
     }
   }
 
@@ -37,9 +41,9 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
     >
-      <Text variant="h2">Sign Up</Text>
+      <Text variant="h2">新規登録</Text>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">メールアドレス</Label>
         <Input
           id="email"
           type="email"
@@ -54,7 +58,7 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">パスワード</Label>
         <Input
           id="password"
           type="password"
@@ -69,7 +73,7 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="displayName">Display Name</Label>
+        <Label htmlFor="displayName">表示名</Label>
         <Input id="displayName" type="text" {...register('displayName')} />
         {errors.displayName && (
           <span className="text-destructive text-sm">
@@ -77,11 +81,8 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
           </span>
         )}
       </div>
-      {errors.root && (
-        <span className="text-destructive text-sm">{errors.root.message}</span>
-      )}
       <Button type="submit" variant="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'Signing up…' : 'Sign Up'}
+        {isSubmitting ? '登録中…' : '登録'}
       </Button>
     </form>
   )

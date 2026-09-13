@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Button, Input, Label, Text } from '@repo/ui'
+import { Button, Input, Label, Text, toast } from '@repo/ui'
 import { useForm } from 'react-hook-form'
 import { login } from '../../../api/generated'
 import { useAuthStore } from '../../../stores/auth'
+import { getLoginErrorMessage } from '../utils'
 import { type LoginFormValues, loginSchema } from '../types'
 
 interface LoginPageProps {
@@ -15,16 +16,19 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
-  } = useForm<LoginFormValues>({ resolver: zodResolver(loginSchema) })
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    mode: 'onTouched',
+  })
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
       const res = await login({ email: data.email, password: data.password })
       setUser(res.data)
+      toast.success('ログインしました')
       onSuccess?.()
-    } catch {
-      setError('root', { message: 'Invalid email or password' })
+    } catch (error) {
+      toast.error(getLoginErrorMessage(error))
     }
   }
 
@@ -33,9 +37,9 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
       onSubmit={handleSubmit(onSubmit)}
       className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
     >
-      <Text variant="h2">Login</Text>
+      <Text variant="h2">ログイン</Text>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">メールアドレス</Label>
         <Input
           id="email"
           type="email"
@@ -50,7 +54,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         )}
       </div>
       <div className="flex flex-col gap-1">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">パスワード</Label>
         <Input
           id="password"
           type="password"
@@ -64,11 +68,8 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
           </span>
         )}
       </div>
-      {errors.root && (
-        <span className="text-destructive text-sm">{errors.root.message}</span>
-      )}
       <Button type="submit" variant="primary" disabled={isSubmitting}>
-        {isSubmitting ? 'Logging in…' : 'Login'}
+        {isSubmitting ? 'ログイン中…' : 'ログイン'}
       </Button>
     </form>
   )
