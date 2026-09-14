@@ -11,7 +11,8 @@
     "build": "turbo build",
     "generate": "turbo generate:backend && pnpm generate:frontend",
     "generate:backend": "make -C apps/backend oapi-codegen-generate",
-    "generate:frontend": "pnpm --filter @ai-trial/schema generate:frontend"
+    "generate:frontend": "pnpm --filter @ai-trial/schema generate:frontend",
+    "generate:web": "pnpm --filter web generate:routes"
   },
   "devDependencies": {
     "lefthook": "2.1.12",

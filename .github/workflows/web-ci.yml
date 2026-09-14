@@ -36,6 +36,8 @@ jobs:
       - name: Generate TypeScript code
         if: steps.cache-frontend.outputs.cache-hit != 'true'
         run: pnpm --filter @ai-trial/schema generate:frontend
+      - name: Generate route tree
+        run: pnpm generate:web
       - name: Lint (includes format check)
         run: pnpm lint
       - name: Build
