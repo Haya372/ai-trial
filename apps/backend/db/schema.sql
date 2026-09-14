@@ -24,3 +24,5 @@ CREATE TABLE events (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_events_user_id_start_at ON events (user_id, start_at);
