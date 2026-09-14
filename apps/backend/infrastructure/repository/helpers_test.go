@@ -4,6 +4,7 @@ package repository_test
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -17,7 +18,10 @@ import (
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 )
 
-var testPool *pgxpool.Pool
+var (
+	testPool   *pgxpool.Pool
+	testLogger = slog.New(slog.DiscardHandler)
+)
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -60,7 +64,7 @@ func TestMain(m *testing.M) {
 func setupTest(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
-		_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE sessions, users RESTART IDENTITY CASCADE")
+		_, err := testPool.Exec(context.Background(), "TRUNCATE TABLE events, sessions, users RESTART IDENTITY CASCADE")
 		if err != nil {
 			t.Errorf("truncate tables: %v", err)
 		}

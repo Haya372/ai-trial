@@ -18,6 +18,7 @@ import (
 	mw "github.com/Haya372/ai-trial/backend/interface/middleware"
 	"github.com/Haya372/ai-trial/backend/usecase"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
+	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
 func NewContainer(ctx context.Context) (*dig.Container, error) {
@@ -29,11 +30,14 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newTxManager,
 		repository.NewUserRepository,
 		repository.NewSessionRepository,
+		repository.NewEventQueryRepository,
 		newSignupExecutor,
 		newLoginExecutor,
 		newLogoutExecutor,
+		newListEventsExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
+		handler.NewEventHandler,
 		newRouter,
 	} {
 		if err := c.Provide(p); err != nil {
@@ -77,9 +81,14 @@ func newLogoutExecutor(sr session.Repository) handler.LogoutExecutor {
 	return authuc.NewLogoutCommand(sr)
 }
 
+func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
+	return eventuc.NewListEventsQuery(s)
+}
+
 func newRouter(
 	health *handler.HealthHandler,
 	auth *handler.AuthHandler,
+	ev *handler.EventHandler,
 	sessRepo session.Repository,
 	userRepo user.Repository,
 ) *chi.Mux {
@@ -89,5 +98,6 @@ func newRouter(
 	r.Post("/auth/login", auth.Login)
 	r.With(mw.RequireAuth(sessRepo, userRepo)).Post("/auth/logout", auth.Logout)
 	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/auth/me", auth.GetMe)
+	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/events", ev.ServeHTTP)
 	return r
 }
