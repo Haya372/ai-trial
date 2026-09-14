@@ -26,9 +26,9 @@ func NewEventQueryRepository(pool *pgxpool.Pool, logger *slog.Logger) eventuc.Qu
 
 func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
 	rows, err := r.querier(ctx).ListEventsByUserAndDateRange(ctx, query.ListEventsByUserAndDateRangeParams{
-		UserID:  pgtype.UUID{Bytes: filter.UserID, Valid: true},
-		EndAt:   pgtype.Timestamptz{Time: filter.StartDate, Valid: true},
-		StartAt: pgtype.Timestamptz{Time: filter.EndDate, Valid: true},
+		UserID:    pgtype.UUID{Bytes: filter.UserID, Valid: true},
+		StartDate: pgtype.Timestamptz{Time: filter.StartDate, Valid: true},
+		EndDate:   pgtype.Timestamptz{Time: filter.EndDate, Valid: true},
 	})
 	if err != nil {
 		r.logger.Error("list events query failed", "error", err)
