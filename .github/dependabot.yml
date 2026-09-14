@@ -4,28 +4,22 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 7
     groups:
       github-actions:
         patterns:
           - "*"
   - package-ecosystem: "npm"
-    directory: "/apps/web"
+    directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 7
     groups:
-      web-dependencies:
+      npm-dependencies:
         patterns:
           - "*"
   - package-ecosystem: "gomod"
     directory: "/apps/backend"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 7
     groups:
       go-dependencies:
         patterns:
@@ -34,8 +28,6 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 7
     groups:
       docker-dependencies:
         patterns:
