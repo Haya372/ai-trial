@@ -7,7 +7,6 @@ import {
   FormProvider,
   useFormContext,
 } from 'react-hook-form'
-import { cn } from 'cn'
 import { Label } from './Label'
 
 const Form = FormProvider
@@ -34,11 +33,10 @@ function FormField<
   )
 }
 
-function FormItem({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col gap-1', className)} {...props} />
+function FormItem(
+  props: Omit<React.HTMLAttributes<HTMLDivElement>, 'className'>,
+) {
+  return <div className="flex flex-col gap-1" {...props} />
 }
 
 function FormLabel(props: React.ComponentPropsWithoutRef<typeof Label>) {
@@ -46,16 +44,15 @@ function FormLabel(props: React.ComponentPropsWithoutRef<typeof Label>) {
   return <Label htmlFor={name} {...props} />
 }
 
-function FormMessage({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLSpanElement>) {
+function FormMessage(
+  props: Omit<React.HTMLAttributes<HTMLSpanElement>, 'className'>,
+) {
   const { name } = React.useContext(FormFieldContext)
   const { getFieldState, formState } = useFormContext()
   const { error } = getFieldState(name, formState)
   if (!error?.message) return null
   return (
-    <span className={cn('text-destructive text-sm', className)} {...props}>
+    <span className="text-destructive text-sm" {...props}>
       {error.message}
     </span>
   )
