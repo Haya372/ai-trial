@@ -99,4 +99,24 @@ describe('SignupPage', () => {
       expect(onSuccess).toHaveBeenCalled()
     })
   })
+
+  it('calls signup with displayName undefined when field is left empty', async () => {
+    const { signup } = await import('../../../api/generated')
+    vi.mocked(signup).mockResolvedValueOnce({
+      data: { id: '1', email: 'test@example.com', displayName: '' },
+    } as never)
+    render(<SignupPage />)
+    fireEvent.change(screen.getByLabelText(/メールアドレス/), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.change(screen.getByLabelText(/パスワード/), {
+      target: { value: 'password123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /登録/ }))
+    await waitFor(() => {
+      expect(signup).toHaveBeenCalledWith(
+        expect.objectContaining({ displayName: undefined }),
+      )
+    })
+  })
 })

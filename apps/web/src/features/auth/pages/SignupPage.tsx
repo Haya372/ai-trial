@@ -33,7 +33,7 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
       const res = await signup({
         email: data.email,
         password: data.password,
-        displayName: data.displayName,
+        displayName: data.displayName || undefined,
       })
       setUser(res.data)
       toast.success('アカウントを作成しました')
