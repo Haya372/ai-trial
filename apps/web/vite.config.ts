@@ -10,6 +10,14 @@ export default defineConfig({
       '@': resolve(import.meta.dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
