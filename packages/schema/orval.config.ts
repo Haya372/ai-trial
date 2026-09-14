@@ -8,6 +8,7 @@ export default defineConfig({
 		output: {
 			target: "../../apps/web/src/api/generated.ts",
 			client: "react-query",
+      baseUrl: '/api',
 			override: {
 				query: {
 					useQuery: true,
