@@ -11,13 +11,13 @@ updates:
         patterns:
           - "*"
   - package-ecosystem: "npm"
-    directory: "/apps/web"
+    directory: "/"
     schedule:
       interval: "weekly"
     cooldown:
       default-days: 7
     groups:
-      web-dependencies:
+      npm-dependencies:
         patterns:
           - "*"
   - package-ecosystem: "gomod"
