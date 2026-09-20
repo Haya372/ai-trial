@@ -1,5 +1,11 @@
 package middleware_test
 
-import "errors"
+import (
+	"errors"
+	"log/slog"
+)
 
-var errDB = errors.New("db error")
+var (
+	errDB      = errors.New("db error")
+	testLogger = slog.New(slog.DiscardHandler)
+)

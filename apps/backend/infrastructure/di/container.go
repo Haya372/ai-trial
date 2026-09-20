@@ -98,8 +98,8 @@ func newRouter(
 	r.Get("/health", health.ServeHTTP)
 	r.Post("/auth/signup", auth.Signup)
 	r.Post("/auth/login", auth.Login)
-	r.With(mw.RequireAuth(sessRepo, userRepo)).Post("/auth/logout", auth.Logout)
-	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/auth/me", auth.GetMe)
-	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/events", ev.ServeHTTP)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/auth/logout", auth.Logout)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/auth/me", auth.GetMe)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/events", ev.ServeHTTP)
 	return r
 }

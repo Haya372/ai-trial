@@ -113,7 +113,7 @@ func TestAuthHandler_Signup_validInput_returns201_and_sets_cookie(t *testing.T) 
 			SessionID: fixedSessID,
 		}, nil
 	}}
-	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Signup(rec, signupRequest(t, "u@ex.com"))
@@ -138,7 +138,7 @@ func TestAuthHandler_Signup_validationError_returns400(t *testing.T) {
 			{Field: fieldEmail, Code: "INVALID_FORMAT", Message: "Invalid email format"},
 		}}
 	}}
-	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Signup(rec, signupRequest(t, "bad"))
@@ -157,7 +157,7 @@ func TestAuthHandler_Signup_emailTaken_returns409(t *testing.T) {
 	stub := &stubSignupExec{fn: func(_ context.Context, _ authuc.SignupInput) (*authuc.AuthOutput, error) {
 		return nil, user.ErrEmailTaken
 	}}
-	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Signup(rec, signupRequest(t, "dup@ex.com"))
@@ -171,7 +171,7 @@ func TestAuthHandler_Signup_internalError_returns500(t *testing.T) {
 	stub := &stubSignupExec{fn: func(_ context.Context, _ authuc.SignupInput) (*authuc.AuthOutput, error) {
 		return nil, errUnexpected
 	}}
-	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Signup(rec, signupRequest(t, "u@ex.com"))
@@ -190,7 +190,7 @@ func TestAuthHandler_Signup_responseBody_containsUserFields(t *testing.T) {
 			SessionID: uuid.New(),
 		}, nil
 	}}
-	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Signup(rec, signupRequest(t, "body@ex.com"))
@@ -219,7 +219,7 @@ func TestAuthHandler_Login_validCredentials_returns200_and_sets_cookie(t *testin
 			SessionID: fixedSessID,
 		}, nil
 	}}
-	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{})
+	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Login(rec, loginRequest(t, "u@ex.com"))
@@ -242,7 +242,7 @@ func TestAuthHandler_Login_wrongPassword_returns401(t *testing.T) {
 	stub := &stubLoginExec{fn: func(_ context.Context, _ authuc.LoginInput) (*authuc.AuthOutput, error) {
 		return nil, user.ErrPasswordMismatch
 	}}
-	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{})
+	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Login(rec, loginRequest(t, "u@ex.com"))
@@ -256,13 +256,27 @@ func TestAuthHandler_Login_unknownEmail_returns401(t *testing.T) {
 	stub := &stubLoginExec{fn: func(_ context.Context, _ authuc.LoginInput) (*authuc.AuthOutput, error) {
 		return nil, user.ErrUserNotFound
 	}}
-	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{})
+	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{}, testLogger)
 
 	rec := httptest.NewRecorder()
 	h.Login(rec, loginRequest(t, "no@ex.com"))
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_Login_internalError_returns500(t *testing.T) {
+	stub := &stubLoginExec{fn: func(_ context.Context, _ authuc.LoginInput) (*authuc.AuthOutput, error) {
+		return nil, errUnexpected
+	}}
+	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{}, testLogger)
+
+	rec := httptest.NewRecorder()
+	h.Login(rec, loginRequest(t, "u@ex.com"))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
 	}
 }
 
@@ -275,7 +289,7 @@ func TestAuthHandler_Logout_withValidCookie_returns204_and_clears_cookie(t *test
 		deletedID = id
 		return nil
 	}}
-	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, stub)
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, stub, testLogger)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
 	req.AddCookie(sessionCookieForRequest(sessID.String()))
@@ -300,7 +314,7 @@ func TestAuthHandler_Logout_withValidCookie_returns204_and_clears_cookie(t *test
 }
 
 func TestAuthHandler_Logout_noCookie_returns401(t *testing.T) {
-	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
 	rec := httptest.NewRecorder()
@@ -311,13 +325,42 @@ func TestAuthHandler_Logout_noCookie_returns401(t *testing.T) {
 	}
 }
 
+func TestAuthHandler_Logout_invalidCookieUUID_returns401(t *testing.T) {
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
+	req.AddCookie(sessionCookieForRequest("not-a-uuid"))
+	rec := httptest.NewRecorder()
+	h.Logout(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_Logout_executionError_returns500(t *testing.T) {
+	stub := &stubLogoutExec{fn: func(_ context.Context, _ uuid.UUID) error {
+		return errInternal
+	}}
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, stub, testLogger)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
+	req.AddCookie(sessionCookieForRequest(uuid.New().String()))
+	rec := httptest.NewRecorder()
+	h.Logout(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
+	}
+}
+
 // --- GetMe tests ---
 
 func TestAuthHandler_GetMe_withUserInContext_returns200_and_user_body(t *testing.T) {
 	fixedUserID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 	u := newStubUser(fixedUserID, "me@ex.com", "Me")
 
-	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/me", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, u))
@@ -340,7 +383,7 @@ func TestAuthHandler_GetMe_withUserInContext_returns200_and_user_body(t *testing
 }
 
 func TestAuthHandler_GetMe_withoutUser_returns401(t *testing.T) {
-	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{})
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/me", nil)
 	rec := httptest.NewRecorder()

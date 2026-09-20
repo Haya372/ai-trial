@@ -74,13 +74,13 @@ func buildRouteTestRouter() *chi.Mux {
 	login := authuc.NewLoginCommand(userRepo, sessRepo)
 	logout := authuc.NewLogoutCommand(sessRepo)
 
-	auth := handler.NewAuthHandler(signup, login, logout)
+	auth := handler.NewAuthHandler(signup, login, logout, testLogger)
 
 	r := chi.NewRouter()
 	r.Post("/auth/signup", auth.Signup)
 	r.Post("/auth/login", auth.Login)
-	r.With(mw.RequireAuth(sessRepo, userRepo)).Post("/auth/logout", auth.Logout)
-	r.With(mw.RequireAuth(sessRepo, userRepo)).Get("/auth/me", auth.GetMe)
+	r.With(mw.RequireAuth(sessRepo, userRepo, testLogger)).Post("/auth/logout", auth.Logout)
+	r.With(mw.RequireAuth(sessRepo, userRepo, testLogger)).Get("/auth/me", auth.GetMe)
 	return r
 }
 
