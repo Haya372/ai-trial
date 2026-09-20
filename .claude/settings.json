@@ -4,7 +4,7 @@
   "sandbox": {
     "enabled": true,
     "enableWeakerNestedSandbox": true,
-    "excludedCommands": ["docker *"],
+    "excludedCommands": ["docker *", "gh *"],
     "credentials": {
       "files": [
         { "path": "~/.aws/credentials", "mode": "deny" },
