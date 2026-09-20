@@ -18,10 +18,49 @@ linters:
     - paralleltest
     - varnamelen
     - funlen
-    - depguard
     - gomodguard
     - nlreturn
     - mnd
+  settings:
+    depguard:
+      rules:
+        # Clean Architecture: inner layers must not depend on outer layers.
+        # Allowed direction: domain ← usecase ← interface ← infrastructure ← cmd
+        domain-must-not-import-outer-layers:
+          list-mode: lax
+          files:
+            - "**/domain/**"
+          deny:
+            - pkg: "github.com/Haya372/ai-trial/backend/usecase"
+              desc: "domain must not import usecase. Define an interface in domain and implement it in usecase (Dependency Inversion)."
+            - pkg: "github.com/Haya372/ai-trial/backend/interface"
+              desc: "domain must not import interface. Move the logic to usecase or interface layer."
+            - pkg: "github.com/Haya372/ai-trial/backend/infrastructure"
+              desc: "domain must not import infrastructure. Define a repository interface in domain and implement it in infrastructure."
+            - pkg: "github.com/Haya372/ai-trial/backend/cmd"
+              desc: "domain must not import cmd. Allowed flow: domain ← cmd."
+        usecase-must-not-import-outer-layers:
+          list-mode: lax
+          files:
+            - "**/usecase/**"
+          deny:
+            - pkg: "github.com/Haya372/ai-trial/backend/interface"
+              desc: "usecase must not import interface. Move the logic to interface layer."
+            - pkg: "github.com/Haya372/ai-trial/backend/infrastructure"
+              desc: "usecase must not import infrastructure. Define a repository/gateway interface in usecase and implement it in infrastructure."
+            - pkg: "github.com/Haya372/ai-trial/backend/cmd"
+              desc: "usecase must not import cmd. Allowed flow: usecase ← cmd."
+        # Applied to non-test files only: integration tests legitimately import infrastructure.
+        interface-must-not-import-infrastructure:
+          list-mode: lax
+          files:
+            - "**/interface/**"
+            - "!$test"
+          deny:
+            - pkg: "github.com/Haya372/ai-trial/backend/infrastructure"
+              desc: "interface production code must not import infrastructure. Inject implementations via constructor or infrastructure/di container."
+            - pkg: "github.com/Haya372/ai-trial/backend/cmd"
+              desc: "interface must not import cmd. Allowed flow: interface ← cmd."
   exclusions:
     paths:
       - vendor
