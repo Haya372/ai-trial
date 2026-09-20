@@ -1,0 +1,25 @@
+// markdownlint-cli2 configuration
+// See: https://github.com/DavidAnson/markdownlint-cli2#configuration
+{
+  "config": {
+    // All rules enabled by default; overrides below
+
+    // MD013: Line length — disabled because Japanese text and long URLs make
+    //        80-char limits impractical
+    "MD013": false,
+
+    // MD024: Multiple headings with the same content — disabled because ADRs
+    //        legitimately repeat headings like "概要" / "メリット" / "デメリット"
+    //        under each option section
+    "MD024": false,
+
+    // MD060: Table column style — disabled because existing tables use a mix
+    //        of compact (|col|) and spaced (| col |) styles
+    "MD060": false
+  },
+
+  // Glob patterns to exclude from linting
+  "ignores": [
+    "**/node_modules/**"
+  ]
+}
