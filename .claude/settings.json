@@ -1,6 +1,28 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "dangerouslyDisableSandbox": false,
+  "sandbox": {
+    "enabled": true,
+    "enableWeakerNestedSandbox": true,
+    "excludedCommands": ["docker *"],
+    "credentials": {
+      "files": [
+        { "path": "~/.aws/credentials", "mode": "deny" },
+        { "path": "~/.ssh", "mode": "deny" }
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "*.github.com",
+        "registry.npmjs.org",
+        "*.npmjs.org",
+        "proxy.golang.org",
+        "sum.golang.org",
+        "*.go.dev"
+      ]
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -33,7 +55,10 @@
       "Bash(go build *)",
       "Bash(go vet *)",
       "Bash(gh api repos/Haya372/ai-trial/pulls/*/comments)",
-      "Bash(gh api repos/Haya372/ai-trial/pulls/*/comments/*/replies *)"
+      "Bash(gh api repos/Haya372/ai-trial/pulls/*/comments/*/replies *)",
+      "Bash(docker compose *)",
+      "Bash(docker ps *)",
+      "Bash(docker logs *)"
     ],
     "deny": [
       "Bash(gh config *)",
