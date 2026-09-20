@@ -16,7 +16,7 @@
 
 VS Code でリポジトリを開き、コマンドパレット（`Cmd+Shift+P`）から以下を実行します：
 
-```
+```text
 Dev Containers: Reopen in Container
 ```
 
@@ -70,12 +70,15 @@ Dev Container 内では `bubblewrap` によるファイルシステム・ネッ�
 | 設定 | 値 | 説明 |
 |---|---|---|
 | `sandbox.enabled` | `true` | サンドボックス有効 |
-| `sandbox.enableWeakerNestedSandbox` | `true` | Docker コンテナ内で動作させるための設定 |
-| `sandbox.excludedCommands` | `["docker *"]` | docker は sandbox 非対応のため除外 |
+| `sandbox.excludedCommands` | `["docker *", "gh *"]` | sandbox 非対応またはTLS問題があるコマンドを除外 |
 | `sandbox.credentials.files` | `~/.aws`, `~/.ssh` | クレデンシャルファイルを読み取り禁止 |
 | `sandbox.network.allowedDomains` | GitHub, npm, Go など | Bash コマンドが到達できるドメイン |
 
+`enableWeakerNestedSandbox: true` は `postCreateCommand` によってコンテナ内の `.claude/settings.local.json` にのみ書き込まれます。ホスト直実行時には適用されません。
+
 コンテナ内で Claude Code を起動することでコンテナとサンドボックスの二重隔離が得られます。
+
+> **注意**: `docker-compose.yml` の `security_opt: apparmor=unconfined` は Ubuntu 24.04 で bubblewrap がユーザー名前空間を作成するために必要な設定です。AppArmor プロファイルを `bwrap` のみに限定して適用しており、コンテナ全体を無制限にするわけではありません。
 
 ```bash
 # コンテナ内で Claude Code を起動
