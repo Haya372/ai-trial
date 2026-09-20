@@ -26,5 +26,4 @@ packages/schema/
 mise exec -- pnpm dev:schema
 ```
 
-起動後、ブラウザで http://localhost:8080 を開くとスキーマが確認できる。
-
+起動後、ブラウザで <http://localhost:8080> を開くとスキーマが確認できる。

@@ -117,4 +117,3 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, cmd CreateEventComman
     })
 }
 ```
-
