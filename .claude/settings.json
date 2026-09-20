@@ -3,7 +3,6 @@
   "dangerouslyDisableSandbox": false,
   "sandbox": {
     "enabled": true,
-    "enableWeakerNestedSandbox": true,
     "excludedCommands": ["docker *", "gh *"],
     "credentials": {
       "files": [

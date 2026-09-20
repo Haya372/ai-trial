@@ -6,7 +6,6 @@ RUN apt-get update && apt-get install -y \
     socat \
     && rm -rf /var/lib/apt/lists/*
 
-# Install mise
 RUN curl https://mise.run | MISE_INSTALL_PATH=/usr/local/bin/mise sh \
     && echo 'eval "$(mise activate bash)"' >> /etc/bash.bashrc \
     && echo 'eval "$(mise activate zsh)"' >> /etc/zsh/zshrc

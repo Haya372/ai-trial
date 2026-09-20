@@ -10,7 +10,7 @@
     "5173": { "label": "Frontend (Vite)" },
     "5432": { "label": "PostgreSQL" }
   },
-  "postCreateCommand": "mise install && mise exec -- pnpm install",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteEnv": {
     "DB_HOST": "postgres"
   },
