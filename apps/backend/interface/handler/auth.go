@@ -122,7 +122,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.logout.Execute(r.Context(), sessionID); err != nil {
-		h.logger.Error("failed to execute logout", "error", err, "session_id", sessionID)
+		h.logger.Error("failed to execute logout", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}

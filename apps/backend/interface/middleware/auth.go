@@ -39,19 +39,18 @@ func RequireAuth(
 				return
 			}
 			if sess == nil {
-				logger.Warn("session not found or expired", "session_id", sessionID, "path", r.URL.Path)
+				logger.Warn("session not found or expired", "path", r.URL.Path)
 				response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
 				return
 			}
 			u, err := userRepo.FindByID(r.Context(), sess.UserID())
 			if err != nil {
-				logger.Error("failed to find user for session", "error", err, "session_id", sessionID, "path", r.URL.Path)
+				logger.Error("failed to find user for session", "error", err, "path", r.URL.Path)
 				response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
 				return
 			}
 			if u == nil {
 				logger.Error("data inconsistency: user not found for active session",
-					"session_id", sessionID,
 					"user_id", sess.UserID(),
 					"path", r.URL.Path,
 				)
