@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import SignupPage from './SignupPage'
 
@@ -23,22 +22,6 @@ vi.mock('@repo/ui', async (importOriginal) => {
     }),
   }
 })
-
-function makeAxiosError(code: string) {
-  return new AxiosError(
-    'Request failed',
-    'ERR_BAD_REQUEST',
-    undefined,
-    undefined,
-    {
-      data: { code, message: 'error' },
-      status: 409,
-      statusText: '',
-      headers: {},
-      config: {} as never,
-    },
-  )
-}
 
 describe('SignupPage', () => {
   it('renders email, password, and displayName fields with Japanese labels', () => {
@@ -64,7 +47,11 @@ describe('SignupPage', () => {
 
   it('calls toast.error with conflict message when API returns CONFLICT', async () => {
     const { signup } = await import('../../../api/generated')
-    vi.mocked(signup).mockRejectedValueOnce(makeAxiosError('CONFLICT'))
+    vi.mocked(signup).mockResolvedValueOnce({
+      data: { code: 'CONFLICT', message: 'Conflict' },
+      status: 409,
+      headers: new Headers(),
+    } as never)
     render(<SignupPage />)
     fireEvent.change(screen.getByLabelText(/メールアドレス/), {
       target: { value: 'test@example.com' },
@@ -84,6 +71,8 @@ describe('SignupPage', () => {
     const { signup } = await import('../../../api/generated')
     vi.mocked(signup).mockResolvedValueOnce({
       data: { id: '1', email: 'test@example.com', displayName: 'Test' },
+      status: 201,
+      headers: new Headers(),
     } as never)
     const onSuccess = vi.fn()
     render(<SignupPage onSuccess={onSuccess} />)
@@ -104,6 +93,8 @@ describe('SignupPage', () => {
     const { signup } = await import('../../../api/generated')
     vi.mocked(signup).mockResolvedValueOnce({
       data: { id: '1', email: 'test@example.com', displayName: '' },
+      status: 201,
+      headers: new Headers(),
     } as never)
     render(<SignupPage />)
     fireEvent.change(screen.getByLabelText(/メールアドレス/), {

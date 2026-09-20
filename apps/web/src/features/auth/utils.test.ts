@@ -1,38 +1,21 @@
-import { AxiosError } from 'axios'
 import { describe, expect, it } from 'vitest'
 import { getLoginErrorMessage, getSignupErrorMessage } from './utils'
 
-function makeAxiosError(code: string) {
-  return new AxiosError(
-    'Request failed',
-    'ERR_BAD_REQUEST',
-    undefined,
-    undefined,
-    {
-      data: { code, message: 'error' },
-      status: 400,
-      statusText: '',
-      headers: {},
-      config: {} as never,
-    },
-  )
-}
-
 describe('getLoginErrorMessage', () => {
   it('returns unauthorized message for UNAUTHORIZED error', () => {
-    expect(getLoginErrorMessage(makeAxiosError('UNAUTHORIZED'))).toBe(
+    expect(getLoginErrorMessage({ code: 'UNAUTHORIZED' })).toBe(
       'メールアドレスまたはパスワードが正しくありません',
     )
   })
 
   it('returns validation message for VALIDATION_ERROR', () => {
-    expect(getLoginErrorMessage(makeAxiosError('VALIDATION_ERROR'))).toBe(
+    expect(getLoginErrorMessage({ code: 'VALIDATION_ERROR' })).toBe(
       '入力内容を確認してください',
     )
   })
 
   it('returns server error message for INTERNAL_ERROR', () => {
-    expect(getLoginErrorMessage(makeAxiosError('INTERNAL_ERROR'))).toBe(
+    expect(getLoginErrorMessage({ code: 'INTERNAL_ERROR' })).toBe(
       'サーバーエラーが発生しました。しばらく経ってから再試行してください',
     )
   })
@@ -46,19 +29,19 @@ describe('getLoginErrorMessage', () => {
 
 describe('getSignupErrorMessage', () => {
   it('returns conflict message for CONFLICT error', () => {
-    expect(getSignupErrorMessage(makeAxiosError('CONFLICT'))).toBe(
+    expect(getSignupErrorMessage({ code: 'CONFLICT' })).toBe(
       'このメールアドレスはすでに使用されています',
     )
   })
 
   it('returns validation message for VALIDATION_ERROR', () => {
-    expect(getSignupErrorMessage(makeAxiosError('VALIDATION_ERROR'))).toBe(
+    expect(getSignupErrorMessage({ code: 'VALIDATION_ERROR' })).toBe(
       '入力内容を確認してください',
     )
   })
 
   it('returns server error message for INTERNAL_ERROR', () => {
-    expect(getSignupErrorMessage(makeAxiosError('INTERNAL_ERROR'))).toBe(
+    expect(getSignupErrorMessage({ code: 'INTERNAL_ERROR' })).toBe(
       'サーバーエラーが発生しました。しばらく経ってから再試行してください',
     )
   })

@@ -1,4 +1,3 @@
-import { AxiosError } from 'axios'
 import {
   ConflictErrorResponseCode,
   InternalErrorResponseCode,
@@ -6,12 +5,13 @@ import {
   ValidationErrorResponseCode,
 } from '../../api/generated'
 
-type ErrorWithCode = { code: string }
+function hasCode(value: unknown): value is { code: string } {
+  return typeof value === 'object' && value !== null && 'code' in value
+}
 
 export function getLoginErrorMessage(error: unknown): string {
-  if (error instanceof AxiosError) {
-    const data = error.response?.data as ErrorWithCode | undefined
-    switch (data?.code) {
+  if (hasCode(error)) {
+    switch (error.code) {
       case UnauthorizedErrorResponseCode.UNAUTHORIZED:
         return 'メールアドレスまたはパスワードが正しくありません'
       case ValidationErrorResponseCode.VALIDATION_ERROR:
@@ -24,9 +24,8 @@ export function getLoginErrorMessage(error: unknown): string {
 }
 
 export function getSignupErrorMessage(error: unknown): string {
-  if (error instanceof AxiosError) {
-    const data = error.response?.data as ErrorWithCode | undefined
-    switch (data?.code) {
+  if (hasCode(error)) {
+    switch (error.code) {
       case ConflictErrorResponseCode.CONFLICT:
         return 'このメールアドレスはすでに使用されています'
       case ValidationErrorResponseCode.VALIDATION_ERROR:

@@ -21,6 +21,10 @@ export function useSignupForm(onSuccess?: () => void) {
         password: data.password,
         displayName: data.displayName || undefined,
       })
+      if (res.status !== 201) {
+        toast.error(getSignupErrorMessage(res.data))
+        return
+      }
       setUser(res.data)
       toast.success('アカウントを作成しました')
       onSuccess?.()
