@@ -130,7 +130,7 @@ ALTER TABLE audit_logs ADD COLUMN entity_type VARCHAR NOT NULL
 
 新しいカラムを設計するとき、以下のフローで管理方式を選ぶ。
 
-```
+```text
 値がユーザー・管理者によって動的に増える、または値ごとに属性（表示名・有効フラグ等）が必要か？
   → YES: マスターテーブル
   → NO ↓

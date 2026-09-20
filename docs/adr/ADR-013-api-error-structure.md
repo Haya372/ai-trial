@@ -54,7 +54,7 @@ APIエラーレスポンスは以下の独自JSONフォーマットを採用す�
 
 エラーレスポンスに含めてはならない情報を以下に定める。
 
-**絶対に含めてはならない情報**
+#### 絶対に含めてはならない情報
 
 | 情報の種類 | 具体例 |
 |---|---|
@@ -65,7 +65,7 @@ APIエラーレスポンスは以下の独自JSONフォーマットを採用す�
 | 他ユーザーの情報 | 他ユーザーのID・メールアドレスなど |
 | 認証情報の断片 | トークンの一部、パスワードハッシュ |
 
-**`INTERNAL_ERROR` の扱い**
+#### `INTERNAL_ERROR` の扱い
 
 `500 Internal Server Error` を返す場合、`message` は常に固定文字列 `"Internal server error"` を使用する。実際のエラー内容はログにのみ記録し、レスポンスには一切含めない。
 
@@ -73,7 +73,7 @@ APIエラーレスポンスは以下の独自JSONフォーマットを採用す�
 
 `message` および `details[].message` はバックエンドが事前に定義した文言のみを使用する。ライブラリ・DB・バリデーターが返す内部エラーメッセージをそのまま渡してはならない。これは400系エラーについても同様。
 
-**NG例（内部エラーをそのまま返す）**
+#### NG例（内部エラーをそのまま返す）
 
 ```go
 // 絶対にやってはいけない（500）
@@ -84,7 +84,7 @@ w.Write([]byte(`{"code": "INTERNAL_ERROR", "message": "` + err.Error() + `"}`))
 writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", validator.Error())
 ```
 
-**OK例（事前定義した文言を使う）**
+#### OK例（事前定義した文言を使う）
 
 ```go
 // 定義済みの文言を使う
@@ -97,13 +97,13 @@ details := []ErrorDetail{
 writeValidationError(w, "Validation failed", details)
 ```
 
-**言語について**
+#### 言語について
 
 `message` および `details[].message` は英語で記述する。ユーザーへの表示言語の制御（i18n）はフロントエンドの責務とする。フロントエンドは `code` を使って独自のローカライズメッセージを定義してもよいし、バックエンドの英語 `message` をそのまま使ってもよい。
 
 ### レスポンス例
 
-**バリデーションエラー（400）**
+#### バリデーションエラー（400）
 
 ```json
 {
@@ -124,7 +124,7 @@ writeValidationError(w, "Validation failed", details)
 }
 ```
 
-**リソース未発見（404）**
+#### リソース未発見（404）
 
 ```json
 {
@@ -133,7 +133,7 @@ writeValidationError(w, "Validation failed", details)
 }
 ```
 
-**認証エラー（401）**
+#### 認証エラー（401）
 
 ```json
 {
@@ -142,7 +142,7 @@ writeValidationError(w, "Validation failed", details)
 }
 ```
 
-**サーバー内部エラー（500）**
+#### サーバー内部エラー（500）
 
 ```json
 {

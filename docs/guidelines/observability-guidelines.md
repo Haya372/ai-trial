@@ -31,7 +31,7 @@
 | 関数の入退出 | 出さない | 粒度が細かすぎてノイズになる |
 | DBクエリの成功 | 出さない | トレーシングで把握する |
 
-**外部API呼び出し: 成功・失敗ともに INFO / ERROR で記録する**
+#### 外部API呼び出し: 成功・失敗ともに INFO / ERROR で記録する
 
 ```go
 // 外部APIを呼ぶ前後で証跡を残す
@@ -44,7 +44,7 @@ if err != nil {
 logger.Info("external api succeeded", "service", "payment", "status", resp.Status)
 ```
 
-**DB操作: 失敗時のみ ERROR で記録する**
+#### DB操作: 失敗時のみ ERROR で記録する
 
 ```go
 user, err := s.repo.FindByID(ctx, id)
@@ -55,7 +55,7 @@ if err != nil {
 // 成功時はログ不要（スパンで処理時間・成否を把握する）
 ```
 
-**サーバー起動・終了・認証失敗**
+#### サーバー起動・終了・認証失敗
 
 ```go
 logger.Info("server starting", "addr", srv.Addr)
@@ -64,7 +64,7 @@ logger.Info("shutting down server")
 logger.Warn("authentication failed", "reason", "invalid_token", "path", r.URL.Path)
 ```
 
-**出さない: 関数の内部処理**
+#### 出さない: 関数の内部処理
 
 ```go
 // NG: 関数の入退出は出さない
@@ -88,7 +88,7 @@ logger.Info("user login failed for user 12345")
 logger.Warn("user login failed", "user_id", userID, "reason", "invalid_password")
 ```
 
-**共通フィールド**
+#### 共通フィールド
 
 | フィールド名 | 型 | 説明 |
 |---|---|---|
@@ -157,7 +157,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 
 通常のエラー伝播とは異なり、「本来起こりえない状態」を検知した場合は中間層であっても発見箇所で ERROR を出す。ハンドラーまで伝播するころには文脈が失われており、バグ調査が困難になるため。
 
-**本来起こりえない状態の例**
+#### 本来起こりえない状態の例
 
 - 外部キーが存在するはずのレコードが見つからない
 - ステータスが有効な値の列挙に含まれない

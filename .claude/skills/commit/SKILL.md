@@ -7,7 +7,7 @@ description: コミットするとき。適切な粒度でコミットを分割�
 
 ## コミットの粒度
 
-**1コミット = 1論理的変更**
+### 1コミット = 1論理的変更
 
 コミットは「なぜ」の単位で分割する。ファイル数の多さは関係ない。
 
@@ -23,7 +23,7 @@ description: コミットするとき。適切な粒度でコミットを分割�
 
 ### フォーマット
 
-```
+```text
 <type>: <summary>
 
 [body]
@@ -55,7 +55,7 @@ description: コミットするとき。適切な粒度でコミットを分割�
 
 ### 例
 
-```
+```text
 feat: Add explorer agent for code investigation
 
 Use Haiku model to reduce context consumption during
