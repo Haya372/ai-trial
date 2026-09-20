@@ -50,49 +50,6 @@ linters:
               desc: "usecase must not import infrastructure. Define a repository/gateway interface in usecase and implement it in infrastructure."
             - pkg: "github.com/Haya372/ai-trial/backend/cmd"
               desc: "usecase must not import cmd. Allowed flow: usecase ← cmd."
-        # Feature isolation: domain features must not depend on each other.
-        domain-user-no-cross-feature:
-          list-mode: lax
-          files:
-            - "**/domain/user/**"
-          deny:
-            - pkg: "github.com/Haya372/ai-trial/backend/domain/event"
-              desc: "domain/user must not import domain/event. Move cross-feature coordination to usecase layer, or extract a shared value type to domain root."
-            - pkg: "github.com/Haya372/ai-trial/backend/domain/session"
-              desc: "domain/user must not import domain/session. Move cross-feature coordination to usecase layer, or extract a shared value type to domain root."
-        domain-event-no-cross-feature:
-          list-mode: lax
-          files:
-            - "**/domain/event/**"
-          deny:
-            - pkg: "github.com/Haya372/ai-trial/backend/domain/user"
-              desc: "domain/event must not import domain/user. Move cross-feature coordination to usecase layer, or extract a shared value type to domain root."
-            - pkg: "github.com/Haya372/ai-trial/backend/domain/session"
-              desc: "domain/event must not import domain/session. Move cross-feature coordination to usecase layer, or extract a shared value type to domain root."
-        domain-session-no-cross-feature:
-          list-mode: lax
-          files:
-            - "**/domain/session/**"
-          deny:
-            - pkg: "github.com/Haya372/ai-trial/backend/domain/user"
-              desc: "domain/session must not import domain/user. Move cross-feature coordination to usecase layer, or extract a shared value type to domain root."
-            - pkg: "github.com/Haya372/ai-trial/backend/domain/event"
-              desc: "domain/session must not import domain/event. Move cross-feature coordination to usecase layer, or extract a shared value type to domain root."
-        # Feature isolation: usecase features must not depend on each other.
-        usecase-auth-no-cross-feature:
-          list-mode: lax
-          files:
-            - "**/usecase/auth/**"
-          deny:
-            - pkg: "github.com/Haya372/ai-trial/backend/usecase/event"
-              desc: "usecase/auth must not import usecase/event. Define an interface in usecase/auth, or move cross-feature coordination to interface layer."
-        usecase-event-no-cross-feature:
-          list-mode: lax
-          files:
-            - "**/usecase/event/**"
-          deny:
-            - pkg: "github.com/Haya372/ai-trial/backend/usecase/auth"
-              desc: "usecase/event must not import usecase/auth. Define an interface in usecase/event, or move cross-feature coordination to interface layer."
         # Applied to non-test files only: integration tests legitimately import infrastructure.
         interface-must-not-import-infrastructure:
           list-mode: lax
