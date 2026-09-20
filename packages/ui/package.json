@@ -18,7 +18,7 @@
   "dependencies": {
     "@base-ui/react": "1.8.0",
     "class-variance-authority": "0.7.1",
-    "cn": "0.2.5",
+    "cn": "0.3.0",
     "sonner": "2.0.8"
   },
   "peerDependencies": {
@@ -28,15 +28,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@storybook/addon-essentials": "8.6.14",
-    "@storybook/react": "8.6.18",
-    "@storybook/react-vite": "8.6.18",
+    "@storybook/react": "10.6.0",
+    "@storybook/react-vite": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "npm-run-all2": "catalog:",
     "oxlint": "catalog:",
-    "storybook": "8.6.18",
+    "storybook": "10.6.0",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:"
   }
