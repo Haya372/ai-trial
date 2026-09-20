@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { AxiosError } from 'axios'
 import { describe, expect, it, vi } from 'vitest'
 import LoginPage from './LoginPage'
 
@@ -23,22 +22,6 @@ vi.mock('@repo/ui', async (importOriginal) => {
     }),
   }
 })
-
-function makeAxiosError(code: string) {
-  return new AxiosError(
-    'Request failed',
-    'ERR_BAD_REQUEST',
-    undefined,
-    undefined,
-    {
-      data: { code, message: 'error' },
-      status: 401,
-      statusText: '',
-      headers: {},
-      config: {} as never,
-    },
-  )
-}
 
 describe('LoginPage', () => {
   it('renders email and password fields with Japanese labels', () => {
@@ -72,7 +55,11 @@ describe('LoginPage', () => {
 
   it('calls toast.error with unauthorized message when API returns UNAUTHORIZED', async () => {
     const { login } = await import('../../../api/generated')
-    vi.mocked(login).mockRejectedValueOnce(makeAxiosError('UNAUTHORIZED'))
+    vi.mocked(login).mockResolvedValueOnce({
+      data: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+      status: 401,
+      headers: new Headers(),
+    } as never)
     render(<LoginPage />)
     fireEvent.change(screen.getByLabelText(/メールアドレス/), {
       target: { value: 'test@example.com' },

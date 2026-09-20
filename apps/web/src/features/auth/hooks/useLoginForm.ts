@@ -17,6 +17,10 @@ export function useLoginForm(onSuccess?: () => void) {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       const res = await login({ email: data.email, password: data.password })
+      if (res.status !== 200) {
+        toast.error(getLoginErrorMessage(res.data))
+        return
+      }
       setUser(res.data)
       toast.success('ログインしました')
       onSuccess?.()
