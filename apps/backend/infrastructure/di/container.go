@@ -91,8 +91,10 @@ func newRouter(
 	ev *handler.EventHandler,
 	sessRepo session.Repository,
 	userRepo user.Repository,
+	logger *slog.Logger,
 ) *chi.Mux {
 	r := chi.NewRouter()
+	r.Use(mw.AccessLog(logger))
 	r.Get("/health", health.ServeHTTP)
 	r.Post("/auth/signup", auth.Signup)
 	r.Post("/auth/login", auth.Login)
