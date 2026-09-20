@@ -102,4 +102,31 @@ func TestAccessLog_logsRequiredFields(t *testing.T) {
 			t.Errorf("expected log field %q to be present", key)
 		}
 	}
+	if v, _ := attrs["method"].(string); v != http.MethodGet {
+		t.Errorf("expected method %q, got %q", http.MethodGet, v)
+	}
+	if v, _ := attrs["path"].(string); v != "/events" {
+		t.Errorf("expected path %q, got %q", "/events", v)
+	}
+}
+
+func TestAccessLog_noWriteHeader_treatsAs200(t *testing.T) {
+	h := &captureHandler{}
+	logger := slog.New(h)
+	noWriteHeader := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {})
+	mw := middleware.AccessLog(logger)(noWriteHeader)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/health", nil)
+	mw.ServeHTTP(httptest.NewRecorder(), req)
+
+	if len(h.records) != 1 {
+		t.Fatalf("expected 1 log record, got %d", len(h.records))
+	}
+	attrs := loggedAttrs(h.records[0])
+	if v, _ := attrs["status"].(int64); v != http.StatusOK {
+		t.Errorf("expected status 200, got %v", v)
+	}
+	if h.records[0].Level != slog.LevelInfo {
+		t.Errorf("expected Info level, got %s", h.records[0].Level)
+	}
 }
