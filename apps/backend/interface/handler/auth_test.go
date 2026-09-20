@@ -266,6 +266,20 @@ func TestAuthHandler_Login_unknownEmail_returns401(t *testing.T) {
 	}
 }
 
+func TestAuthHandler_Login_internalError_returns500(t *testing.T) {
+	stub := &stubLoginExec{fn: func(_ context.Context, _ authuc.LoginInput) (*authuc.AuthOutput, error) {
+		return nil, errUnexpected
+	}}
+	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{}, testLogger)
+
+	rec := httptest.NewRecorder()
+	h.Login(rec, loginRequest(t, "u@ex.com"))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
+	}
+}
+
 // --- Logout tests ---
 
 func TestAuthHandler_Logout_withValidCookie_returns204_and_clears_cookie(t *testing.T) {
@@ -308,6 +322,35 @@ func TestAuthHandler_Logout_noCookie_returns401(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_Logout_invalidCookieUUID_returns401(t *testing.T) {
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
+	req.AddCookie(sessionCookieForRequest("not-a-uuid"))
+	rec := httptest.NewRecorder()
+	h.Logout(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_Logout_executionError_returns500(t *testing.T) {
+	stub := &stubLogoutExec{fn: func(_ context.Context, _ uuid.UUID) error {
+		return errInternal
+	}}
+	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, stub, testLogger)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
+	req.AddCookie(sessionCookieForRequest(uuid.New().String()))
+	rec := httptest.NewRecorder()
+	h.Logout(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rec.Code)
 	}
 }
 

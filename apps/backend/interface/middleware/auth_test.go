@@ -173,3 +173,28 @@ func TestRequireAuth_userNotFound_returns401(t *testing.T) {
 		t.Fatalf("expected 401, got %d", rec.Code)
 	}
 }
+
+func TestRequireAuth_userNilWithNoError_returns401(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	sessID := uuid.New()
+	userID := uuid.New()
+
+	sess := session.New(sessID, userID, time.Now().Add(time.Hour))
+	mockSessRepo := sessionmock.NewMockRepository(ctrl)
+	mockUserRepo := usermock.NewMockRepository(ctrl)
+	mockSessRepo.EXPECT().FindActiveByID(gomock.Any(), sessID).Return(sess, nil)
+	mockUserRepo.EXPECT().FindByID(gomock.Any(), userID).Return(nil, nil)
+
+	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("next handler should not be called")
+	}))
+
+	req := requestWithCookie(t, sessID.String())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
