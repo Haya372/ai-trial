@@ -7,6 +7,7 @@ import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
 import EventDetailModal from '../components/EventDetailModal'
 import { CALENDAR_VIEW, type CalendarView } from '../constants'
+import { navigateDate } from '../navigateDate'
 
 function getViewDateRange(
   view: CalendarView,
@@ -24,16 +25,6 @@ function getViewDateRange(
   const endDate = new Date(startDate)
   endDate.setDate(startDate.getDate() + 6)
   return { startDate, endDate }
-}
-
-function navigateDate(view: CalendarView, date: Date, direction: 1 | -1): Date {
-  const next = new Date(date)
-  if (view === CALENDAR_VIEW.MONTH) {
-    next.setMonth(date.getMonth() + direction)
-  } else {
-    next.setDate(date.getDate() + direction * 7)
-  }
-  return next
 }
 
 export default function CalendarPage() {
