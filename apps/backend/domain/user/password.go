@@ -22,22 +22,14 @@ const (
 )
 
 var (
-	ErrPasswordTooShort error = &domain.DomainError{
-		Code:    CodePasswordTooShort,
-		Message: "Password must be at least 8 characters",
-	}
-	ErrPasswordTooLong error = &domain.DomainError{
-		Code:    CodePasswordTooLong,
-		Message: "Password must be at most 72 characters",
-	}
-	ErrPasswordNotASCII error = &domain.DomainError{
-		Code:    CodePasswordNotASCII,
-		Message: "Password must contain only ASCII printable characters",
-	}
-	ErrPasswordInsufficientComplexity error = &domain.DomainError{
-		Code:    CodePasswordInsufficientComplexity,
-		Message: "Password must contain uppercase, lowercase, digit, and symbol",
-	}
+	ErrPasswordTooShort = domain.NewDomainError(
+		CodePasswordTooShort, "Password must be at least 8 characters")
+	ErrPasswordTooLong = domain.NewDomainError(
+		CodePasswordTooLong, "Password must be at most 72 characters")
+	ErrPasswordNotASCII = domain.NewDomainError(
+		CodePasswordNotASCII, "Password must contain only ASCII printable characters")
+	ErrPasswordInsufficientComplexity = domain.NewDomainError(
+		CodePasswordInsufficientComplexity, "Password must contain uppercase, lowercase, digit, and symbol")
 )
 
 func NewPassword(plain string) (Password, error) {

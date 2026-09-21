@@ -11,10 +11,8 @@ const (
 	maxDisplayNameLength   = 50
 )
 
-var ErrDisplayNameTooLong error = &domain.DomainError{
-	Code:    CodeDisplayNameTooLong,
-	Message: "Display name must be at most 50 characters",
-}
+var ErrDisplayNameTooLong = domain.NewDomainError(
+	CodeDisplayNameTooLong, "Display name must be at most 50 characters")
 
 func NewDisplayName(s string) (string, error) {
 	if len([]rune(s)) > maxDisplayNameLength {

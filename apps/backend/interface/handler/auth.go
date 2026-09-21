@@ -159,11 +159,11 @@ func (h *AuthHandler) writeAuthError(w http.ResponseWriter, r *http.Request, err
 		}
 		response.WriteValidationError(w, details)
 	case errors.As(err, &de):
-		switch de.Code {
+		switch de.Code() {
 		case user.CodeEmailTaken:
-			response.WriteError(w, http.StatusConflict, errCodeConflict, de.Message)
+			response.WriteError(w, http.StatusConflict, errCodeConflict, de.Message())
 		case user.CodeUserNotFound, user.CodePasswordMismatch:
-			h.logger.Warn("authentication failed", "reason", de.Code, "path", r.URL.Path)
+			h.logger.Warn("authentication failed", "reason", de.Code(), "path", r.URL.Path)
 			response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Invalid email or password")
 		default:
 			h.logger.Error("unexpected domain error in auth handler", "error", err, "path", r.URL.Path)
