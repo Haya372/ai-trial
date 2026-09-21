@@ -14,7 +14,7 @@ paths:
   /auth/me:
     $ref: "./paths/auth/me.yaml"
   /events:
-    $ref: "./paths/events/list.yaml"
+    $ref: "./paths/events/index.yaml"
 components:
   schemas:
     HealthResponse:
@@ -39,3 +39,5 @@ components:
       $ref: "./components/schemas/EventResponse.yaml"
     EventsListResponse:
       $ref: "./components/schemas/EventsListResponse.yaml"
+    CreateEventRequest:
+      $ref: "./components/schemas/CreateEventRequest.yaml"

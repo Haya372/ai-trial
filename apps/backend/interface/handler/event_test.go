@@ -82,7 +82,11 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp api.EventsListResponse
+	var resp struct {
+		Events []struct {
+			Title string `json:"title"`
+		} `json:"events"`
+	}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}

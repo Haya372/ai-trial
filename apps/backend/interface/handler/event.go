@@ -17,6 +17,23 @@ import (
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
+// eventResponseBody is the JSON shape for a single event response.
+// Defined here because oapi-codegen v2 inlines these fields per-operation.
+type eventResponseBody struct {
+	ID          uuid.UUID `json:"id"`
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	StartAt     time.Time `json:"startAt"`
+	EndAt       time.Time `json:"endAt"`
+	Location    *string   `json:"location,omitempty"`
+	URL         *string   `json:"url,omitempty"`
+}
+
+// eventsListResponseBody is the JSON shape for the list events response.
+type eventsListResponseBody struct {
+	Events []eventResponseBody `json:"events"`
+}
+
 type ListEventsExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in eventuc.ListEventsInput) ([]eventuc.EventReadModel, error)
 }
@@ -67,12 +84,12 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	resp := api.EventsListResponse{
-		Events: make([]api.EventResponse, len(events)),
+	resp := eventsListResponseBody{
+		Events: make([]eventResponseBody, len(events)),
 	}
 	for i, e := range events {
-		ev := api.EventResponse{
-			Id:      e.ID,
+		ev := eventResponseBody{
+			ID:      e.ID,
 			Title:   e.Title,
 			StartAt: e.StartAt,
 			EndAt:   e.EndAt,

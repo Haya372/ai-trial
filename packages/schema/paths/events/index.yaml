@@ -1,0 +1,81 @@
+get:
+  operationId: getEvents
+  summary: List events within a date range
+  tags:
+    - events
+  parameters:
+    - name: startDate
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      description: Start of the search range (ISO 8601, YYYY-MM-DD)
+    - name: endDate
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date
+      description: End of the search range (ISO 8601, YYYY-MM-DD)
+  responses:
+    "200":
+      description: List of events
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/EventsListResponse.yaml"
+    "400":
+      description: Invalid query parameters
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
+post:
+  operationId: createEvent
+  summary: Create a new event
+  tags:
+    - events
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/CreateEventRequest.yaml"
+  responses:
+    "201":
+      description: Event created successfully
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/EventResponse.yaml"
+    "400":
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"

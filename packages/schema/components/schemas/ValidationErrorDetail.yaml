@@ -16,6 +16,7 @@ properties:
       - TOO_LONG
       - INVALID_CHARACTER
       - INSUFFICIENT_COMPLEXITY
+      - INVALID_DATE_RANGE
     example: "INVALID_FORMAT"
   message:
     type: string
