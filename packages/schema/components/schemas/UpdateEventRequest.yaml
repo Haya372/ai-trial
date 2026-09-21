@@ -1,23 +1,19 @@
 type: object
 required:
-  - id
   - title
   - startAt
   - endAt
 properties:
-  id:
-    type: string
-    format: uuid
   title:
     type: string
-  description:
-    type: ["string", "null"]
   startAt:
     type: string
     format: date-time
   endAt:
     type: string
     format: date-time
+  description:
+    type: ["string", "null"]
   location:
     type: ["string", "null"]
   url:

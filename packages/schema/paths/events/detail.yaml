@@ -1,0 +1,49 @@
+put:
+  operationId: updateEvent
+  summary: Update an existing event
+  tags:
+    - events
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/UpdateEventRequest.yaml"
+  responses:
+    "200":
+      description: Updated event
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/EventResponse.yaml"
+    "400":
+      description: Invalid request body
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "404":
+      description: Event not found (also returned when the event belongs to another user)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
