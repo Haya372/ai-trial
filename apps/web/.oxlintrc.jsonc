@@ -10,5 +10,26 @@
     "typescript/no-non-null-assertion": "error",
     "react/react-in-jsx-scope": "off",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      // src/features/ 配下のファイルは他の feature を @/ エイリアス経由でインポートしてはいけない。
+      // feature は互いに独立したユニットとして扱い、同 feature 内は相対パス、
+      // 複数 feature で共有するコードは src/ 直下（src/components/ 等）に置く。
+      "files": ["src/features/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^@/features/",
+                "message": "Cross-feature imports are not allowed. Use relative imports within the same feature, or move shared code to src/ directly (e.g. src/components/, src/hooks/)."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
