@@ -147,7 +147,7 @@ func TestAuthHandler_Signup_validationError_returns400(t *testing.T) {
 	}
 	var body map[string]any
 	_ = json.NewDecoder(rec.Body).Decode(&body)
-	if body["code"] != "VALIDATION_ERROR" {
+	if body["code"] != codeValidationError {
 		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
 	}
 }

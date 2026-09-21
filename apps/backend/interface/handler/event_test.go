@@ -338,8 +338,50 @@ func TestEventHandler_CreateEvent_ValidationError_Returns400(t *testing.T) {
 	}
 	var body map[string]any
 	_ = json.NewDecoder(w.Body).Decode(&body)
-	if body["code"] != "VALIDATION_ERROR" {
+	if body["code"] != codeValidationError {
 		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
+	}
+}
+
+func TestEventHandler_CreateEvent_EndAtEqualStartAt_Returns400(t *testing.T) {
+	userID := uuid.New()
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
+			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
+				{Field: "endAt", Code: codeInvalidDateRange, Message: "endAt must be strictly after startAt"},
+			}}
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: now,
+		testKeyEndAt:   now, // same instant: invalid per SPEC-003
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	_ = json.NewDecoder(w.Body).Decode(&body)
+	if body["code"] != codeValidationError {
+		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
+	}
+	details, ok := body["details"].([]any)
+	if !ok || len(details) == 0 {
+		t.Fatalf("expected validation details in response, got: %v", body)
+	}
+	detail, ok := details[0].(map[string]any)
+	if !ok || detail["code"] != codeInvalidDateRange {
+		t.Errorf("expected detail code INVALID_DATE_RANGE, got: %v", details[0])
 	}
 }
 
@@ -460,7 +502,7 @@ func TestEventHandler_UpdateEvent_ValidationError_Returns400(t *testing.T) {
 	stub := &stubUpdateEventExec{
 		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {
 			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
-				{Field: "endAt", Code: "INVALID_DATE_RANGE", Message: "endAt must be after or equal to startAt"},
+				{Field: "endAt", Code: codeInvalidDateRange, Message: "endAt must be after or equal to startAt"},
 			}}
 		},
 	}

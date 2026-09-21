@@ -215,7 +215,7 @@ func TestRoute_Signup_errorCases(t *testing.T) {
 				})
 			},
 			wantCode:    http.StatusBadRequest,
-			wantErrCode: "VALIDATION_ERROR",
+			wantErrCode: codeValidationError,
 		},
 		{
 			name: "weak password returns 400 with validation error",
@@ -225,7 +225,7 @@ func TestRoute_Signup_errorCases(t *testing.T) {
 				})
 			},
 			wantCode:    http.StatusBadRequest,
-			wantErrCode: "VALIDATION_ERROR",
+			wantErrCode: codeValidationError,
 		},
 		{
 			name:     "duplicate email returns 409",
