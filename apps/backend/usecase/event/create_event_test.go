@@ -72,20 +72,20 @@ func TestCreateEventCommand_Execute_Success(t *testing.T) {
 	if capturedEvent.Title() != testCreateTitle {
 		t.Errorf("title mismatch: got %q", capturedEvent.Title())
 	}
-	if result.Title != testCreateTitle {
-		t.Errorf("result title mismatch: got %q", result.Title)
+	if result.Title() != testCreateTitle {
+		t.Errorf("result title mismatch: got %q", result.Title())
 	}
-	if result.Description != "Team sync" {
-		t.Errorf("result description mismatch: got %q", result.Description)
+	if result.Description() != "Team sync" {
+		t.Errorf("result description mismatch: got %q", result.Description())
 	}
-	if result.Location != testLocation {
-		t.Errorf("result location mismatch: got %q", result.Location)
+	if result.Location() != testLocation {
+		t.Errorf("result location mismatch: got %q", result.Location())
 	}
-	if result.URL != testURL {
-		t.Errorf("result url mismatch: got %q", result.URL)
+	if result.URL() != testURL {
+		t.Errorf("result url mismatch: got %q", result.URL())
 	}
-	if result.UserID != userID {
-		t.Errorf("result userID mismatch: got %v, want %v", result.UserID, userID)
+	if result.UserID() != userID {
+		t.Errorf("result userID mismatch: got %v, want %v", result.UserID(), userID)
 	}
 }
 

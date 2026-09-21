@@ -190,16 +190,16 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 // --- CreateEvent tests ---
 
 type stubCreateEventExec struct {
-	fn func(context.Context, uuid.UUID, eventuc.CreateEventInput) (eventuc.EventDetail, error)
+	fn func(context.Context, uuid.UUID, eventuc.CreateEventInput) (domainevent.Event, error)
 }
 
 func (s *stubCreateEventExec) Execute(
 	ctx context.Context,
 	userID uuid.UUID,
 	in eventuc.CreateEventInput,
-) (eventuc.EventDetail, error) {
+) (domainevent.Event, error) {
 	if s.fn == nil {
-		return eventuc.EventDetail{}, nil
+		return nil, nil
 	}
 	return s.fn(ctx, userID, in)
 }
@@ -229,20 +229,13 @@ func TestEventHandler_CreateEvent_Success_Returns201(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, uid uuid.UUID, in eventuc.CreateEventInput) (eventuc.EventDetail, error) {
+		fn: func(_ context.Context, uid uuid.UUID, in eventuc.CreateEventInput) (domainevent.Event, error) {
 			if uid != userID {
 				t.Errorf("userID mismatch: got %v, want %v", uid, userID)
 			}
-			return eventuc.EventDetail{
-				ID:          eventID,
-				UserID:      userID,
-				Title:       in.Title,
-				Description: in.Description,
-				StartAt:     in.StartAt,
-				EndAt:       in.EndAt,
-				Location:    in.Location,
-				URL:         in.URL,
-			}, nil
+			return domainevent.New(
+				eventID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
+			)
 		},
 	}
 
@@ -321,8 +314,8 @@ func TestEventHandler_CreateEvent_ValidationError_Returns400(t *testing.T) {
 	userID := uuid.New()
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (eventuc.EventDetail, error) {
-			return eventuc.EventDetail{}, &domain.ValidationError{Details: []domain.ValidationDetail{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
+			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
 				{Field: "title", Code: "REQUIRED", Message: "title is required"},
 			}}
 		},
@@ -354,8 +347,8 @@ func TestEventHandler_CreateEvent_InternalError_Returns500(t *testing.T) {
 	userID := uuid.New()
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (eventuc.EventDetail, error) {
-			return eventuc.EventDetail{}, errInternal
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
+			return nil, errInternal
 		},
 	}
 

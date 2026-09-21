@@ -47,7 +47,7 @@ type ListEventsExecutor interface {
 
 // CreateEventExecutor is satisfied by eventuc.CreateEventCommand.
 type CreateEventExecutor interface {
-	Execute(ctx context.Context, userID uuid.UUID, in eventuc.CreateEventInput) (eventuc.EventDetail, error)
+	Execute(ctx context.Context, userID uuid.UUID, in eventuc.CreateEventInput) (domainevent.Event, error)
 }
 
 type UpdateEventExecutor interface {
@@ -149,26 +149,6 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 	return in
 }
 
-// toEventResponseFromDetail maps a usecase EventDetail to the API response shape.
-func toEventResponseFromDetail(d eventuc.EventDetail) api.EventResponse {
-	resp := api.EventResponse{
-		Id:      d.ID,
-		Title:   d.Title,
-		StartAt: d.StartAt,
-		EndAt:   d.EndAt,
-	}
-	if d.Description != "" {
-		resp.Description = &d.Description
-	}
-	if d.Location != "" {
-		resp.Location = &d.Location
-	}
-	if d.URL != "" {
-		resp.Url = &d.URL
-	}
-	return resp
-}
-
 func toEventResponse(ev domainevent.Event) api.EventResponse {
 	resp := api.EventResponse{
 		Id:      ev.ID(),
@@ -207,13 +187,13 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	detail, err := h.createEvent.Execute(r.Context(), u.ID(), buildCreateEventInput(body))
+	ev, err := h.createEvent.Execute(r.Context(), u.ID(), buildCreateEventInput(body))
 	if err != nil {
 		h.writeEventError(w, r, err)
 		return
 	}
 
-	out, err := json.Marshal(toEventResponseFromDetail(detail))
+	out, err := json.Marshal(toEventResponse(ev))
 	if err != nil {
 		h.logger.Error("failed to marshal create event response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
