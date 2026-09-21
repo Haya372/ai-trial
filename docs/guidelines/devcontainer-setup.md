@@ -70,7 +70,7 @@ Dev Container 内では `bubblewrap` によるファイルシステム・ネッ�
 | 設定 | 値 | 説明 |
 |---|---|---|
 | `sandbox.enabled` | `true` | サンドボックス有効 |
-| `sandbox.excludedCommands` | `["docker *", "gh *", "git *"]` | sandbox 非対応またはTLS問題があるコマンドを除外。`git` はSSHリモート（`git@github.com:...`）を使うため、ドメイン許可リスト方式のネットワークサンドボックス（HTTPプロキシ経由）では通信できず除外している |
+| `sandbox.excludedCommands` | `["docker *", "gh *", "git *"]` | sandbox 非対応またはTLS問題があるコマンドを除外 |
 | `sandbox.credentials.files` | `~/.aws`, `~/.ssh` | クレデンシャルファイルを読み取り禁止 |
 | `sandbox.network.allowedDomains` | GitHub, npm, Go など | Bash コマンドが到達できるドメイン |
 
