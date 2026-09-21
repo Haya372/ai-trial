@@ -2,9 +2,5 @@
   // TanStack Router の route ファイルは routeTree.gen.ts（gitignore済）経由で使われるため
   // knip がトレースできない。エントリーポイントとして明示する。
   "entry": ["src/routes/**/*.tsx"],
-  "ignoreDependencies": [
-    "lucide-react",
-    // orval の生成コードが src/api/ にコミットされないため、knip がインポートを検出できない
-    "@tanstack/react-query"
-  ]
+  "ignoreDependencies": ["lucide-react"]
 }
