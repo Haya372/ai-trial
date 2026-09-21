@@ -36,7 +36,9 @@ func (c *UpdateEventCommand) Execute(
 		return nil, fmt.Errorf("find event: %w", err)
 	}
 	if existing.UserID() != userID {
-		return nil, domainevent.ErrForbidden
+		// Reported the same as a missing event to avoid leaking event
+		// existence to users who don't own it.
+		return nil, domainevent.ErrEventNotFound
 	}
 
 	updated, err := domainevent.New(in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL)

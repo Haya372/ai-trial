@@ -133,7 +133,7 @@ func TestUpdateEventCommand_Execute_EventNotFound_ReturnsEventNotFoundError(t *t
 	}
 }
 
-func TestUpdateEventCommand_Execute_NotOwner_ReturnsForbiddenError(t *testing.T) {
+func TestUpdateEventCommand_Execute_NotOwner_ReturnsEventNotFoundError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := eventmock.NewMockRepository(ctrl)
 
@@ -153,8 +153,10 @@ func TestUpdateEventCommand_Execute_NotOwner_ReturnsForbiddenError(t *testing.T)
 		StartAt: start,
 		EndAt:   end,
 	})
-	if !errors.Is(err, domainevent.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
+	// Ownership mismatches are reported the same way as a missing event
+	// (ErrEventNotFound) to avoid leaking event existence to non-owners.
+	if !errors.Is(err, domainevent.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound, got %v", err)
 	}
 }
 

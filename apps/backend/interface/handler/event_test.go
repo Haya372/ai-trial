@@ -300,24 +300,6 @@ func TestEventHandler_UpdateEvent_NotFound_Returns404(t *testing.T) {
 	}
 }
 
-func TestEventHandler_UpdateEvent_Forbidden_Returns403(t *testing.T) {
-	stub := &stubUpdateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {
-			return nil, domainevent.ErrForbidden
-		},
-	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, testLogger)
-
-	req := putEventRequestAsUser(t, uuid.New().String(), validUpdateEventBody)
-	w := httptest.NewRecorder()
-
-	h.UpdateEvent(w, req)
-
-	if w.Code != http.StatusForbidden {
-		t.Errorf("expected 403, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
 func TestEventHandler_UpdateEvent_InternalError_Returns500(t *testing.T) {
 	stub := &stubUpdateEventExec{
 		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {

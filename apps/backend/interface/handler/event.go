@@ -21,10 +21,7 @@ import (
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
-const (
-	errCodeNotFound  = "NOT_FOUND"
-	errCodeForbidden = "FORBIDDEN"
-)
+const errCodeNotFound = "NOT_FOUND"
 
 type ListEventsExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in eventuc.ListEventsInput) ([]eventuc.EventReadModel, error)
@@ -204,8 +201,6 @@ func (h *EventHandler) writeEventError(w http.ResponseWriter, r *http.Request, e
 		switch de.Code() {
 		case domainevent.CodeEventNotFound:
 			response.WriteError(w, http.StatusNotFound, errCodeNotFound, "Resource not found")
-		case domainevent.CodeForbidden:
-			response.WriteError(w, http.StatusForbidden, errCodeForbidden, "You do not have permission to access this resource")
 		default:
 			h.logger.Error("unexpected domain error in event handler", "error", err, "path", r.URL.Path)
 			response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")

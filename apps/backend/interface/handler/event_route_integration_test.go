@@ -246,7 +246,7 @@ func TestRoute_PutEvent_nonExistentEvent_returns404(t *testing.T) {
 	}
 }
 
-func TestRoute_PutEvent_otherUsersEvent_returns403(t *testing.T) {
+func TestRoute_PutEvent_otherUsersEvent_returns404(t *testing.T) {
 	setupRouteTest(t)
 	router := buildEventTestRouter()
 
@@ -263,8 +263,10 @@ func TestRoute_PutEvent_otherUsersEvent_returns403(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	// Ownership mismatches are reported as 404, the same as a missing event,
+	// to avoid leaking event existence to non-owners.
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 
