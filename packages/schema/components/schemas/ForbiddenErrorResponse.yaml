@@ -1,0 +1,12 @@
+type: object
+required:
+  - code
+  - message
+properties:
+  code:
+    type: string
+    enum: ["FORBIDDEN"]
+    example: "FORBIDDEN"
+  message:
+    type: string
+    example: "You do not have permission to access this resource"
