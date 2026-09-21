@@ -7,48 +7,32 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/mock/gomock"
 
 	"github.com/Haya372/ai-trial/backend/domain"
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	eventmock "github.com/Haya372/ai-trial/backend/domain/event/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
 const testCreateTitle = "Meeting"
 
-// stubCreateRepo is a stub for domain/event.Repository used in create_event tests.
-type stubCreateRepo struct {
-	createFn func(ctx context.Context, e domainevent.Event) (domainevent.Event, error)
-}
-
-func (s *stubCreateRepo) Create(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
-	if s.createFn == nil {
-		// By default, echo back the same event (simulates successful persistence).
-		return e, nil
-	}
-	return s.createFn(ctx, e)
-}
-
-func (s *stubCreateRepo) FindByID(_ context.Context, _ uuid.UUID) (domainevent.Event, error) {
-	return nil, nil
-}
-
-func (s *stubCreateRepo) Update(_ context.Context, _ domainevent.Event) error {
-	return nil
-}
-
 func TestCreateEventCommand_Execute_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
 	userID := uuid.New()
 	now := time.Now().UTC().Truncate(time.Second)
 	startAt := now
 	endAt := now.Add(time.Hour)
 
 	var capturedEvent domainevent.Event
-	repo := &stubCreateRepo{
-		createFn: func(_ context.Context, e domainevent.Event) (domainevent.Event, error) {
+	repo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, e domainevent.Event) (domainevent.Event, error) {
 			capturedEvent = e
 			return e, nil
 		},
-	}
+	)
 
 	cmd := eventuc.NewCreateEventCommand(repo)
 	result, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
@@ -90,9 +74,12 @@ func TestCreateEventCommand_Execute_Success(t *testing.T) {
 }
 
 func TestCreateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	// Create must not be called: validation fails before reaching the repository.
+
 	userID := uuid.New()
 	now := time.Now().UTC()
-	repo := &stubCreateRepo{}
 
 	cmd := eventuc.NewCreateEventCommand(repo)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
@@ -117,9 +104,12 @@ func TestCreateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 }
 
 func TestCreateEventCommand_Execute_EndAtEqualStartAt_ReturnsValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	// Create must not be called: validation fails before reaching the repository.
+
 	userID := uuid.New()
 	now := time.Now().UTC()
-	repo := &stubCreateRepo{}
 
 	cmd := eventuc.NewCreateEventCommand(repo)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
@@ -144,13 +134,12 @@ func TestCreateEventCommand_Execute_EndAtEqualStartAt_ReturnsValidationError(t *
 }
 
 func TestCreateEventCommand_Execute_RepositoryError_WrapsError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
 	userID := uuid.New()
 	now := time.Now().UTC()
-	repo := &stubCreateRepo{
-		createFn: func(_ context.Context, _ domainevent.Event) (domainevent.Event, error) {
-			return nil, errDBFailure
-		},
-	}
+	repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, errDBFailure)
 
 	cmd := eventuc.NewCreateEventCommand(repo)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
