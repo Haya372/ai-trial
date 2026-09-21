@@ -12,7 +12,7 @@ type Email string
 const CodeInvalidEmailFormat = "INVALID_FORMAT"
 
 var (
-	ErrInvalidEmail = &domain.DomainError{Code: CodeInvalidEmailFormat, Message: "Invalid email format"}
+	ErrInvalidEmail = domain.NewDomainError(CodeInvalidEmailFormat, "Invalid email format")
 	emailRegex      = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 )
 
