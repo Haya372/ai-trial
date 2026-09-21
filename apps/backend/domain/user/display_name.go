@@ -11,7 +11,7 @@ const (
 	maxDisplayNameLength   = 50
 )
 
-var ErrDisplayNameTooLong = &domain.DomainError{
+var ErrDisplayNameTooLong error = &domain.DomainError{
 	Code:    CodeDisplayNameTooLong,
 	Message: "Display name must be at most 50 characters",
 }

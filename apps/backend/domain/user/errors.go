@@ -9,7 +9,7 @@ const (
 )
 
 var (
-	ErrUserNotFound     = &domain.DomainError{Code: CodeUserNotFound, Message: "user not found"}
-	ErrEmailTaken       = &domain.DomainError{Code: CodeEmailTaken, Message: "email already registered"}
-	ErrPasswordMismatch = &domain.DomainError{Code: CodePasswordMismatch, Message: "password does not match"}
+	ErrUserNotFound     error = &domain.DomainError{Code: CodeUserNotFound, Message: "user not found"}
+	ErrEmailTaken       error = &domain.DomainError{Code: CodeEmailTaken, Message: "email already registered"}
+	ErrPasswordMismatch error = &domain.DomainError{Code: CodePasswordMismatch, Message: "password does not match"}
 )

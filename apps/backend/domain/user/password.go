@@ -22,19 +22,19 @@ const (
 )
 
 var (
-	ErrPasswordTooShort = &domain.DomainError{
+	ErrPasswordTooShort error = &domain.DomainError{
 		Code:    CodePasswordTooShort,
 		Message: "Password must be at least 8 characters",
 	}
-	ErrPasswordTooLong = &domain.DomainError{
+	ErrPasswordTooLong error = &domain.DomainError{
 		Code:    CodePasswordTooLong,
 		Message: "Password must be at most 72 characters",
 	}
-	ErrPasswordNotASCII = &domain.DomainError{
+	ErrPasswordNotASCII error = &domain.DomainError{
 		Code:    CodePasswordNotASCII,
 		Message: "Password must contain only ASCII printable characters",
 	}
-	ErrPasswordInsufficientComplexity = &domain.DomainError{
+	ErrPasswordInsufficientComplexity error = &domain.DomainError{
 		Code:    CodePasswordInsufficientComplexity,
 		Message: "Password must contain uppercase, lowercase, digit, and symbol",
 	}
