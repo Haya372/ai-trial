@@ -41,7 +41,15 @@ mise exec -- pnpm exec lefthook install
 # 5. gh-stack をインストール（スタックPR管理用）
 gh extension install github/gh-stack
 gh skill install github/gh-stackも
+
+# 6. Claude Code プラグインをインストール（PRレビュー・TDD支援用）
+# Claude Code 上で実行する
+/plugin install code-review@claude-plugins-official
+/plugin install pr-review-toolkit@claude-plugins-official
+/plugin install superpowers@claude-plugins-official
 ```
+
+`.claude/settings.json` の `enabledPlugins` はインストール済みプラグインを自動有効化するだけで、未インストールの場合は自動インストールされない（Claude Code の既知の制限）。上記コマンドで各自インストールすること。
 
 ### コマンド実行の注意事項
 
