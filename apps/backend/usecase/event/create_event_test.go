@@ -28,6 +28,14 @@ func (s *stubCreateRepo) Create(ctx context.Context, e domainevent.Event) (domai
 	return s.createFn(ctx, e)
 }
 
+func (s *stubCreateRepo) FindByID(_ context.Context, _ uuid.UUID) (domainevent.Event, error) {
+	return nil, nil
+}
+
+func (s *stubCreateRepo) Update(_ context.Context, _ domainevent.Event) error {
+	return nil
+}
+
 func TestCreateEventCommand_Execute_Success(t *testing.T) {
 	userID := uuid.New()
 	now := time.Now().UTC().Truncate(time.Second)
@@ -48,8 +56,8 @@ func TestCreateEventCommand_Execute_Success(t *testing.T) {
 		Description: "Team sync",
 		StartAt:     startAt,
 		EndAt:       endAt,
-		Location:    "Tokyo",
-		URL:         "https://example.com",
+		Location:    testLocation,
+		URL:         testURL,
 	})
 
 	if err != nil {
@@ -70,10 +78,10 @@ func TestCreateEventCommand_Execute_Success(t *testing.T) {
 	if result.Description != "Team sync" {
 		t.Errorf("result description mismatch: got %q", result.Description)
 	}
-	if result.Location != "Tokyo" {
+	if result.Location != testLocation {
 		t.Errorf("result location mismatch: got %q", result.Location)
 	}
-	if result.URL != "https://example.com" {
+	if result.URL != testURL {
 		t.Errorf("result url mismatch: got %q", result.URL)
 	}
 	if result.UserID != userID {

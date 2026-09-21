@@ -15,6 +15,8 @@ paths:
     $ref: "./paths/auth/me.yaml"
   /events:
     $ref: "./paths/events/index.yaml"
+  /events/{id}:
+    $ref: "./paths/events/detail.yaml"
 components:
   schemas:
     HealthResponse:
@@ -35,9 +37,13 @@ components:
       $ref: "./components/schemas/ConflictErrorResponse.yaml"
     InternalErrorResponse:
       $ref: "./components/schemas/InternalErrorResponse.yaml"
+    NotFoundErrorResponse:
+      $ref: "./components/schemas/NotFoundErrorResponse.yaml"
     EventResponse:
       $ref: "./components/schemas/EventResponse.yaml"
     EventsListResponse:
       $ref: "./components/schemas/EventsListResponse.yaml"
     CreateEventRequest:
       $ref: "./components/schemas/CreateEventRequest.yaml"
+    UpdateEventRequest:
+      $ref: "./components/schemas/UpdateEventRequest.yaml"

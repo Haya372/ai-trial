@@ -1,0 +1,12 @@
+type: object
+required:
+  - code
+  - message
+properties:
+  code:
+    type: string
+    enum: ["NOT_FOUND"]
+    example: "NOT_FOUND"
+  message:
+    type: string
+    example: "Resource not found"

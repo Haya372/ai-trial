@@ -1,0 +1,20 @@
+type: object
+required:
+  - title
+  - startAt
+  - endAt
+properties:
+  title:
+    type: string
+  startAt:
+    type: string
+    format: date-time
+  endAt:
+    type: string
+    format: date-time
+  description:
+    type: ["string", "null"]
+  location:
+    type: ["string", "null"]
+  url:
+    type: ["string", "null"]

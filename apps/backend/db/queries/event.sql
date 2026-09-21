@@ -19,3 +19,21 @@ VALUES (
     sqlc.arg('url')
 )
 RETURNING id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at;
+
+-- name: FindEventByID :one
+SELECT id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at
+FROM events
+WHERE id = $1
+LIMIT 1;
+
+-- name: UpdateEvent :one
+UPDATE events
+SET title = $2,
+    description = $3,
+    start_at = $4,
+    end_at = $5,
+    location = $6,
+    url = $7,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at;

@@ -78,8 +78,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            apps/backend/domain/session/generated/
-            apps/backend/domain/user/generated/
+            apps/backend/domain/*/generated/
             apps/backend/infrastructure/db/mock/
           key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Generate mock code
@@ -116,8 +115,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            apps/backend/domain/session/generated/
-            apps/backend/domain/user/generated/
+            apps/backend/domain/*/generated/
             apps/backend/infrastructure/db/mock/
           key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Run golangci-lint
@@ -158,8 +156,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
-            apps/backend/domain/session/generated/
-            apps/backend/domain/user/generated/
+            apps/backend/domain/*/generated/
             apps/backend/infrastructure/db/mock/
           key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Run tests with coverage

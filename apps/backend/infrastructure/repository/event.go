@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -59,11 +61,13 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 
 type eventRepository struct {
 	baseRepository
+
+	logger *slog.Logger
 }
 
 // NewEventRepository returns an event.Repository backed by PostgreSQL.
-func NewEventRepository(pool *pgxpool.Pool) domainevent.Repository {
-	return &eventRepository{baseRepository{pool: pool}}
+func NewEventRepository(pool *pgxpool.Pool, logger *slog.Logger) domainevent.Repository {
+	return &eventRepository{baseRepository{pool: pool}, logger}
 }
 
 func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
@@ -71,14 +75,15 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 		ID:          pgtype.UUID{Bytes: e.ID(), Valid: true},
 		UserID:      pgtype.UUID{Bytes: e.UserID(), Valid: true},
 		Title:       e.Title(),
-		Description: nullableText(e.Description()),
+		Description: textOrNull(e.Description()),
 		StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
 		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
-		Location:    nullableText(e.Location()),
-		Url:         nullableText(e.URL()),
+		Location:    textOrNull(e.Location()),
+		Url:         textOrNull(e.URL()),
 	})
 	if err != nil {
-		return nil, err
+		r.logger.Error("insert event query failed", "error", err)
+		return nil, fmt.Errorf("insert event: %w", err)
 	}
 
 	// Reconstruct from the persisted row so the caller gets the exact stored values.
@@ -92,7 +97,6 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 	if row.Url.Valid {
 		url = row.Url.String
 	}
-
 	saved, err := domainevent.New(
 		uuid.UUID(row.ID.Bytes),
 		uuid.UUID(row.UserID.Bytes),
@@ -109,11 +113,53 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 	return saved, nil
 }
 
-// nullableText converts an empty Go string to a NULL pgtype.Text;
-// non-empty values are stored as-is.
-func nullableText(s string) pgtype.Text {
+func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
+	row, err := r.querier(ctx).FindEventByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domainevent.ErrEventNotFound
+	}
+	if err != nil {
+		r.logger.Error("find event by id query failed", "error", err)
+		return nil, fmt.Errorf("find event by id: %w", err)
+	}
+
+	var desc, location, url string
+	if row.Description.Valid {
+		desc = row.Description.String
+	}
+	if row.Location.Valid {
+		location = row.Location.String
+	}
+	if row.Url.Valid {
+		url = row.Url.String
+	}
+
+	return domainevent.New(
+		uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes),
+		row.Title, desc, row.StartAt.Time, row.EndAt.Time, location, url,
+	)
+}
+
+func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error {
+	_, err := r.querier(ctx).UpdateEvent(ctx, query.UpdateEventParams{
+		ID:          pgtype.UUID{Bytes: e.ID(), Valid: true},
+		Title:       e.Title(),
+		Description: textOrNull(e.Description()),
+		StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
+		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
+		Location:    textOrNull(e.Location()),
+		Url:         textOrNull(e.URL()),
+	})
+	if err != nil {
+		r.logger.Error("update event query failed", "error", err)
+		return fmt.Errorf("update event: %w", err)
+	}
+	return nil
+}
+
+func textOrNull(s string) pgtype.Text {
 	if s == "" {
-		return pgtype.Text{Valid: false}
+		return pgtype.Text{}
 	}
 	return pgtype.Text{String: s, Valid: true}
 }

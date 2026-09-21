@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/dig"
 
-	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
@@ -38,6 +38,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newLogoutExecutor,
 		newListEventsExecutor,
 		newCreateEventExecutor,
+		newUpdateEventExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
 		handler.NewEventHandler,
@@ -88,8 +89,12 @@ func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
 	return eventuc.NewListEventsQuery(s)
 }
 
-func newCreateEventExecutor(r domainevent.Repository) handler.CreateEventExecutor {
+func newCreateEventExecutor(r event.Repository) handler.CreateEventExecutor {
 	return eventuc.NewCreateEventCommand(r)
+}
+
+func newUpdateEventExecutor(r event.Repository, logger *slog.Logger) handler.UpdateEventExecutor {
+	return eventuc.NewUpdateEventCommand(r, logger)
 }
 
 func newRouter(
@@ -109,5 +114,6 @@ func newRouter(
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/auth/me", auth.GetMe)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/events", ev.ServeHTTP)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events", ev.CreateEvent)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/events/{id}", ev.UpdateEvent)
 	return r
 }

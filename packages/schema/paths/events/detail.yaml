@@ -1,32 +1,30 @@
-get:
-  operationId: getEvents
-  summary: List events within a date range
+put:
+  operationId: updateEvent
+  summary: Update an existing event
   tags:
     - events
   parameters:
-    - name: startDate
-      in: query
+    - name: id
+      in: path
       required: true
       schema:
         type: string
-        format: date
-      description: Start of the search range (ISO 8601, YYYY-MM-DD)
-    - name: endDate
-      in: query
-      required: true
-      schema:
-        type: string
-        format: date
-      description: End of the search range (ISO 8601, YYYY-MM-DD)
+        format: uuid
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/UpdateEventRequest.yaml"
   responses:
     "200":
-      description: List of events
+      description: Updated event
       content:
         application/json:
           schema:
-            $ref: "../../components/schemas/EventsListResponse.yaml"
+            $ref: "../../components/schemas/EventResponse.yaml"
     "400":
-      description: Invalid query parameters
+      description: Invalid request body
       content:
         application/json:
           schema:
@@ -37,6 +35,12 @@ get:
         application/json:
           schema:
             $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "404":
+      description: Event not found (also returned when the event belongs to another user)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
     "500":
       description: Internal server error
       content:
