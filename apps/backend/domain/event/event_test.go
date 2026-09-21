@@ -17,7 +17,7 @@ func TestNew_ValidEvent(t *testing.T) {
 	start := time.Now()
 	end := start.Add(time.Hour)
 
-	e, err := event.New(id, userID, title, desc, start, end)
+	e, err := event.New(id, userID, title, desc, start, end, "", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -40,6 +40,12 @@ func TestNew_ValidEvent(t *testing.T) {
 	if !e.EndAt().Equal(end) {
 		t.Errorf("EndAt mismatch: got %v, want %v", e.EndAt(), end)
 	}
+	if e.Location() != "" {
+		t.Errorf("Location mismatch: got %v, want empty string", e.Location())
+	}
+	if e.URL() != "" {
+		t.Errorf("URL mismatch: got %v, want empty string", e.URL())
+	}
 }
 
 func TestNew_EmptyTitle(t *testing.T) {
@@ -48,7 +54,7 @@ func TestNew_EmptyTitle(t *testing.T) {
 	start := time.Now()
 	end := start.Add(time.Hour)
 
-	_, err := event.New(id, userID, "", "", start, end)
+	_, err := event.New(id, userID, "", "", start, end, "", "")
 	if err == nil {
 		t.Fatal("expected error for empty title, got nil")
 	}
@@ -61,7 +67,7 @@ func TestNew_InvalidDateRange(t *testing.T) {
 	start := now.Add(time.Hour)
 	end := now // end < start
 
-	_, err := event.New(id, userID, "Meeting", "", start, end)
+	_, err := event.New(id, userID, "Meeting", "", start, end, "", "")
 	if err == nil {
 		t.Fatal("expected error for invalid date range, got nil")
 	}
@@ -73,8 +79,48 @@ func TestNew_EqualStartAndEnd(t *testing.T) {
 	now := time.Now()
 
 	// end == start is valid (zero-duration event)
-	_, err := event.New(id, userID, "Meeting", "", now, now)
+	_, err := event.New(id, userID, "Meeting", "", now, now, "", "")
 	if err != nil {
 		t.Fatalf("unexpected error for equal start/end: %v", err)
+	}
+}
+
+func TestNew_WithLocationAndURL(t *testing.T) {
+	id := uuid.New()
+	userID := uuid.New()
+	start := time.Now()
+	end := start.Add(time.Hour)
+	location := "Tokyo"
+	url := "https://example.com/event"
+
+	e, err := event.New(id, userID, "Meeting", "desc", start, end, location, url)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if e.Location() != location {
+		t.Errorf("Location mismatch: got %v, want %v", e.Location(), location)
+	}
+	if e.URL() != url {
+		t.Errorf("URL mismatch: got %v, want %v", e.URL(), url)
+	}
+}
+
+func TestNew_EmptyLocationAndURL(t *testing.T) {
+	id := uuid.New()
+	userID := uuid.New()
+	start := time.Now()
+	end := start.Add(time.Hour)
+
+	e, err := event.New(id, userID, "Meeting", "desc", start, end, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if e.Location() != "" {
+		t.Errorf("Location mismatch: got %v, want empty string", e.Location())
+	}
+	if e.URL() != "" {
+		t.Errorf("URL mismatch: got %v, want empty string", e.URL())
 	}
 }
