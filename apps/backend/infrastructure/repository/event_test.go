@@ -117,3 +117,49 @@ func insertEvent(t *testing.T, userID uuid.UUID, title string, start, end time.T
 		t.Fatalf("insert event: %v", err)
 	}
 }
+
+func TestEventsTable_LocationAndUrlColumns_AcceptValues(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	var gotLocation, gotURL *string
+	err := testPool.QueryRow(context.Background(),
+		`INSERT INTO events (user_id, title, start_at, end_at, location, url)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING location, url`,
+		u.ID(), "Event with location and url", now, now.Add(time.Hour),
+		"Tokyo Office", "https://example.com/meeting",
+	).Scan(&gotLocation, &gotURL)
+	if err != nil {
+		t.Fatalf("insert event with location/url: %v", err)
+	}
+	if gotLocation == nil || *gotLocation != "Tokyo Office" {
+		t.Errorf("location mismatch: got %v", gotLocation)
+	}
+	if gotURL == nil || *gotURL != "https://example.com/meeting" {
+		t.Errorf("url mismatch: got %v", gotURL)
+	}
+}
+
+func TestEventsTable_LocationAndUrlColumns_AreNullable(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	insertEvent(t, u.ID(), "Event without location and url", now, now.Add(time.Hour))
+
+	var gotLocation, gotURL *string
+	err := testPool.QueryRow(context.Background(),
+		"SELECT location, url FROM events WHERE user_id = $1", u.ID(),
+	).Scan(&gotLocation, &gotURL)
+	if err != nil {
+		t.Fatalf("select event: %v", err)
+	}
+	if gotLocation != nil {
+		t.Errorf("expected location to be NULL, got %v", *gotLocation)
+	}
+	if gotURL != nil {
+		t.Errorf("expected url to be NULL, got %v", *gotURL)
+	}
+}

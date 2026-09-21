@@ -22,7 +22,9 @@ CREATE TABLE events (
     start_at    TIMESTAMPTZ NOT NULL,
     end_at      TIMESTAMPTZ NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    location    TEXT,
+    url         TEXT
 );
 
 CREATE INDEX idx_events_user_id_start_at ON events (user_id, start_at);
