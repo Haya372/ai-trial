@@ -9,3 +9,8 @@ var (
 	errDBFailure = errors.New("db error")
 	testLogger   = slog.New(slog.DiscardHandler)
 )
+
+const (
+	testLocation = "Tokyo"
+	testURL      = "https://example.com"
+)

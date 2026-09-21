@@ -1,11 +1,13 @@
 package event_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/event"
 )
 
@@ -73,15 +75,36 @@ func TestNew_InvalidDateRange(t *testing.T) {
 	}
 }
 
-func TestNew_EqualStartAndEnd(t *testing.T) {
+func TestNew_EqualStartAndEnd_Invalid(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	now := time.Now()
 
-	// end == start is valid (zero-duration event)
+	// SPEC-003: end must be strictly after start; equal is not allowed
 	_, err := event.New(id, userID, "Meeting", "", now, now, "", "")
-	if err != nil {
-		t.Fatalf("unexpected error for equal start/end: %v", err)
+	if err == nil {
+		t.Fatal("expected error for equal start/end, got nil")
+	}
+}
+
+func TestNew_InvalidDateRange_ErrorMessageMatchesRule(t *testing.T) {
+	id := uuid.New()
+	userID := uuid.New()
+	now := time.Now()
+
+	// The message must not imply that an equal start/end is allowed.
+	_, err := event.New(id, userID, "Meeting", "", now, now, "", "")
+
+	var ve *domain.ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected *domain.ValidationError, got %T", err)
+	}
+	if len(ve.Details) == 0 {
+		t.Fatal("expected validation details, got none")
+	}
+	const wantMessage = "endAt must be strictly after startAt"
+	if ve.Details[0].Message != wantMessage {
+		t.Errorf("message mismatch: got %q, want %q", ve.Details[0].Message, wantMessage)
 	}
 }
 

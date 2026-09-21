@@ -12,7 +12,6 @@ import (
 
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/user"
-	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
@@ -148,7 +147,7 @@ func TestAuthHandler_Signup_validationError_returns400(t *testing.T) {
 	}
 	var body map[string]any
 	_ = json.NewDecoder(rec.Body).Decode(&body)
-	if body["code"] != "VALIDATION_ERROR" {
+	if body["code"] != codeValidationError {
 		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
 	}
 }
@@ -198,11 +197,13 @@ func TestAuthHandler_Signup_responseBody_containsUserFields(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d", rec.Code)
 	}
-	var body api.UserResponse
+	var body struct {
+		Email string `json:"email"`
+	}
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if string(body.Email) != "body@ex.com" {
+	if body.Email != "body@ex.com" {
 		t.Errorf("unexpected email: %s", body.Email)
 	}
 }
@@ -370,11 +371,14 @@ func TestAuthHandler_GetMe_withUserInContext_returns200_and_user_body(t *testing
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
-	var body api.UserResponse
+	var body struct {
+		Email       string `json:"email"`
+		DisplayName string `json:"displayName"`
+	}
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if string(body.Email) != "me@ex.com" {
+	if body.Email != "me@ex.com" {
 		t.Errorf("expected email me@ex.com, got %s", body.Email)
 	}
 	if body.DisplayName != "Me" {

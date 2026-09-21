@@ -41,9 +41,9 @@ func New(
 			{Field: "title", Code: "REQUIRED", Message: "title is required"},
 		}}
 	}
-	if endAt.Before(startAt) {
+	if !endAt.After(startAt) {
 		return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
-			{Field: "endAt", Code: "INVALID_DATE_RANGE", Message: "endAt must be after or equal to startAt"},
+			{Field: "endAt", Code: "INVALID_DATE_RANGE", Message: "endAt must be strictly after startAt"},
 		}}
 	}
 	return &eventEntity{

@@ -18,6 +18,15 @@ import (
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
 
+// userResponseBody is the JSON shape for user responses (id, email, displayName).
+// Defined here because oapi-codegen v2 inlines these fields per-operation rather
+// than generating a standalone UserResponse component type.
+type userResponseBody struct {
+	ID          openapi_types.UUID  `json:"id"`
+	Email       openapi_types.Email `json:"email"`
+	DisplayName string              `json:"displayName"`
+}
+
 const (
 	cookieName   = "session_id"
 	cookieMaxAge = 30 * 24 * 60 * 60
@@ -52,7 +61,7 @@ func NewAuthHandler(s SignupExecutor, l LoginExecutor, lo LogoutExecutor, logger
 }
 
 func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
-	var body api.SignupRequest
+	var body api.SignupJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid request body")
 		return
@@ -82,7 +91,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var body api.LoginRequest
+	var body api.LoginJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid request body")
 		return
@@ -176,8 +185,8 @@ func (h *AuthHandler) writeAuthError(w http.ResponseWriter, r *http.Request, err
 }
 
 func marshalUserResponse(u user.User) ([]byte, error) {
-	return json.Marshal(api.UserResponse{
-		Id:          u.ID(),
+	return json.Marshal(userResponseBody{
+		ID:          u.ID(),
 		Email:       openapi_types.Email(u.Email()),
 		DisplayName: u.DisplayName(),
 	})

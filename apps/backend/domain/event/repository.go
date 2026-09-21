@@ -9,6 +9,7 @@ import (
 )
 
 type Repository interface {
+	Create(ctx context.Context, e Event) (Event, error)
 	// FindByID returns the event with the given ID, or ErrEventNotFound if it does not exist.
 	FindByID(ctx context.Context, id uuid.UUID) (Event, error)
 	Update(ctx context.Context, e Event) error

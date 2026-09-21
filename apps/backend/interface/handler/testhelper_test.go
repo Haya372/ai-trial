@@ -14,6 +14,8 @@ const (
 	testPassword          = "SecurePass1!"
 	fieldEmail            = "email"
 	fieldPassword         = "password"
+	codeValidationError   = "VALIDATION_ERROR"
+	codeInvalidDateRange  = "INVALID_DATE_RANGE"
 )
 
 var (

@@ -17,6 +17,8 @@ import (
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
+// --- read side ---
+
 type eventQueryRepository struct {
 	baseRepository
 
@@ -55,14 +57,60 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 	return result, nil
 }
 
+// --- write side ---
+
 type eventRepository struct {
 	baseRepository
 
 	logger *slog.Logger
 }
 
+// NewEventRepository returns an event.Repository backed by PostgreSQL.
 func NewEventRepository(pool *pgxpool.Pool, logger *slog.Logger) domainevent.Repository {
 	return &eventRepository{baseRepository{pool: pool}, logger}
+}
+
+func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
+	row, err := r.querier(ctx).InsertEvent(ctx, query.InsertEventParams{
+		ID:          pgtype.UUID{Bytes: e.ID(), Valid: true},
+		UserID:      pgtype.UUID{Bytes: e.UserID(), Valid: true},
+		Title:       e.Title(),
+		Description: textOrNull(e.Description()),
+		StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
+		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
+		Location:    textOrNull(e.Location()),
+		Url:         textOrNull(e.URL()),
+	})
+	if err != nil {
+		r.logger.Error("insert event query failed", "error", err)
+		return nil, fmt.Errorf("insert event: %w", err)
+	}
+
+	// Reconstruct from the persisted row so the caller gets the exact stored values.
+	var desc, location, url string
+	if row.Description.Valid {
+		desc = row.Description.String
+	}
+	if row.Location.Valid {
+		location = row.Location.String
+	}
+	if row.Url.Valid {
+		url = row.Url.String
+	}
+	saved, err := domainevent.New(
+		uuid.UUID(row.ID.Bytes),
+		uuid.UUID(row.UserID.Bytes),
+		row.Title,
+		desc,
+		row.StartAt.Time,
+		row.EndAt.Time,
+		location,
+		url,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("reconstruct saved event: %w", err)
+	}
+	return saved, nil
 }
 
 func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {

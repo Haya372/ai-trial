@@ -23,8 +23,31 @@ import (
 
 const errCodeNotFound = "NOT_FOUND"
 
+// eventResponseBody is the JSON shape for a single event response.
+// Defined here because oapi-codegen v2 inlines these fields per-operation.
+type eventResponseBody struct {
+	ID          uuid.UUID `json:"id"`
+	Title       string    `json:"title"`
+	Description *string   `json:"description,omitempty"`
+	StartAt     time.Time `json:"startAt"`
+	EndAt       time.Time `json:"endAt"`
+	Location    *string   `json:"location,omitempty"`
+	URL         *string   `json:"url,omitempty"`
+}
+
+// eventsListResponseBody is the JSON shape for the list events response.
+type eventsListResponseBody struct {
+	Events []eventResponseBody `json:"events"`
+}
+
+// ListEventsExecutor is satisfied by eventuc.ListEventsCommand.
 type ListEventsExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in eventuc.ListEventsInput) ([]eventuc.EventReadModel, error)
+}
+
+// CreateEventExecutor is satisfied by eventuc.CreateEventCommand.
+type CreateEventExecutor interface {
+	Execute(ctx context.Context, userID uuid.UUID, in eventuc.CreateEventInput) (domainevent.Event, error)
 }
 
 type UpdateEventExecutor interface {
@@ -33,12 +56,15 @@ type UpdateEventExecutor interface {
 
 type EventHandler struct {
 	listEvents  ListEventsExecutor
+	createEvent CreateEventExecutor
 	updateEvent UpdateEventExecutor
 	logger      *slog.Logger
 }
 
-func NewEventHandler(l ListEventsExecutor, u UpdateEventExecutor, logger *slog.Logger) *EventHandler {
-	return &EventHandler{listEvents: l, updateEvent: u, logger: logger}
+func NewEventHandler(
+	l ListEventsExecutor, c CreateEventExecutor, u UpdateEventExecutor, logger *slog.Logger,
+) *EventHandler {
+	return &EventHandler{listEvents: l, createEvent: c, updateEvent: u, logger: logger}
 }
 
 func bindDateParam(r *http.Request, name string, dest any) error {
@@ -78,12 +104,12 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 		return
 	}
 
-	resp := api.EventsListResponse{
-		Events: make([]api.EventResponse, len(events)),
+	resp := eventsListResponseBody{
+		Events: make([]eventResponseBody, len(events)),
 	}
 	for i, e := range events {
-		ev := api.EventResponse{
-			Id:      e.ID,
+		ev := eventResponseBody{
+			ID:      e.ID,
 			Title:   e.Title,
 			StartAt: e.StartAt,
 			EndAt:   e.EndAt,
@@ -102,6 +128,80 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(body)
+}
+
+// buildCreateEventInput converts the API request body to a usecase input.
+func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEventInput {
+	in := eventuc.CreateEventInput{
+		Title:   body.Title,
+		StartAt: body.StartAt,
+		EndAt:   body.EndAt,
+	}
+	if body.Description != nil {
+		in.Description = *body.Description
+	}
+	if body.Location != nil {
+		in.Location = *body.Location
+	}
+	if body.Url != nil {
+		in.URL = *body.Url
+	}
+	return in
+}
+
+func toEventResponse(ev domainevent.Event) api.EventResponse {
+	resp := api.EventResponse{
+		Id:      ev.ID(),
+		Title:   ev.Title(),
+		StartAt: ev.StartAt(),
+		EndAt:   ev.EndAt(),
+	}
+	if ev.Description() != "" {
+		d := ev.Description()
+		resp.Description = &d
+	}
+	if ev.Location() != "" {
+		l := ev.Location()
+		resp.Location = &l
+	}
+	if ev.URL() != "" {
+		eu := ev.URL()
+		resp.Url = &eu
+	}
+	return resp
+}
+
+// CreateEvent handles POST /events.
+func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
+	u, ok := r.Context().Value(ctxkey.User).(user.User)
+	if !ok || u == nil {
+		h.logger.Warn("unauthorized access to POST /events", "path", r.URL.Path)
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
+		return
+	}
+
+	var body api.CreateEventJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		h.logger.Warn("invalid JSON body for POST /events", "error", err)
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid request body")
+		return
+	}
+
+	ev, err := h.createEvent.Execute(r.Context(), u.ID(), buildCreateEventInput(body))
+	if err != nil {
+		h.writeEventError(w, r, err)
+		return
+	}
+
+	out, err := json.Marshal(toEventResponse(ev))
+	if err != nil {
+		h.logger.Error("failed to marshal create event response", "error", err)
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write(out)
 }
 
 func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
@@ -162,28 +262,6 @@ func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventI
 		in.URL = *body.Url
 	}
 	return in, nil
-}
-
-func toEventResponse(ev domainevent.Event) api.EventResponse {
-	resp := api.EventResponse{
-		Id:      ev.ID(),
-		Title:   ev.Title(),
-		StartAt: ev.StartAt(),
-		EndAt:   ev.EndAt(),
-	}
-	if ev.Description() != "" {
-		d := ev.Description()
-		resp.Description = &d
-	}
-	if ev.Location() != "" {
-		l := ev.Location()
-		resp.Location = &l
-	}
-	if ev.URL() != "" {
-		eu := ev.URL()
-		resp.Url = &eu
-	}
-	return resp
 }
 
 func (h *EventHandler) writeEventError(w http.ResponseWriter, r *http.Request, err error) {

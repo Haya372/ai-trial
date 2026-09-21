@@ -45,8 +45,8 @@ func TestUpdateEventCommand_Execute_ValidInput_UpdatesAndReturnsEvent(t *testing
 		Description: "new desc",
 		StartAt:     start,
 		EndAt:       end,
-		Location:    "Tokyo",
-		URL:         "https://example.com",
+		Location:    testLocation,
+		URL:         testURL,
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -54,10 +54,10 @@ func TestUpdateEventCommand_Execute_ValidInput_UpdatesAndReturnsEvent(t *testing
 	if out.Title() != newTitle {
 		t.Errorf("title mismatch: got %q", out.Title())
 	}
-	if out.Location() != "Tokyo" {
+	if out.Location() != testLocation {
 		t.Errorf("location mismatch: got %q", out.Location())
 	}
-	if out.URL() != "https://example.com" {
+	if out.URL() != testURL {
 		t.Errorf("url mismatch: got %q", out.URL())
 	}
 }

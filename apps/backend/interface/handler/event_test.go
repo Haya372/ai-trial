@@ -20,6 +20,13 @@ import (
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
+const (
+	testEventTitle = "Meeting"
+	testKeyTitle   = "title"
+	testKeyStartAt = "startAt"
+	testKeyEndAt   = "endAt"
+)
+
 type stubUpdateEventExec struct {
 	fn func(context.Context, uuid.UUID, eventuc.UpdateEventInput) (domainevent.Event, error)
 }
@@ -100,7 +107,7 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 			return []eventuc.EventReadModel{
 				{
 					ID:          uuid.New(),
-					Title:       "Meeting",
+					Title:       testEventTitle,
 					Description: desc,
 					StartAt:     now,
 					EndAt:       now.Add(time.Hour),
@@ -109,7 +116,7 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
@@ -124,21 +131,25 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp api.EventsListResponse
+	var resp struct {
+		Events []struct {
+			Title string `json:"title"`
+		} `json:"events"`
+	}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	if len(resp.Events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(resp.Events))
 	}
-	if resp.Events[0].Title != "Meeting" {
+	if resp.Events[0].Title != testEventTitle {
 		t.Errorf("title mismatch: got %q", resp.Events[0].Title)
 	}
 }
 
 func TestEventHandler_GetEvents_Unauthorized(t *testing.T) {
 	stub := &stubListEventsExec{}
-	h := handler.NewEventHandler(stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	w := httptest.NewRecorder()
@@ -160,7 +171,7 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 			return nil, errInternal
 		},
 	}
-	h := handler.NewEventHandler(stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
@@ -175,6 +186,232 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 		t.Errorf("expected 500, got %d", w.Code)
 	}
 }
+
+// --- CreateEvent tests ---
+
+type stubCreateEventExec struct {
+	fn func(context.Context, uuid.UUID, eventuc.CreateEventInput) (domainevent.Event, error)
+}
+
+func (s *stubCreateEventExec) Execute(
+	ctx context.Context,
+	userID uuid.UUID,
+	in eventuc.CreateEventInput,
+) (domainevent.Event, error) {
+	if s.fn == nil {
+		return nil, nil
+	}
+	return s.fn(ctx, userID, in)
+}
+
+func createEventRequest(t *testing.T, body any) *http.Request {
+	t.Helper()
+	b, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/events",
+		bytes.NewReader(b),
+	)
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	return req
+}
+
+func TestEventHandler_CreateEvent_Success_Returns201(t *testing.T) {
+	userID := uuid.New()
+	eventID := uuid.New()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, uid uuid.UUID, in eventuc.CreateEventInput) (domainevent.Event, error) {
+			if uid != userID {
+				t.Errorf("userID mismatch: got %v, want %v", uid, userID)
+			}
+			return domainevent.New(
+				eventID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
+			)
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		"description":  "Team sync",
+		testKeyStartAt: now.Format(time.RFC3339),
+		testKeyEndAt:   now.Add(time.Hour).Format(time.RFC3339),
+		"location":     "Tokyo",
+		"url":          "https://example.com",
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.Title != testEventTitle {
+		t.Errorf("title mismatch: got %q", resp.Title)
+	}
+	if resp.ID != eventID.String() {
+		t.Errorf("id mismatch: got %q, want %q", resp.ID, eventID.String())
+	}
+}
+
+func TestEventHandler_CreateEvent_Unauthorized_Returns401(t *testing.T) {
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: time.Now().Format(time.RFC3339),
+		testKeyEndAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+	})
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestEventHandler_CreateEvent_InvalidJSON_Returns400(t *testing.T) {
+	userID := uuid.New()
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+
+	req, _ := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		"/events",
+		bytes.NewReader([]byte("not json")),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestEventHandler_CreateEvent_ValidationError_Returns400(t *testing.T) {
+	userID := uuid.New()
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
+			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
+				{Field: "title", Code: "REQUIRED", Message: "title is required"},
+			}}
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   "",
+		testKeyStartAt: time.Now().Format(time.RFC3339),
+		testKeyEndAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	_ = json.NewDecoder(w.Body).Decode(&body)
+	if body["code"] != codeValidationError {
+		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
+	}
+}
+
+func TestEventHandler_CreateEvent_EndAtEqualStartAt_Returns400(t *testing.T) {
+	userID := uuid.New()
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
+			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
+				{Field: "endAt", Code: codeInvalidDateRange, Message: "endAt must be strictly after startAt"},
+			}}
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: now,
+		testKeyEndAt:   now, // same instant: invalid per SPEC-003
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	_ = json.NewDecoder(w.Body).Decode(&body)
+	if body["code"] != codeValidationError {
+		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
+	}
+	details, ok := body["details"].([]any)
+	if !ok || len(details) == 0 {
+		t.Fatalf("expected validation details in response, got: %v", body)
+	}
+	detail, ok := details[0].(map[string]any)
+	if !ok || detail["code"] != codeInvalidDateRange {
+		t.Errorf("expected detail code INVALID_DATE_RANGE, got: %v", details[0])
+	}
+}
+
+func TestEventHandler_CreateEvent_InternalError_Returns500(t *testing.T) {
+	userID := uuid.New()
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
+			return nil, errInternal
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: time.Now().Format(time.RFC3339),
+		testKeyEndAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
+// --- UpdateEvent tests ---
 
 func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 	userID := uuid.New()
@@ -196,7 +433,7 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 			return updated, nil
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
 
 	body := `{"title":"Updated title","description":"Updated desc","startAt":"` +
 		now.Format(time.RFC3339) + `","endAt":"` + now.Add(time.Hour).Format(time.RFC3339) +
@@ -223,7 +460,7 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 }
 
 func TestEventHandler_UpdateEvent_Unauthorized(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
 
 	req := putEventRequest(t, uuid.New().String(), validUpdateEventBody)
 	w := httptest.NewRecorder()
@@ -236,7 +473,7 @@ func TestEventHandler_UpdateEvent_Unauthorized(t *testing.T) {
 }
 
 func TestEventHandler_UpdateEvent_InvalidIDFormat(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
 
 	req := putEventRequestAsUser(t, "not-a-uuid", validUpdateEventBody)
 	w := httptest.NewRecorder()
@@ -249,7 +486,7 @@ func TestEventHandler_UpdateEvent_InvalidIDFormat(t *testing.T) {
 }
 
 func TestEventHandler_UpdateEvent_InvalidBody(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
 
 	req := putEventRequestAsUser(t, uuid.New().String(), `not-json`)
 	w := httptest.NewRecorder()
@@ -265,11 +502,11 @@ func TestEventHandler_UpdateEvent_ValidationError_Returns400(t *testing.T) {
 	stub := &stubUpdateEventExec{
 		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {
 			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
-				{Field: "endAt", Code: "INVALID_DATE_RANGE", Message: "endAt must be after or equal to startAt"},
+				{Field: "endAt", Code: codeInvalidDateRange, Message: "endAt must be after or equal to startAt"},
 			}}
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
 
 	body := `{"title":"x","startAt":"2026-09-01T01:00:00Z","endAt":"2026-09-01T00:00:00Z"}`
 	req := putEventRequestAsUser(t, uuid.New().String(), body)
@@ -288,7 +525,7 @@ func TestEventHandler_UpdateEvent_NotFound_Returns404(t *testing.T) {
 			return nil, domainevent.ErrEventNotFound
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
 
 	req := putEventRequestAsUser(t, uuid.New().String(), validUpdateEventBody)
 	w := httptest.NewRecorder()
@@ -306,7 +543,7 @@ func TestEventHandler_UpdateEvent_InternalError_Returns500(t *testing.T) {
 			return nil, errInternal
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
 
 	req := putEventRequestAsUser(t, uuid.New().String(), validUpdateEventBody)
 	w := httptest.NewRecorder()

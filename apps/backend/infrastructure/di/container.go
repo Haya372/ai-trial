@@ -37,6 +37,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newLoginExecutor,
 		newLogoutExecutor,
 		newListEventsExecutor,
+		newCreateEventExecutor,
 		newUpdateEventExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
@@ -88,6 +89,10 @@ func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
 	return eventuc.NewListEventsQuery(s)
 }
 
+func newCreateEventExecutor(r event.Repository) handler.CreateEventExecutor {
+	return eventuc.NewCreateEventCommand(r)
+}
+
 func newUpdateEventExecutor(r event.Repository, logger *slog.Logger) handler.UpdateEventExecutor {
 	return eventuc.NewUpdateEventCommand(r, logger)
 }
@@ -108,6 +113,7 @@ func newRouter(
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/auth/logout", auth.Logout)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/auth/me", auth.GetMe)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/events", ev.ServeHTTP)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events", ev.CreateEvent)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/events/{id}", ev.UpdateEvent)
 	return r
 }
