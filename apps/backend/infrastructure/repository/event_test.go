@@ -258,7 +258,7 @@ func TestEventRepository_Create_PersistsEventAndReturnsIt(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	repo := repository.NewEventRepository(testPool)
+	repo := repository.NewEventRepository(testPool, testLogger)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	startAt := now
@@ -305,7 +305,7 @@ func TestEventRepository_Create_NullableFieldsStoredAsNull(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	repo := repository.NewEventRepository(testPool)
+	repo := repository.NewEventRepository(testPool, testLogger)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	id := uuid.New()
