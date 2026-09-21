@@ -15,6 +15,8 @@ type Event interface {
 	Description() string
 	StartAt() time.Time
 	EndAt() time.Time
+	Location() string
+	URL() string
 }
 
 type eventEntity struct {
@@ -24,9 +26,16 @@ type eventEntity struct {
 	description string
 	startAt     time.Time
 	endAt       time.Time
+	location    string
+	url         string
 }
 
-func New(id, userID uuid.UUID, title, description string, startAt, endAt time.Time) (Event, error) {
+func New(
+	id, userID uuid.UUID,
+	title, description string,
+	startAt, endAt time.Time,
+	location, url string,
+) (Event, error) {
 	if title == "" {
 		return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
 			{Field: "title", Code: "REQUIRED", Message: "title is required"},
@@ -44,6 +53,8 @@ func New(id, userID uuid.UUID, title, description string, startAt, endAt time.Ti
 		description: description,
 		startAt:     startAt,
 		endAt:       endAt,
+		location:    location,
+		url:         url,
 	}, nil
 }
 
@@ -53,3 +64,5 @@ func (e *eventEntity) Title() string       { return e.title }
 func (e *eventEntity) Description() string { return e.description }
 func (e *eventEntity) StartAt() time.Time  { return e.startAt }
 func (e *eventEntity) EndAt() time.Time    { return e.endAt }
+func (e *eventEntity) Location() string    { return e.location }
+func (e *eventEntity) URL() string         { return e.url }
