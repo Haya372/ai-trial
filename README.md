@@ -64,6 +64,19 @@ mise exec -- pnpm <command>
 pnpm <command>
 ```
 
+## 他のAIエージェントでの開発
+
+このプロジェクトはClaude Code以外のAIコーディングエージェントでも開発できる。
+
+| ツール | 参照する設定ファイル |
+|---|---|
+| Claude Code | `CLAUDE.md`（`AGENTS.md` を読み込む） |
+| Codex | `AGENTS.md`（標準で自動読み込み） |
+| Gemini CLI | `AGENTS.md`（`.gemini/settings.json` で読み込み対象に設定済み） |
+
+プロジェクト共通の規約・開発フロー・制約は `AGENTS.md` に集約している。
+Claude Code固有のSubagent/Skillの使い方は `CLAUDE.md` に記載している。
+
 ## ドキュメント
 
 - [開発ガイドライン](docs/guidelines/guidelines.md)

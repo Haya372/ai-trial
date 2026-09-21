@@ -1,5 +1,9 @@
 # 開発フロー
 
+このフローは使用するAIツール（Claude Code / Codex / Gemini CLI等）によらず共通。
+各ステップの「担当Agent」は工程の責務を表す。Claude Codeではsubagentとして呼び出し、
+それ以外のツールでは同一セッション内で該当のSkillファイル（`AGENTS.md` を参照）を見ながら進める。
+
 ## フロー概要
 
 ```text
