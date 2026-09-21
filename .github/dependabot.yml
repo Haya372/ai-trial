@@ -26,6 +26,8 @@ updates:
       interval: "weekly"
     cooldown:
       default-days: 7
+    allow:
+      - dependency-type: "all"
     groups:
       go-dependencies:
         patterns:
