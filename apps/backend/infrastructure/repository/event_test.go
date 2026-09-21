@@ -4,11 +4,13 @@ package repository_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
@@ -139,6 +141,94 @@ func TestEventsTable_LocationAndUrlColumns_AcceptValues(t *testing.T) {
 	}
 	if gotURL == nil || *gotURL != "https://example.com/meeting" {
 		t.Errorf("url mismatch: got %v", gotURL)
+	}
+}
+
+func TestEventRepository_FindByID_ReturnsEvent(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	eventRepo := repository.NewEventRepository(testPool, testLogger)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	insertEvent(t, u.ID(), "Findable event", now, now.Add(time.Hour))
+
+	var id uuid.UUID
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT id FROM events WHERE user_id = $1", u.ID(),
+	).Scan(&id); err != nil {
+		t.Fatalf("select event id: %v", err)
+	}
+
+	e, err := eventRepo.FindByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if e.Title() != "Findable event" {
+		t.Errorf("title mismatch: got %q", e.Title())
+	}
+	if e.UserID() != u.ID() {
+		t.Errorf("userID mismatch: got %v, want %v", e.UserID(), u.ID())
+	}
+}
+
+func TestEventRepository_FindByID_NotFound_ReturnsErrEventNotFound(t *testing.T) {
+	setupTest(t)
+	eventRepo := repository.NewEventRepository(testPool, testLogger)
+
+	_, err := eventRepo.FindByID(context.Background(), uuid.New())
+	if !errors.Is(err, event.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound, got %v", err)
+	}
+}
+
+func TestEventRepository_Update_PersistsChanges(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	eventRepo := repository.NewEventRepository(testPool, testLogger)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	insertEvent(t, u.ID(), "Original title", now, now.Add(time.Hour))
+
+	var id uuid.UUID
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT id FROM events WHERE user_id = $1", u.ID(),
+	).Scan(&id); err != nil {
+		t.Fatalf("select event id: %v", err)
+	}
+
+	newStart := now.Add(2 * time.Hour)
+	newEnd := now.Add(3 * time.Hour)
+	updated, err := event.New(
+		id, u.ID(), "Updated title", "Updated desc", newStart, newEnd, "Tokyo", "https://example.com",
+	)
+	if err != nil {
+		t.Fatalf("build updated event: %v", err)
+	}
+
+	if err := eventRepo.Update(context.Background(), updated); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := eventRepo.FindByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("find updated event: %v", err)
+	}
+	if got.Title() != "Updated title" {
+		t.Errorf("title mismatch: got %q", got.Title())
+	}
+	if got.Description() != "Updated desc" {
+		t.Errorf("description mismatch: got %q", got.Description())
+	}
+	if got.Location() != "Tokyo" {
+		t.Errorf("location mismatch: got %q", got.Location())
+	}
+	if got.URL() != "https://example.com" {
+		t.Errorf("url mismatch: got %q", got.URL())
+	}
+	if !got.StartAt().Equal(newStart) {
+		t.Errorf("startAt mismatch: got %v, want %v", got.StartAt(), newStart)
 	}
 }
 
