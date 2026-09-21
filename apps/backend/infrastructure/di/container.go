@@ -88,8 +88,8 @@ func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
 	return eventuc.NewListEventsQuery(s)
 }
 
-func newUpdateEventExecutor(r event.Repository) handler.UpdateEventExecutor {
-	return eventuc.NewUpdateEventCommand(r)
+func newUpdateEventExecutor(r event.Repository, logger *slog.Logger) handler.UpdateEventExecutor {
+	return eventuc.NewUpdateEventCommand(r, logger)
 }
 
 func newRouter(

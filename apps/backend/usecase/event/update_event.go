@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,11 +22,12 @@ type UpdateEventInput struct {
 }
 
 type UpdateEventCommand struct {
-	repo domainevent.Repository
+	repo   domainevent.Repository
+	logger *slog.Logger
 }
 
-func NewUpdateEventCommand(r domainevent.Repository) *UpdateEventCommand {
-	return &UpdateEventCommand{repo: r}
+func NewUpdateEventCommand(r domainevent.Repository, logger *slog.Logger) *UpdateEventCommand {
+	return &UpdateEventCommand{repo: r, logger: logger}
 }
 
 func (c *UpdateEventCommand) Execute(
@@ -36,8 +38,8 @@ func (c *UpdateEventCommand) Execute(
 		return nil, fmt.Errorf("find event: %w", err)
 	}
 	if existing.UserID() != userID {
-		// Reported the same as a missing event to avoid leaking event
-		// existence to users who don't own it.
+		c.logger.Warn("attempted to update event owned by another user",
+			"event_id", in.ID, "user_id", userID, "owner_id", existing.UserID())
 		return nil, domainevent.ErrEventNotFound
 	}
 

@@ -38,7 +38,7 @@ func TestUpdateEventCommand_Execute_ValidInput_UpdatesAndReturnsEvent(t *testing
 		},
 	)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:          eventID,
 		Title:       newTitle,
@@ -74,7 +74,7 @@ func TestUpdateEventCommand_Execute_EndAtBeforeStartAt_ReturnsValidationError(t 
 	existing, _ := domainevent.New(eventID, userID, "Old title", "", start, end, "", "")
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -99,7 +99,7 @@ func TestUpdateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 	existing, _ := domainevent.New(eventID, userID, "Old title", "", start, end, "", "")
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   "",
@@ -121,7 +121,7 @@ func TestUpdateEventCommand_Execute_EventNotFound_ReturnsEventNotFoundError(t *t
 
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(nil, domainevent.ErrEventNotFound)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -146,7 +146,7 @@ func TestUpdateEventCommand_Execute_NotOwner_ReturnsEventNotFoundError(t *testin
 	existing, _ := domainevent.New(eventID, ownerID, "Title", "", start, end, "", "")
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	_, err := cmd.Execute(context.Background(), otherUserID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -172,7 +172,7 @@ func TestUpdateEventCommand_Execute_PastEvent_AllowsUpdate(t *testing.T) {
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   "Updated past event",
@@ -197,7 +197,7 @@ func TestUpdateEventCommand_Execute_RepoUpdateError_ReturnsError(t *testing.T) {
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(errDBFailure)
 
-	cmd := eventuc.NewUpdateEventCommand(repo)
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,

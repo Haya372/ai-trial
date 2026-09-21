@@ -1,5 +1,11 @@
 package event_test
 
-import "errors"
+import (
+	"errors"
+	"log/slog"
+)
 
-var errDBFailure = errors.New("db error")
+var (
+	errDBFailure = errors.New("db error")
+	testLogger   = slog.New(slog.DiscardHandler)
+)
