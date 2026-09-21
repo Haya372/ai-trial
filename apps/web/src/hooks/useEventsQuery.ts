@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getEvents } from '../api/generated'
+import { eventsKeys } from '../lib/queryKeys'
 
 // YYYY-MM-DD 形式にフォーマットする
 function formatDate(date: Date): string {
@@ -11,7 +12,7 @@ function formatDate(date: Date): string {
 
 export function useEventsQuery(startDate: Date, endDate: Date) {
   return useQuery({
-    queryKey: ['events', formatDate(startDate), formatDate(endDate)],
+    queryKey: eventsKeys.list(formatDate(startDate), formatDate(endDate)),
     queryFn: async () => {
       const res = await getEvents({
         startDate: formatDate(startDate),
