@@ -1,8 +1,7 @@
 import { Button } from '@repo/ui'
+import { CALENDAR_VIEW, type CalendarView } from '../constants'
 
-type CalendarView = 'month' | 'week'
-
-interface CalendarNavProps {
+interface CalendarNavigationProps {
   view: CalendarView
   currentDate: Date
   onPrev: () => void
@@ -14,7 +13,7 @@ function formatPeriodLabel(view: CalendarView, date: Date): string {
   const year = date.getFullYear()
   const month = date.getMonth() + 1
 
-  if (view === 'month') {
+  if (view === CALENDAR_VIEW.MONTH) {
     return `${year}年${month}月`
   }
 
@@ -37,13 +36,13 @@ function formatPeriodLabel(view: CalendarView, date: Date): string {
   return `${startYear}年${startMonth}月${startDay}日〜${endMonth}月${endDay}日`
 }
 
-export default function CalendarNav({
+export default function CalendarNavigation({
   view,
   currentDate,
   onPrev,
   onNext,
   onToday,
-}: CalendarNavProps) {
+}: CalendarNavigationProps) {
   const label = formatPeriodLabel(view, currentDate)
 
   return (

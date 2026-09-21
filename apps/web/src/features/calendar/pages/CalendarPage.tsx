@@ -3,15 +3,16 @@ import { MonthCalendar, WeekCalendar } from '@repo/ui'
 import { useState } from 'react'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../store/calendarStore'
-import CalendarNav from '../components/CalendarNav'
+import CalendarNavigation from '../components/CalendarNavigation'
+import CalendarViewTabs from '../components/CalendarViewTabs'
 import EventDetailModal from '../components/EventDetailModal'
-import ViewSwitcher from '../components/ViewSwitcher'
+import { CALENDAR_VIEW, type CalendarView } from '../constants'
 
 function getViewDateRange(
-  view: 'month' | 'week',
+  view: CalendarView,
   date: Date,
 ): { startDate: Date; endDate: Date } {
-  if (view === 'month') {
+  if (view === CALENDAR_VIEW.MONTH) {
     const startDate = new Date(date.getFullYear(), date.getMonth(), 1)
     const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0)
     return { startDate, endDate }
@@ -25,13 +26,9 @@ function getViewDateRange(
   return { startDate, endDate }
 }
 
-function navigateDate(
-  view: 'month' | 'week',
-  date: Date,
-  direction: 1 | -1,
-): Date {
+function navigateDate(view: CalendarView, date: Date, direction: 1 | -1): Date {
   const next = new Date(date)
-  if (view === 'month') {
+  if (view === CALENDAR_VIEW.MONTH) {
     next.setMonth(date.getMonth() + direction)
   } else {
     next.setDate(date.getDate() + direction * 7)
@@ -78,14 +75,14 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
-        <CalendarNav
+        <CalendarNavigation
           view={view}
           currentDate={currentDate}
           onPrev={handlePrev}
           onNext={handleNext}
           onToday={handleToday}
         />
-        <ViewSwitcher view={view} onViewChange={setView} />
+        <CalendarViewTabs view={view} onViewChange={setView} />
       </div>
 
       {isPending && (
@@ -102,7 +99,7 @@ export default function CalendarPage() {
 
       {!isPending && !isError && (
         <>
-          {view === 'month' ? (
+          {view === CALENDAR_VIEW.MONTH ? (
             <MonthCalendar
               events={calendarEvents}
               currentDate={currentDate}

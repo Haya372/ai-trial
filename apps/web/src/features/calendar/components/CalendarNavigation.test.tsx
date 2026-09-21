@@ -1,10 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import CalendarNav from './CalendarNav'
+import { CALENDAR_VIEW } from '../constants'
+import CalendarNavigation from './CalendarNavigation'
 
-describe('CalendarNav', () => {
+describe('CalendarNavigation', () => {
   const defaultProps = {
-    view: 'month' as const,
+    view: CALENDAR_VIEW.MONTH,
     currentDate: new Date(2026, 8, 13), // 2026年9月13日
     onPrev: vi.fn(),
     onNext: vi.fn(),
@@ -13,15 +14,15 @@ describe('CalendarNav', () => {
 
   describe('期間ラベル', () => {
     it('月ビューのとき "2026年9月" を表示する', () => {
-      render(<CalendarNav {...defaultProps} />)
+      render(<CalendarNavigation {...defaultProps} />)
       expect(screen.getByText('2026年9月')).toBeInTheDocument()
     })
 
     it('週ビューのとき週の範囲を表示する', () => {
       render(
-        <CalendarNav
+        <CalendarNavigation
           {...defaultProps}
-          view="week"
+          view={CALENDAR_VIEW.WEEK}
           currentDate={new Date(2026, 8, 13)} // 2026-09-13 (日曜始まりの週: 9/13-9/19)
         />,
       )
@@ -33,21 +34,21 @@ describe('CalendarNav', () => {
   describe('ナビゲーションボタン', () => {
     it('「前へ」ボタンをクリックすると onPrev が呼ばれる', () => {
       const onPrev = vi.fn()
-      render(<CalendarNav {...defaultProps} onPrev={onPrev} />)
+      render(<CalendarNavigation {...defaultProps} onPrev={onPrev} />)
       fireEvent.click(screen.getByRole('button', { name: /前へ/ }))
       expect(onPrev).toHaveBeenCalledOnce()
     })
 
     it('「次へ」ボタンをクリックすると onNext が呼ばれる', () => {
       const onNext = vi.fn()
-      render(<CalendarNav {...defaultProps} onNext={onNext} />)
+      render(<CalendarNavigation {...defaultProps} onNext={onNext} />)
       fireEvent.click(screen.getByRole('button', { name: /次へ/ }))
       expect(onNext).toHaveBeenCalledOnce()
     })
 
     it('「今日」ボタンをクリックすると onToday が呼ばれる', () => {
       const onToday = vi.fn()
-      render(<CalendarNav {...defaultProps} onToday={onToday} />)
+      render(<CalendarNavigation {...defaultProps} onToday={onToday} />)
       fireEvent.click(screen.getByRole('button', { name: /今日/ }))
       expect(onToday).toHaveBeenCalledOnce()
     })

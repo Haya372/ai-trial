@@ -1,6 +1,8 @@
 import { create } from 'zustand'
-
-type CalendarView = 'month' | 'week'
+import {
+  CALENDAR_VIEW,
+  type CalendarView,
+} from '../features/calendar/constants'
 
 export interface CalendarState {
   view: CalendarView
@@ -10,7 +12,7 @@ export interface CalendarState {
 }
 
 export const useCalendarStore = create<CalendarState>((set) => ({
-  view: 'month',
+  view: CALENDAR_VIEW.MONTH,
   currentDate: new Date(),
   setView: (view) => set({ view }),
   setCurrentDate: (date) => set({ currentDate: date }),
