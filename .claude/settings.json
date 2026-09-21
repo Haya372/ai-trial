@@ -3,7 +3,7 @@
   "dangerouslyDisableSandbox": false,
   "sandbox": {
     "enabled": true,
-    "excludedCommands": ["docker *", "gh *"],
+    "excludedCommands": ["docker *", "gh *", "git *"],
     "credentials": {
       "files": [
         { "path": "~/.aws/credentials", "mode": "deny" },
