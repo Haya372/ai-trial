@@ -73,15 +73,15 @@ func TestNew_InvalidDateRange(t *testing.T) {
 	}
 }
 
-func TestNew_EqualStartAndEnd(t *testing.T) {
+func TestNew_EqualStartAndEnd_Invalid(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	now := time.Now()
 
-	// end == start is valid (zero-duration event)
+	// SPEC-003: end must be strictly after start; equal is not allowed
 	_, err := event.New(id, userID, "Meeting", "", now, now, "", "")
-	if err != nil {
-		t.Fatalf("unexpected error for equal start/end: %v", err)
+	if err == nil {
+		t.Fatal("expected error for equal start/end, got nil")
 	}
 }
 
