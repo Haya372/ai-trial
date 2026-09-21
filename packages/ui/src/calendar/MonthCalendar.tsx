@@ -1,8 +1,17 @@
 import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
+import dayGridPlugin from '@fullcalendar/react/daygrid'
+import classicThemePlugin from '@fullcalendar/react/themes/classic'
+import type {
+  CalendarRef,
+  DatesSetInfo,
+  EventClickInfo,
+} from '@fullcalendar/react'
 import { useEffect, useRef } from 'react'
 import type { CalendarEvent } from './types'
+
+import '@fullcalendar/react/skeleton.css'
+import '@fullcalendar/react/themes/classic/theme.css'
+import '@fullcalendar/react/themes/classic/palette.css'
 
 interface MonthCalendarProps {
   events: CalendarEvent[]
@@ -17,7 +26,7 @@ export function MonthCalendar({
   onEventClick,
   onDateChange,
 }: MonthCalendarProps) {
-  const calendarRef = useRef<FullCalendar>(null)
+  const calendarRef = useRef<CalendarRef>(null)
   // gotoDate自身が発火させるdatesSetをonDateChangeとして親に伝播させないためのフラグ
   const isProgrammaticNavRef = useRef(false)
 
@@ -36,12 +45,12 @@ export function MonthCalendar({
     extendedProps: { calendarEvent: e },
   }))
 
-  function handleEventClick(arg: EventClickArg) {
+  function handleEventClick(arg: EventClickInfo) {
     const calendarEvent = arg.event.extendedProps.calendarEvent as CalendarEvent
     onEventClick(calendarEvent)
   }
 
-  function handleDatesSet(info: DatesSetArg) {
+  function handleDatesSet(info: DatesSetInfo) {
     if (isProgrammaticNavRef.current) {
       isProgrammaticNavRef.current = false
       return
@@ -52,7 +61,7 @@ export function MonthCalendar({
   return (
     <FullCalendar
       ref={calendarRef}
-      plugins={[dayGridPlugin]}
+      plugins={[dayGridPlugin, classicThemePlugin]}
       initialView="dayGridMonth"
       initialDate={currentDate}
       events={fullCalendarEvents}
