@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
@@ -161,5 +162,82 @@ func TestEventsTable_LocationAndUrlColumns_AreNullable(t *testing.T) {
 	}
 	if gotURL != nil {
 		t.Errorf("expected url to be NULL, got %v", *gotURL)
+	}
+}
+
+func TestEventRepository_Create_PersistsEventAndReturnsIt(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	repo := repository.NewEventRepository(testPool)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	startAt := now
+	endAt := now.Add(time.Hour)
+	id := uuid.New()
+
+	e, err := event.New(id, u.ID(), "Integration test event", "desc", startAt, endAt, "Tokyo", "https://example.com")
+	if err != nil {
+		t.Fatalf("create domain event: %v", err)
+	}
+
+	saved, err := repo.Create(context.Background(), e)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if saved.ID() != id {
+		t.Errorf("ID mismatch: got %v, want %v", saved.ID(), id)
+	}
+	if saved.UserID() != u.ID() {
+		t.Errorf("UserID mismatch: got %v, want %v", saved.UserID(), u.ID())
+	}
+	if saved.Title() != "Integration test event" {
+		t.Errorf("Title mismatch: got %q", saved.Title())
+	}
+	if saved.Description() != "desc" {
+		t.Errorf("Description mismatch: got %q", saved.Description())
+	}
+	if saved.Location() != "Tokyo" {
+		t.Errorf("Location mismatch: got %q", saved.Location())
+	}
+	if saved.URL() != "https://example.com" {
+		t.Errorf("URL mismatch: got %q", saved.URL())
+	}
+	if !saved.StartAt().Equal(startAt) {
+		t.Errorf("StartAt mismatch: got %v, want %v", saved.StartAt(), startAt)
+	}
+	if !saved.EndAt().Equal(endAt) {
+		t.Errorf("EndAt mismatch: got %v, want %v", saved.EndAt(), endAt)
+	}
+}
+
+func TestEventRepository_Create_NullableFieldsStoredAsNull(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	repo := repository.NewEventRepository(testPool)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	id := uuid.New()
+
+	e, err := event.New(id, u.ID(), "No optional fields", "", now, now.Add(time.Hour), "", "")
+	if err != nil {
+		t.Fatalf("create domain event: %v", err)
+	}
+
+	saved, err := repo.Create(context.Background(), e)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if saved.Description() != "" {
+		t.Errorf("expected empty description, got %q", saved.Description())
+	}
+	if saved.Location() != "" {
+		t.Errorf("expected empty location, got %q", saved.Location())
+	}
+	if saved.URL() != "" {
+		t.Errorf("expected empty url, got %q", saved.URL())
 	}
 }
