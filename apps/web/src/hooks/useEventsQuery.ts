@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { getEvents } from '../api/generated'
+import { pad } from '../lib/dateFormat'
 import { eventsKeys } from '../lib/queryKeys'
 
 // YYYY-MM-DD 形式にフォーマットする
 function formatDate(date: Date): string {
   const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
+  const m = pad(date.getMonth() + 1)
+  const d = pad(date.getDate())
   return `${y}-${m}-${d}`
 }
 

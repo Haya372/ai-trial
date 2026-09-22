@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from '@repo/ui'
 import type { EventResponse } from '../../../api/generated'
+import { pad } from '../../../lib/dateFormat'
 
 interface EventDetailModalProps {
   open: boolean
@@ -16,8 +17,8 @@ interface EventDetailModalProps {
 }
 
 function formatTime(date: Date): string {
-  const h = String(date.getHours()).padStart(2, '0')
-  const m = String(date.getMinutes()).padStart(2, '0')
+  const h = pad(date.getHours())
+  const m = pad(date.getMinutes())
   return `${h}:${m}`
 }
 

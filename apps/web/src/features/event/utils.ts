@@ -1,9 +1,6 @@
 import type { EventResponse } from '../../api/generated'
+import { pad } from '../../lib/dateFormat'
 import type { EventFormMode, EventFormValues } from './types'
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0')
-}
 
 export function toDateTimeLocalValue(iso: string): string {
   const date = new Date(iso)
