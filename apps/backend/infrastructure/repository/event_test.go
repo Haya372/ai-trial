@@ -120,6 +120,45 @@ func insertEvent(t *testing.T, userID uuid.UUID, title string, start, end time.T
 	}
 }
 
+func TestEventQueryRepository_List_ReturnsLocationAndUrl(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	start := now
+	end := now.Add(time.Hour)
+
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO events (user_id, title, start_at, end_at, location, url)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		u.ID(), "Event with location and url", start, end, "Tokyo Office", "https://example.com/meeting",
+	)
+	if err != nil {
+		t.Fatalf("insert event with location/url: %v", err)
+	}
+
+	filter := eventuc.ListFilter{
+		UserID:    u.ID(),
+		StartDate: now.Add(-time.Hour),
+		EndDate:   now.Add(2 * time.Hour),
+	}
+	events, err := eventRepo.List(context.Background(), filter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	if events[0].Location != "Tokyo Office" {
+		t.Errorf("location mismatch: got %q, want %q", events[0].Location, "Tokyo Office")
+	}
+	if events[0].URL != "https://example.com/meeting" {
+		t.Errorf("url mismatch: got %q, want %q", events[0].URL, "https://example.com/meeting")
+	}
+}
+
 func TestEventsTable_LocationAndUrlColumns_AcceptValues(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)

@@ -117,6 +117,12 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 		if e.Description != "" {
 			ev.Description = &e.Description
 		}
+		if e.Location != "" {
+			ev.Location = &e.Location
+		}
+		if e.URL != "" {
+			ev.URL = &e.URL
+		}
 		resp.Events[i] = ev
 	}
 
