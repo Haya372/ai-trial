@@ -31,7 +31,7 @@ export default function EventFormModal({
   event,
   onClose,
 }: EventFormModalProps) {
-  const { form, onSubmit } = useEventForm(mode, event, onClose)
+  const { form, onSubmit } = useEventForm(open, mode, event, onClose)
 
   useEffect(() => {
     if (open) form.setFocus('title')

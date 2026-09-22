@@ -208,4 +208,45 @@ describe('EventFormModal', () => {
       expect(onClose).toHaveBeenCalled()
     })
   })
+
+  describe('再オープン時のリセット', () => {
+    it('入力後に閉じて同じmode/eventで再度開くと入力値がリセットされる', () => {
+      const onClose = vi.fn()
+      const { rerender } = render(
+        <EventFormModal
+          open={true}
+          mode="create"
+          event={null}
+          onClose={onClose}
+        />,
+        { wrapper: createWrapper() },
+      )
+      fireEvent.change(screen.getByLabelText('タイトル'), {
+        target: { value: '一時的なタイトル' },
+      })
+      expect(screen.getByDisplayValue('一時的なタイトル')).toBeInTheDocument()
+
+      rerender(
+        <EventFormModal
+          open={false}
+          mode="create"
+          event={null}
+          onClose={onClose}
+        />,
+      )
+      rerender(
+        <EventFormModal
+          open={true}
+          mode="create"
+          event={null}
+          onClose={onClose}
+        />,
+      )
+
+      expect(
+        screen.queryByDisplayValue('一時的なタイトル'),
+      ).not.toBeInTheDocument()
+      expect(screen.getByLabelText('タイトル')).toHaveValue('')
+    })
+  })
 })

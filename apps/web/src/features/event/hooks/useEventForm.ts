@@ -25,6 +25,7 @@ function toRequestPayload(data: EventFormValues): CreateEventRequest {
 }
 
 export function useEventForm(
+  open: boolean,
   mode: EventFormMode,
   event: EventResponse | null,
   onSaved: () => void,
@@ -37,9 +38,12 @@ export function useEventForm(
   })
 
   useEffect(() => {
-    form.reset(toFormValues(event))
+    // open のたびにリセットする。event/mode が前回と同じ組み合わせで
+    // 再オープンされた場合でも入力途中の値を破棄するため、
+    // event/mode ではなく open のみを依存にする。
+    if (open) form.reset(toFormValues(event))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event, mode])
+  }, [open])
 
   const onSubmit = async (data: EventFormValues) => {
     try {
