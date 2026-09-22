@@ -55,6 +55,12 @@ func TestEventQueryRepository_List_ReturnsEventsInRange(t *testing.T) {
 	if events[0].Title != "In-range event" {
 		t.Errorf("title mismatch: got %q", events[0].Title)
 	}
+	if events[0].Location != "" {
+		t.Errorf("expected empty location, got %q", events[0].Location)
+	}
+	if events[0].URL != "" {
+		t.Errorf("expected empty url, got %q", events[0].URL)
+	}
 }
 
 func TestEventQueryRepository_List_ExcludesOutOfRangeEvents(t *testing.T) {
