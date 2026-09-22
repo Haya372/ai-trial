@@ -54,17 +54,22 @@ type UpdateEventExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in eventuc.UpdateEventInput) (domainevent.Event, error)
 }
 
+type DeleteEventExecutor interface {
+	Execute(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+}
+
 type EventHandler struct {
 	listEvents  ListEventsExecutor
 	createEvent CreateEventExecutor
 	updateEvent UpdateEventExecutor
+	deleteEvent DeleteEventExecutor
 	logger      *slog.Logger
 }
 
 func NewEventHandler(
-	l ListEventsExecutor, c CreateEventExecutor, u UpdateEventExecutor, logger *slog.Logger,
+	l ListEventsExecutor, c CreateEventExecutor, u UpdateEventExecutor, d DeleteEventExecutor, logger *slog.Logger,
 ) *EventHandler {
-	return &EventHandler{listEvents: l, createEvent: c, updateEvent: u, logger: logger}
+	return &EventHandler{listEvents: l, createEvent: c, updateEvent: u, deleteEvent: d, logger: logger}
 }
 
 func bindDateParam(r *http.Request, name string, dest any) error {
@@ -238,6 +243,29 @@ func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(respBody)
+}
+
+// DeleteEvent handles DELETE /events/{id}.
+func (h *EventHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) {
+	u, ok := r.Context().Value(ctxkey.User).(user.User)
+	if !ok || u == nil {
+		h.logger.Warn("unauthorized access to DELETE /events/{id}", "path", r.URL.Path)
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid event id")
+		return
+	}
+
+	if err := h.deleteEvent.Execute(r.Context(), u.ID(), id); err != nil {
+		h.writeEventError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventInput, error) {
