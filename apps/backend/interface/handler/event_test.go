@@ -116,7 +116,7 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
@@ -149,7 +149,7 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 
 func TestEventHandler_GetEvents_Unauthorized(t *testing.T) {
 	stub := &stubListEventsExec{}
-	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	w := httptest.NewRecorder()
@@ -171,7 +171,7 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 			return nil, errInternal
 		},
 	}
-	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
@@ -239,7 +239,7 @@ func TestEventHandler_CreateEvent_Success_Returns201(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   testEventTitle,
@@ -273,7 +273,9 @@ func TestEventHandler_CreateEvent_Success_Returns201(t *testing.T) {
 }
 
 func TestEventHandler_CreateEvent_Unauthorized_Returns401(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   testEventTitle,
@@ -291,7 +293,9 @@ func TestEventHandler_CreateEvent_Unauthorized_Returns401(t *testing.T) {
 
 func TestEventHandler_CreateEvent_InvalidJSON_Returns400(t *testing.T) {
 	userID := uuid.New()
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
 
 	req, _ := http.NewRequestWithContext(
 		context.Background(),
@@ -321,7 +325,7 @@ func TestEventHandler_CreateEvent_ValidationError_Returns400(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   "",
@@ -354,7 +358,7 @@ func TestEventHandler_CreateEvent_EndAtEqualStartAt_Returns400(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	req := createEventRequest(t, map[string]any{
@@ -394,7 +398,7 @@ func TestEventHandler_CreateEvent_InternalError_Returns500(t *testing.T) {
 		},
 	}
 
-	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   testEventTitle,
@@ -433,7 +437,7 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 			return updated, nil
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
 
 	body := `{"title":"Updated title","description":"Updated desc","startAt":"` +
 		now.Format(time.RFC3339) + `","endAt":"` + now.Add(time.Hour).Format(time.RFC3339) +
@@ -460,7 +464,9 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 }
 
 func TestEventHandler_UpdateEvent_Unauthorized(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
 
 	req := putEventRequest(t, uuid.New().String(), validUpdateEventBody)
 	w := httptest.NewRecorder()
@@ -473,7 +479,9 @@ func TestEventHandler_UpdateEvent_Unauthorized(t *testing.T) {
 }
 
 func TestEventHandler_UpdateEvent_InvalidIDFormat(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
 
 	req := putEventRequestAsUser(t, "not-a-uuid", validUpdateEventBody)
 	w := httptest.NewRecorder()
@@ -486,7 +494,9 @@ func TestEventHandler_UpdateEvent_InvalidIDFormat(t *testing.T) {
 }
 
 func TestEventHandler_UpdateEvent_InvalidBody(t *testing.T) {
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, testLogger)
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
 
 	req := putEventRequestAsUser(t, uuid.New().String(), `not-json`)
 	w := httptest.NewRecorder()
@@ -506,7 +516,7 @@ func TestEventHandler_UpdateEvent_ValidationError_Returns400(t *testing.T) {
 			}}
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
 
 	body := `{"title":"x","startAt":"2026-09-01T01:00:00Z","endAt":"2026-09-01T00:00:00Z"}`
 	req := putEventRequestAsUser(t, uuid.New().String(), body)
@@ -525,7 +535,7 @@ func TestEventHandler_UpdateEvent_NotFound_Returns404(t *testing.T) {
 			return nil, domainevent.ErrEventNotFound
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
 
 	req := putEventRequestAsUser(t, uuid.New().String(), validUpdateEventBody)
 	w := httptest.NewRecorder()
@@ -543,12 +553,165 @@ func TestEventHandler_UpdateEvent_InternalError_Returns500(t *testing.T) {
 			return nil, errInternal
 		},
 	}
-	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, testLogger)
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
 
 	req := putEventRequestAsUser(t, uuid.New().String(), validUpdateEventBody)
 	w := httptest.NewRecorder()
 
 	h.UpdateEvent(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- DeleteEvent tests ---
+
+type stubDeleteEventExec struct {
+	fn func(context.Context, uuid.UUID, uuid.UUID) error
+}
+
+func (s *stubDeleteEventExec) Execute(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	if s.fn == nil {
+		return nil
+	}
+	return s.fn(ctx, userID, id)
+}
+
+func deleteEventRequest(t *testing.T, id string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodDelete,
+		"/events/"+id,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+}
+
+func deleteEventRequestAsUser(t *testing.T, id string) *http.Request {
+	t.Helper()
+	req := deleteEventRequest(t, id)
+	u := newStubUser(uuid.New(), "user@example.com", "User")
+	return req.WithContext(context.WithValue(req.Context(), ctxkey.User, u))
+}
+
+func TestEventHandler_DeleteEvent_Success_Returns204(t *testing.T) {
+	userID := uuid.New()
+	eventID := uuid.New()
+
+	stub := &stubDeleteEventExec{
+		fn: func(_ context.Context, uid uuid.UUID, id uuid.UUID) error {
+			if uid != userID {
+				t.Errorf("userID mismatch: got %v, want %v", uid, userID)
+			}
+			if id != eventID {
+				t.Errorf("eventID mismatch: got %v, want %v", id, eventID)
+			}
+			return nil
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, stub, testLogger)
+
+	req := deleteEventRequest(t, eventID.String())
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
+	w := httptest.NewRecorder()
+
+	h.DeleteEvent(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+	if w.Body.Len() != 0 {
+		t.Errorf("expected empty body, got %q", w.Body.String())
+	}
+}
+
+func TestEventHandler_DeleteEvent_Unauthorized_Returns401(t *testing.T) {
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
+
+	req := deleteEventRequest(t, uuid.New().String())
+	w := httptest.NewRecorder()
+
+	h.DeleteEvent(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestEventHandler_DeleteEvent_InvalidIDFormat_Returns400(t *testing.T) {
+	h := handler.NewEventHandler(
+		&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+	)
+
+	req := deleteEventRequestAsUser(t, "not-a-uuid")
+	w := httptest.NewRecorder()
+
+	h.DeleteEvent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestEventHandler_DeleteEvent_NotFound_Returns404(t *testing.T) {
+	stub := &stubDeleteEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
+			return domainevent.ErrEventNotFound
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, stub, testLogger)
+
+	req := deleteEventRequestAsUser(t, uuid.New().String())
+	w := httptest.NewRecorder()
+
+	h.DeleteEvent(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventHandler_DeleteEvent_OtherUsersEvent_Returns404(t *testing.T) {
+	stub := &stubDeleteEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
+			// Ownership mismatches surface as ErrEventNotFound from the usecase,
+			// consistent with UpdateEvent's handling.
+			return domainevent.ErrEventNotFound
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, stub, testLogger)
+
+	req := deleteEventRequestAsUser(t, uuid.New().String())
+	w := httptest.NewRecorder()
+
+	h.DeleteEvent(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventHandler_DeleteEvent_InternalError_Returns500(t *testing.T) {
+	stub := &stubDeleteEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ uuid.UUID) error {
+			return errInternal
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, &stubUpdateEventExec{}, stub, testLogger)
+
+	req := deleteEventRequestAsUser(t, uuid.New().String())
+	w := httptest.NewRecorder()
+
+	h.DeleteEvent(w, req)
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())

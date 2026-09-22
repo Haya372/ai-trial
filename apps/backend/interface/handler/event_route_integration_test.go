@@ -38,9 +38,10 @@ func buildEventTestRouter() *chi.Mux {
 	listEvents := eventuc.NewListEventsQuery(eventQueryRepo)
 	createEvent := eventuc.NewCreateEventCommand(eventRepo)
 	updateEvent := eventuc.NewUpdateEventCommand(eventRepo, logger)
+	deleteEvent := eventuc.NewDeleteEventCommand(eventRepo, logger)
 
 	auth := handler.NewAuthHandler(signup, login, logout, logger)
-	ev := handler.NewEventHandler(listEvents, createEvent, updateEvent, logger)
+	ev := handler.NewEventHandler(listEvents, createEvent, updateEvent, deleteEvent, logger)
 
 	r := chi.NewRouter()
 	r.Post("/auth/signup", auth.Signup)
@@ -49,6 +50,7 @@ func buildEventTestRouter() *chi.Mux {
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/events", ev.ServeHTTP)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events", ev.CreateEvent)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/events/{id}", ev.UpdateEvent)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/events/{id}", ev.DeleteEvent)
 	return r
 }
 
@@ -293,6 +295,113 @@ func TestRoute_PutEvent_pastEvent_canBeUpdated(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func eventExistsInDB(t *testing.T, id string) bool {
+	t.Helper()
+	var exists bool
+	err := routeTestPool.QueryRow(context.Background(),
+		"SELECT EXISTS(SELECT 1 FROM events WHERE id = $1)", id,
+	).Scan(&exists)
+	if err != nil {
+		t.Fatalf("check event existence: %v", err)
+	}
+	return exists
+}
+
+func TestRoute_DeleteEvent_withoutSession_returns401(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+uuid.New().String(), nil)
+	if code := responseCode(t, router, req); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", code)
+	}
+}
+
+func TestRoute_DeleteEvent_deletesOwnEvent_returns204(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "delete-event-owner@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, userID, "Original title", now, now.Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+eventID, nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if eventExistsInDB(t, eventID) {
+		t.Errorf("expected event %s to be deleted", eventID)
+	}
+}
+
+func TestRoute_DeleteEvent_nonExistentEvent_returns404(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "delete-event-notfound@ex.com")
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+uuid.New().String(), nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRoute_DeleteEvent_otherUsersEvent_returns404(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	ownerCookie := signupAndGetCookie(t, router, "delete-event-owner2@ex.com")
+	ownerID := getUserIDFromCookie(t, router, ownerCookie)
+	otherCookie := signupAndGetCookie(t, router, "delete-event-other@ex.com")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, ownerID, "Owner's event", now, now.Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+eventID, nil)
+	req.AddCookie(otherCookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	// Ownership mismatches are reported as 404, the same as a missing event,
+	// to avoid leaking event existence to non-owners (consistent with PUT).
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if !eventExistsInDB(t, eventID) {
+		t.Errorf("expected event %s to remain after forbidden delete attempt", eventID)
+	}
+}
+
+func TestRoute_DeleteEvent_pastEvent_canBeDeleted(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "delete-event-past@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	past := time.Now().Add(-48 * time.Hour).UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, userID, "Past event", past, past.Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodDelete, "/events/"+eventID, nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

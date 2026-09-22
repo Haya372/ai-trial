@@ -13,4 +13,5 @@ type Repository interface {
 	// FindByID returns the event with the given ID, or ErrEventNotFound if it does not exist.
 	FindByID(ctx context.Context, id uuid.UUID) (Event, error)
 	Update(ctx context.Context, e Event) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }

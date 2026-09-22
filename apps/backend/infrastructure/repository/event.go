@@ -157,6 +157,14 @@ func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error
 	return nil
 }
 
+func (r *eventRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	if err := r.querier(ctx).DeleteEvent(ctx, pgtype.UUID{Bytes: id, Valid: true}); err != nil {
+		r.logger.Error("delete event query failed", "error", err)
+		return fmt.Errorf("delete event: %w", err)
+	}
+	return nil
+}
+
 func textOrNull(s string) pgtype.Text {
 	if s == "" {
 		return pgtype.Text{}

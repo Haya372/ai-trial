@@ -37,3 +37,7 @@ SET title = $2,
     updated_at = NOW()
 WHERE id = $1
 RETURNING id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at;
+
+-- name: DeleteEvent :exec
+DELETE FROM events
+WHERE id = $1;
