@@ -232,6 +232,41 @@ func TestEventRepository_Update_PersistsChanges(t *testing.T) {
 	}
 }
 
+func TestEventRepository_Delete_RemovesEvent(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	eventRepo := repository.NewEventRepository(testPool, testLogger)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	insertEvent(t, u.ID(), "To be deleted", now, now.Add(time.Hour))
+
+	var id uuid.UUID
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT id FROM events WHERE user_id = $1", u.ID(),
+	).Scan(&id); err != nil {
+		t.Fatalf("select event id: %v", err)
+	}
+
+	if err := eventRepo.Delete(context.Background(), id); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	_, err := eventRepo.FindByID(context.Background(), id)
+	if !errors.Is(err, event.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound after delete, got %v", err)
+	}
+}
+
+func TestEventRepository_Delete_NonExistentID_ReturnsNoError(t *testing.T) {
+	setupTest(t)
+	eventRepo := repository.NewEventRepository(testPool, testLogger)
+
+	if err := eventRepo.Delete(context.Background(), uuid.New()); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 func TestEventsTable_LocationAndUrlColumns_AreNullable(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
