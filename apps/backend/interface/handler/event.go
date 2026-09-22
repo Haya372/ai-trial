@@ -108,22 +108,15 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 		Events: make([]eventResponseBody, len(events)),
 	}
 	for i, e := range events {
-		ev := eventResponseBody{
-			ID:      e.ID,
-			Title:   e.Title,
-			StartAt: e.StartAt,
-			EndAt:   e.EndAt,
+		resp.Events[i] = eventResponseBody{
+			ID:          e.ID,
+			Title:       e.Title,
+			StartAt:     e.StartAt,
+			EndAt:       e.EndAt,
+			Description: optionalString(e.Description),
+			Location:    optionalString(e.Location),
+			URL:         optionalString(e.URL),
 		}
-		if e.Description != "" {
-			ev.Description = &e.Description
-		}
-		if e.Location != "" {
-			ev.Location = &e.Location
-		}
-		if e.URL != "" {
-			ev.URL = &e.URL
-		}
-		resp.Events[i] = ev
 	}
 
 	body, err := json.Marshal(resp)
@@ -156,25 +149,24 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 }
 
 func toEventResponse(ev domainevent.Event) api.EventResponse {
-	resp := api.EventResponse{
-		Id:      ev.ID(),
-		Title:   ev.Title(),
-		StartAt: ev.StartAt(),
-		EndAt:   ev.EndAt(),
+	return api.EventResponse{
+		Id:          ev.ID(),
+		Title:       ev.Title(),
+		StartAt:     ev.StartAt(),
+		EndAt:       ev.EndAt(),
+		Description: optionalString(ev.Description()),
+		Location:    optionalString(ev.Location()),
+		Url:         optionalString(ev.URL()),
 	}
-	if ev.Description() != "" {
-		d := ev.Description()
-		resp.Description = &d
+}
+
+// optionalString returns nil for an empty string, so callers get the same
+// omitempty behavior GetEvents and toEventResponse both need for optional fields.
+func optionalString(s string) *string {
+	if s == "" {
+		return nil
 	}
-	if ev.Location() != "" {
-		l := ev.Location()
-		resp.Location = &l
-	}
-	if ev.URL() != "" {
-		eu := ev.URL()
-		resp.Url = &eu
-	}
-	return resp
+	return &s
 }
 
 // CreateEvent handles POST /events.
