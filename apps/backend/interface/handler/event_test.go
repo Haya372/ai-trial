@@ -21,10 +21,12 @@ import (
 )
 
 const (
-	testEventTitle = "Meeting"
-	testKeyTitle   = "title"
-	testKeyStartAt = "startAt"
-	testKeyEndAt   = "endAt"
+	testEventTitle    = "Meeting"
+	testKeyTitle      = "title"
+	testKeyStartAt    = "startAt"
+	testKeyEndAt      = "endAt"
+	testEventLocation = "Tokyo"
+	testEventURL      = "https://example.com"
 )
 
 type stubUpdateEventExec struct {
@@ -111,6 +113,8 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 					Description: desc,
 					StartAt:     now,
 					EndAt:       now.Add(time.Hour),
+					Location:    testEventLocation,
+					URL:         testEventURL,
 				},
 			}, nil
 		},
@@ -133,7 +137,9 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 
 	var resp struct {
 		Events []struct {
-			Title string `json:"title"`
+			Title    string  `json:"title"`
+			Location *string `json:"location"`
+			URL      *string `json:"url"`
 		} `json:"events"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -144,6 +150,12 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 	}
 	if resp.Events[0].Title != testEventTitle {
 		t.Errorf("title mismatch: got %q", resp.Events[0].Title)
+	}
+	if resp.Events[0].Location == nil || *resp.Events[0].Location != testEventLocation {
+		t.Errorf("location mismatch: got %v", resp.Events[0].Location)
+	}
+	if resp.Events[0].URL == nil || *resp.Events[0].URL != testEventURL {
+		t.Errorf("url mismatch: got %v", resp.Events[0].URL)
 	}
 }
 
@@ -246,8 +258,8 @@ func TestEventHandler_CreateEvent_Success_Returns201(t *testing.T) {
 		"description":  "Team sync",
 		testKeyStartAt: now.Format(time.RFC3339),
 		testKeyEndAt:   now.Add(time.Hour).Format(time.RFC3339),
-		"location":     "Tokyo",
-		"url":          "https://example.com",
+		"location":     testEventLocation,
+		"url":          testEventURL,
 	})
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
 	w := httptest.NewRecorder()
@@ -423,7 +435,7 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 	now := time.Now().UTC()
 
 	updated, _ := domainevent.New(
-		eventID, userID, "Updated title", "Updated desc", now, now.Add(time.Hour), "Tokyo", "https://example.com",
+		eventID, userID, "Updated title", "Updated desc", now, now.Add(time.Hour), testEventLocation, testEventURL,
 	)
 
 	stub := &stubUpdateEventExec{
@@ -458,7 +470,7 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 	if resp.Title != "Updated title" {
 		t.Errorf("title mismatch: got %q", resp.Title)
 	}
-	if resp.Location == nil || *resp.Location != "Tokyo" {
+	if resp.Location == nil || *resp.Location != testEventLocation {
 		t.Errorf("location mismatch: got %v", resp.Location)
 	}
 }

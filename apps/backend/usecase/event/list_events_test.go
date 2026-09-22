@@ -34,7 +34,14 @@ func TestListEventsQuery_Execute_ReturnsEvents(t *testing.T) {
 				t.Errorf("userID mismatch: got %v, want %v", filter.UserID, userID)
 			}
 			return []eventuc.EventReadModel{
-				{ID: eventID, Title: "Team meeting", StartAt: start, EndAt: start.Add(time.Hour)},
+				{
+					ID:       eventID,
+					Title:    "Team meeting",
+					StartAt:  start,
+					EndAt:    start.Add(time.Hour),
+					Location: "Tokyo",
+					URL:      "https://example.com",
+				},
 			}, nil
 		},
 	}
@@ -52,6 +59,12 @@ func TestListEventsQuery_Execute_ReturnsEvents(t *testing.T) {
 	}
 	if result[0].Title != "Team meeting" {
 		t.Errorf("title mismatch: got %q", result[0].Title)
+	}
+	if result[0].Location != "Tokyo" {
+		t.Errorf("location mismatch: got %q, want %q", result[0].Location, "Tokyo")
+	}
+	if result[0].URL != "https://example.com" {
+		t.Errorf("url mismatch: got %q, want %q", result[0].URL, "https://example.com")
 	}
 }
 

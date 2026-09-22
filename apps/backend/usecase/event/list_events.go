@@ -19,6 +19,8 @@ type EventReadModel struct {
 	Description string
 	StartAt     time.Time
 	EndAt       time.Time
+	Location    string
+	URL         string
 }
 
 type ListEventsQuery struct {

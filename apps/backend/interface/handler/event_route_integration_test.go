@@ -132,6 +132,54 @@ func TestRoute_GetEvents_returnsOnlyAuthenticatedUsersEvents(t *testing.T) {
 	}
 }
 
+func TestRoute_GetEvents_includesLocationAndUrl(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "events-location-url@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	_, err := routeTestPool.Exec(context.Background(),
+		`INSERT INTO events (user_id, title, start_at, end_at, location, url)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		userID, "Event with location and url", now, now.Add(time.Hour), "Tokyo Office", "https://example.com/meeting",
+	)
+	if err != nil {
+		t.Fatalf("insert event: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
+		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Events []struct {
+			Title    string `json:"title"`
+			Location string `json:"location"`
+			URL      string `json:"url"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(body.Events))
+	}
+	if body.Events[0].Location != "Tokyo Office" {
+		t.Errorf("location mismatch: got %q", body.Events[0].Location)
+	}
+	if body.Events[0].URL != "https://example.com/meeting" {
+		t.Errorf("url mismatch: got %q", body.Events[0].URL)
+	}
+}
+
 func TestRoute_GetEvents_returnsEmptyListWhenNoEvents(t *testing.T) {
 	setupRouteTest(t)
 	router := buildEventTestRouter()

@@ -42,9 +42,15 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 
 	result := make([]eventuc.EventReadModel, 0, len(rows))
 	for _, row := range rows {
-		var desc string
+		var desc, location, url string
 		if row.Description.Valid {
 			desc = row.Description.String
+		}
+		if row.Location.Valid {
+			location = row.Location.String
+		}
+		if row.Url.Valid {
+			url = row.Url.String
 		}
 		result = append(result, eventuc.EventReadModel{
 			ID:          uuid.UUID(row.ID.Bytes),
@@ -52,6 +58,8 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 			Description: desc,
 			StartAt:     row.StartAt.Time,
 			EndAt:       row.EndAt.Time,
+			Location:    location,
+			URL:         url,
 		})
 	}
 	return result, nil
