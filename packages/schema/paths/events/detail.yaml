@@ -47,3 +47,36 @@ put:
         application/json:
           schema:
             $ref: "../../components/schemas/InternalErrorResponse.yaml"
+delete:
+  operationId: deleteEvent
+  summary: Delete an existing event
+  tags:
+    - events
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    "204":
+      description: Event deleted
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "404":
+      description: Event not found (also returned when the event belongs to another user)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
