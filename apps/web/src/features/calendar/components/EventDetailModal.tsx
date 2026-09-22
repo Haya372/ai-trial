@@ -1,10 +1,18 @@
-import type { CalendarEvent } from '@repo/ui'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@repo/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@repo/ui'
+import type { EventResponse } from '../../../api/generated'
 
 interface EventDetailModalProps {
   open: boolean
-  event: CalendarEvent | null
+  event: EventResponse | null
   onClose: () => void
+  onEdit: (event: EventResponse) => void
 }
 
 function formatTime(date: Date): string {
@@ -13,7 +21,8 @@ function formatTime(date: Date): string {
   return `${h}:${m}`
 }
 
-function formatDateTime(date: Date): string {
+function formatDateTime(iso: string): string {
+  const date = new Date(iso)
   const y = date.getFullYear()
   const mo = date.getMonth() + 1
   const d = date.getDate()
@@ -25,6 +34,7 @@ export default function EventDetailModal({
   open,
   event,
   onClose,
+  onEdit,
 }: EventDetailModalProps) {
   if (!event) return null
 
@@ -42,13 +52,18 @@ export default function EventDetailModal({
         <div className="flex flex-col gap-2 text-sm">
           <div>
             <span className="text-muted-foreground">開始: </span>
-            <span>{formatDateTime(event.start)}</span>
+            <span>{formatDateTime(event.startAt)}</span>
           </div>
           <div>
             <span className="text-muted-foreground">終了: </span>
-            <span>{formatDateTime(event.end)}</span>
+            <span>{formatDateTime(event.endAt)}</span>
           </div>
         </div>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => onEdit(event)}>
+            編集
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
