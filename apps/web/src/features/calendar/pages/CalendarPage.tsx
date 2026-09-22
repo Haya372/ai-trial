@@ -1,8 +1,12 @@
+import { Button } from '@repo/ui'
 import type { CalendarEvent } from '@repo/ui'
 import { MonthCalendar, WeekCalendar } from '@repo/ui'
 import { useState } from 'react'
+import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../store/calendarStore'
+import EventFormModal from '../../event/components/EventFormModal'
+import type { EventFormMode } from '../../event/types'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
 import EventDetailModal from '../components/EventDetailModal'
@@ -33,8 +37,10 @@ export default function CalendarPage() {
   const setView = useCalendarStore((s) => s.setView)
   const setCurrentDate = useCalendarStore((s) => s.setCurrentDate)
 
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [formMode, setFormMode] = useState<EventFormMode>('create')
 
   const { startDate, endDate } = getViewDateRange(view, currentDate)
   const { data, isPending, isError } = useEventsQuery(startDate, endDate)
@@ -47,8 +53,22 @@ export default function CalendarPage() {
   }))
 
   function handleEventClick(event: CalendarEvent) {
+    const fullEvent = data?.events.find((e) => e.id === event.id) ?? null
+    setSelectedEvent(fullEvent)
+    setDetailModalOpen(true)
+  }
+
+  function handleCreateClick() {
+    setSelectedEvent(null)
+    setFormMode('create')
+    setFormModalOpen(true)
+  }
+
+  function handleEditClick(event: EventResponse) {
     setSelectedEvent(event)
-    setModalOpen(true)
+    setFormMode('edit')
+    setDetailModalOpen(false)
+    setFormModalOpen(true)
   }
 
   function handlePrev() {
@@ -73,7 +93,12 @@ export default function CalendarPage() {
           onNext={handleNext}
           onToday={handleToday}
         />
-        <CalendarViewTabs view={view} onViewChange={setView} />
+        <div className="flex items-center gap-2">
+          <Button variant="primary" onClick={handleCreateClick}>
+            新規作成
+          </Button>
+          <CalendarViewTabs view={view} onViewChange={setView} />
+        </div>
       </div>
 
       {isPending && (
@@ -109,9 +134,17 @@ export default function CalendarPage() {
       )}
 
       <EventDetailModal
-        open={modalOpen}
+        open={detailModalOpen}
         event={selectedEvent}
-        onClose={() => setModalOpen(false)}
+        onClose={() => setDetailModalOpen(false)}
+        onEdit={handleEditClick}
+      />
+
+      <EventFormModal
+        open={formModalOpen}
+        mode={formMode}
+        event={selectedEvent}
+        onClose={() => setFormModalOpen(false)}
       />
     </div>
   )
