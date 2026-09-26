@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from '@repo/ui'
 import { useForm } from 'react-hook-form'
@@ -17,6 +17,18 @@ export function useSignupForm(onSuccess?: () => void) {
     mode: 'onTouched',
     defaultValues: { email: '', password: '', displayName: '' },
   })
+
+  useEffect(() => {
+    const erroredFields = Object.keys(form.formState.errors) as Array<
+      keyof SignupFormValues
+    >
+    if (erroredFields.length > 0) {
+      form.trigger(erroredFields)
+    }
+    // Re-validate only when the language changes, so an already-displayed
+    // error message is re-translated instead of staying stuck in the old
+    // language until the user next touches the field.
+  }, [t])
 
   const onSubmit = async (data: SignupFormValues) => {
     try {
