@@ -131,7 +131,7 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
 	row, err := r.querier(spanCtx).FindEventByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
-	endDBSpan(span, err)
+	endDBSpanNotFound(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domainevent.ErrEventNotFound
 	}

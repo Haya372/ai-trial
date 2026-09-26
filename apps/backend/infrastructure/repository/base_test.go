@@ -10,6 +10,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
@@ -82,5 +83,35 @@ func TestEndDBSpan_leavesStatusUnset_whenErrNil(t *testing.T) {
 	}
 	if spans[0].Status.Code == codes.Error {
 		t.Error("expected status to not be Error")
+	}
+}
+
+func TestEndDBSpanNotFound_leavesStatusUnset_forErrNoRows(t *testing.T) {
+	r, exp := newTracedRepository(t)
+
+	_, span := r.startDBSpan(context.Background(), "SELECT", "events")
+	endDBSpanNotFound(span, pgx.ErrNoRows)
+
+	spans := exp.GetSpans()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(spans))
+	}
+	if spans[0].Status.Code == codes.Error {
+		t.Error("pgx.ErrNoRows is an expected outcome and must not mark the span as Error")
+	}
+}
+
+func TestEndDBSpanNotFound_setsErrorStatus_forOtherErrors(t *testing.T) {
+	r, exp := newTracedRepository(t)
+
+	_, span := r.startDBSpan(context.Background(), "SELECT", "events")
+	endDBSpanNotFound(span, errBoom)
+
+	spans := exp.GetSpans()
+	if len(spans) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(spans))
+	}
+	if spans[0].Status.Code != codes.Error {
+		t.Errorf("expected status Error for a real failure, got %v", spans[0].Status.Code)
 	}
 }

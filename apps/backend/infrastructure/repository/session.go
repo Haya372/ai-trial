@@ -44,7 +44,7 @@ func (r *sessionRepository) Create(
 func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session.Session, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", sessionsTable)
 	row, err := r.querier(spanCtx).FindSessionByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
-	endDBSpan(span, err)
+	endDBSpanNotFound(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -57,7 +57,7 @@ func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session
 func (r *sessionRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (session.Session, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", sessionsTable)
 	row, err := r.querier(spanCtx).FindActiveSessionByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
-	endDBSpan(span, err)
+	endDBSpanNotFound(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

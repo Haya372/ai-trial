@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -47,4 +49,17 @@ func endDBSpan(span trace.Span, err error) {
 		span.SetStatus(codes.Error, err.Error())
 	}
 	span.End()
+}
+
+// endDBSpanNotFound behaves like endDBSpan, except pgx.ErrNoRows is treated
+// as a successful outcome rather than a span error: "no row matched" is an
+// expected result for an ID lookup, not a query failure, and marking it as
+// an error would pollute error-rate metrics/traces for routine lookups
+// (e.g. an expired session, an unregistered email at login).
+func endDBSpanNotFound(span trace.Span, err error) {
+	if errors.Is(err, pgx.ErrNoRows) {
+		span.End()
+		return
+	}
+	endDBSpan(span, err)
 }

@@ -49,7 +49,7 @@ func (r *userRepository) Create(
 func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (user.User, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", usersTable)
 	row, err := r.querier(spanCtx).FindUserByEmail(spanCtx, string(email))
-	endDBSpan(span, err)
+	endDBSpanNotFound(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, user.ErrUserNotFound
 	}
@@ -62,7 +62,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (use
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (user.User, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", usersTable)
 	row, err := r.querier(spanCtx).FindUserByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
-	endDBSpan(span, err)
+	endDBSpanNotFound(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, user.ErrUserNotFound
 	}
