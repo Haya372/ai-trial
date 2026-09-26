@@ -46,10 +46,11 @@ vi.mock('../components/EventDetailModal', () => ({
 }))
 
 vi.mock('../../event/components/EventFormModal', () => ({
-  default: vi.fn(({ open, mode, event }) =>
+  default: vi.fn(({ open, mode, event, initialStart }) =>
     open ? (
       <div data-testid="event-form-modal">
-        mode:{mode} event:{event?.id ?? 'none'}
+        mode:{mode} event:{event?.id ?? 'none'} initialStart:
+        {initialStart ? (initialStart as Date).toISOString() : 'none'}
       </div>
     ) : null,
   ),
@@ -177,6 +178,47 @@ describe('CalendarPage', () => {
       const modal = screen.getByTestId('event-form-modal')
       expect(modal).toHaveTextContent('mode:create')
       expect(modal).toHaveTextContent('event:none')
+    })
+  })
+
+  describe('カレンダーセルのクリックによる新規作成', () => {
+    it('MonthCalendarのonDateClickでクリックした日時をinitialStartに渡してcreateモードで開く', async () => {
+      const { useCalendarStore } = await import('../../../store/calendarStore')
+      vi.mocked(useCalendarStore).mockImplementation(
+        (selector: (state: CalendarState) => unknown) => {
+          const state: CalendarState = {
+            view: 'month',
+            currentDate: new Date(2026, 8, 13),
+            setView: vi.fn(),
+            setCurrentDate: vi.fn(),
+          }
+          return selector ? selector(state) : state
+        },
+      )
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+      const { MonthCalendar } = await import('@repo/ui')
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(MonthCalendar)
+      const clickedDate = new Date(2026, 8, 15)
+      act(() => {
+        props.onDateClick(clickedDate)
+      })
+
+      const modal = screen.getByTestId('event-form-modal')
+      expect(modal).toHaveTextContent('mode:create')
+      expect(modal).toHaveTextContent('event:none')
+      expect(modal).toHaveTextContent(
+        `initialStart:${clickedDate.toISOString()}`,
+      )
     })
   })
 
