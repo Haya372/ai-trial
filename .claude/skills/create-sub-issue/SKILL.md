@@ -23,31 +23,32 @@ gh issue view <number>
 - 受け入れ条件を洗い出し、どのレイヤー（DB / ドメイン / API / フロントエンド）にまたがるか整理する
 - 関連PRDがあれば読み、目標・非目標・制約を把握する
 
-### ステップ 2: 類似の分割事例を探す
-
-過去に同種の機能で分割した実績があれば、粒度・命名・依存関係の書き方を踏襲する。
-
-```bash
-gh issue list --state all --search "in:body 親Issue" --json number,title,body
-```
-
-見つかった場合は該当Issue本文（特に「設計メモ」の書き方）を確認し、フォーマットを揃える。
-
-### ステップ 3: コードベースの構成を確認する
+### ステップ 2: コードベースの構成を確認する
 
 対象機能が触れるレイヤー（例: `apps/backend/domain` / `apps/backend/usecase` / `apps/backend/interface` / `apps/backend/db/migrations` / `apps/web/src/features`）をExploreし、既存の類似実装のディレクトリ構造を確認する。
 
-### ステップ 4: レイヤー単位で分割案を作る
+### ステップ 3: レイヤー単位で分割案を作る
 
-分割の粒度は `docs/guidelines/development-flow.md` の「PR分割ガイドライン」にある独立した関心事の単位（DBスキーマ/APIエンドポイント/フロントエンドUI）に合わせる。
+このプロジェクトの機能Issueは、以下のレイヤー単位への分割を標準パターンとする。
 
-**分割順序はADR-001のDependency Rule（依存の向きは常にDomain層へ）に従う。**
+| レイヤー | 内容 | Issue例 |
+|---|---|---|
+| Domain | エンティティ・値オブジェクト・リポジトリインターフェース | `Add EventShare domain model and repository interface` |
+| Infrastructure | DBマイグレーション・リポジトリ実装（Domainのインターフェースを満たす） | `Add event_shares table and repository implementation` |
+| Usecase/Interface | APIエンドポイント（1エンドポイント = 1 Issueを基本とする） | `Implement POST /events/:id/shares endpoint` |
+| Frontend | 画面・コンポーネント単位 | `Add share link generation UI to event detail view` |
 
-- Domain層（エンティティ・リポジトリインターフェース）は何にも依存しないため、まず設計・決定する
-- Infrastructure層（DBマイグレーション・リポジトリ実装）はDomain層が定義したインターフェースを満たす実装でしかないため、後で着手する
+分割の粒度は `docs/guidelines/development-flow.md` の「PR分割ガイドライン」にある独立した関心事の単位（DBスキーマ/APIエンドポイント/フロントエンドUI）にも合わせる。
+
+**分割順序はADR-001のDependency Rule（依存の向きは常にDomain層へ）に従い、上表の順（Domain → Infrastructure → Usecase/Interface → Frontend）で着手する。**
+
+- Domain層は何にも依存しないため、まず設計・決定する
+- Infrastructure層はDomain層が定義したインターフェースを満たす実装でしかないため、後で着手する
 - 「DBスキーマ→ドメインモデル」の順にすると、ドメイン設計の結果によってDBスキーマを作り直す（マイグレーションのやり直し）が発生し得るため避ける
+- Usecase/Interface層はInfrastructure層の実装が揃ってから着手する（CRUDであれば操作ごとに1 Issueへ分割する）
+- Frontend層は対応するAPIエンドポイントの完了後に着手する
 
-### ステップ 5: ADR相当の判断を洗い出す
+### ステップ 4: ADR相当の判断を洗い出す
 
 `detailed-design` スキルのステップ2.5と同様に、既存ADR（`docs/adr/`）でカバーされていない技術判断がないか確認する。
 
@@ -55,7 +56,7 @@ gh issue list --state all --search "in:body 親Issue" --json number,title,body
 - その判断に依存する後続Issue（多くはInfrastructure層のIssue）には「先行Issueで決定したADRに従う」と明記する
 - ADRの判断主体を後続Issue側に置かない（先に確定させる側が決定すべき判断を、後から追従する側に委ねると手戻りが起きる）
 
-### ステップ 6: 分割案をユーザーに提示し、承認を得る
+### ステップ 5: 分割案をユーザーに提示し、承認を得る
 
 以下の形式で提示し、**承認を得るまでIssueを起票しない**（複数Issueの起票は取り消しコストが高いため、単一Issue作成時のような無確認起票はしない）。
 
@@ -68,7 +69,7 @@ gh issue list --state all --search "in:body 親Issue" --json number,title,body
 
 ユーザーから粒度・順序の指摘があれば反映し、合意できるまで繰り返す。
 
-### ステップ 7: 本文を組み立てて起票する
+### ステップ 6: 本文を組み立てて起票する
 
 各sub-issueの本文は `create-issue` スキルの命名規則・テンプレート運用（`.github/ISSUE_TEMPLATE/feature.md` を読み込み `--body` で渡す、`--template`・`--label` は使わない）に従う。
 
@@ -78,7 +79,7 @@ gh issue list --state all --search "in:body 親Issue" --json number,title,body
 - 依存Issue: #NN（先行Issue）が完了していること（先行Issueがない場合は省略）
 - 後続Issue: #NN（後続Issue）はこの完了後に進める（後続Issueがない場合は省略）
 
-### ステップ 8: 依存順にIssueを作成し、前方参照を実番号に更新する
+### ステップ 7: 依存順にIssueを作成し、前方参照を実番号に更新する
 
 - 依存関係の順（先行Issueから）に `gh issue create` する
 - 後続Issueの番号はまだ存在しないため、作成時点では本文中の「後続Issue」欄を仮の記述にしておく
