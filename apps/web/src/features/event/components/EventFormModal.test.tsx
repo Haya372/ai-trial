@@ -84,6 +84,12 @@ describe('EventFormModal', () => {
       renderModal({ open: false })
       expect(screen.queryByText('予定を作成')).not.toBeInTheDocument()
     })
+
+    it('createモードでinitialStartが渡された場合、開始日時の初期値に設定する', () => {
+      const initialStart = new Date(2026, 8, 22, 14, 30)
+      renderModal({ mode: 'create', event: null, initialStart })
+      expect(screen.getByLabelText('開始日時')).toHaveValue('2026-09-22T14:30')
+    })
   })
 
   describe('バリデーション', () => {
