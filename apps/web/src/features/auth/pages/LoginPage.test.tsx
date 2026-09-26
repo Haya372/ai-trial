@@ -64,6 +64,13 @@ describe('LoginPage', () => {
     })
   })
 
+  it('reserves the validation message slot even when there is no error', () => {
+    const { container } = render(<LoginPage />)
+    expect(
+      container.querySelectorAll('[data-slot="form-message"]'),
+    ).toHaveLength(2)
+  })
+
   it('renders a link to the signup page', () => {
     render(<LoginPage />)
     const link = screen.getByRole('link', {
