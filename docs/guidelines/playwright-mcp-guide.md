@@ -41,7 +41,7 @@ Claude Codeでは `.mcp.json` の設定により、セッション起動時に�
 - `browser_snapshot` / `browser_take_screenshot` — 画面状態を取得する
 - `browser_click` / `browser_type` — 要素の操作を行う
 
-`apps/web` の開発サーバー（`mise exec -- pnpm dev:web`）を起動した状態で、対象ページに遷移し、実装した変更が意図通り表示・動作するかを確認する。
+バックエンド（`cd apps/backend && go run ./cmd/server`）と `apps/web` の開発サーバー（`mise exec -- pnpm dev:web`）を起動した状態で、対象ページに遷移し、実装した変更が意図通り表示・動作するかを確認する。
 
 ## トラブルシューティング
 

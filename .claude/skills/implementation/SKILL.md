@@ -65,8 +65,9 @@ HTTPハンドラーはユニットテスト（stub使用）に加え、**ルー�
 
 画面の見た目や挙動に関わる変更を行った場合、テストのパス確認だけでなく、Playwright MCPを使って実際にブラウザ上で動作確認する。
 
-1. `mise exec -- pnpm dev:web` で `apps/web` を起動する
-2. Playwright MCPの `browser_navigate` で対象ページに遷移し、`browser_snapshot` 等で意図通り表示・動作しているか確認する
+1. `cd apps/backend && go run ./cmd/server` でバックエンドを起動する
+2. `mise exec -- pnpm dev:web` で `apps/web` を起動する
+3. Playwright MCPの `browser_navigate` で対象ページに遷移し、`browser_snapshot` 等で意図通り表示・動作しているか確認する
 
 詳細は `docs/guidelines/playwright-mcp-guide.md` を参照。
 
