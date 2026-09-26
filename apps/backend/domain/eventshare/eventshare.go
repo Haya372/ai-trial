@@ -47,5 +47,7 @@ func (s *eventShareEntity) EventID() uuid.UUID   { return s.eventID }
 func (s *eventShareEntity) TokenHash() string    { return s.tokenHash }
 func (s *eventShareEntity) ExpiresAt() time.Time { return s.expiresAt }
 
-// IsExpired treats expiresAt itself as expired (SPEC-004: the boundary is inclusive).
-func (s *eventShareEntity) IsExpired() bool { return !time.Now().Before(s.expiresAt) }
+func (s *eventShareEntity) IsExpired() bool { return isExpired(time.Now(), s.expiresAt) }
+
+// isExpired treats expiresAt itself as expired (SPEC-004: the boundary is inclusive).
+func isExpired(now, expiresAt time.Time) bool { return !now.Before(expiresAt) }
