@@ -5,6 +5,7 @@ import { cn } from 'cn'
 
 // Re-export primitive parts
 const Popover = PopoverPrimitive.Root
+const PopoverTrigger = PopoverPrimitive.Trigger
 
 // PopoverContent: Portal + Positioner + Popup
 type PopoverContentProps = Omit<
@@ -48,4 +49,4 @@ function PopoverContent({
   )
 }
 
-export { Popover, PopoverContent }
+export { Popover, PopoverTrigger, PopoverContent }

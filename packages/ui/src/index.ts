@@ -38,7 +38,7 @@ export { Icon } from './Icon'
 export { Input } from './Input'
 export { Label } from './Label'
 export { List, ListItem } from './List'
-export { Popover, PopoverContent } from './Popover'
+export { Popover, PopoverContent, PopoverTrigger } from './Popover'
 export {
   Select,
   SelectContent,
