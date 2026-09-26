@@ -61,6 +61,17 @@ HTTPハンドラーはユニットテスト（stub使用）に加え、**ルー�
 
 ---
 
+## フロントエンドのUI変更を実装するとき
+
+画面の見た目や挙動に関わる変更を行った場合、テストのパス確認だけでなく、Playwright MCPを使って実際にブラウザ上で動作確認する。
+
+1. `mise exec -- pnpm dev:web` で `apps/web` を起動する
+2. Playwright MCPの `browser_navigate` で対象ページに遷移し、`browser_snapshot` 等で意図通り表示・動作しているか確認する
+
+詳細は `docs/guidelines/playwright-mcp-guide.md` を参照。
+
+---
+
 ## よくある落とし穴
 
 | 落とし穴 | 対処 |
@@ -78,3 +89,4 @@ HTTPハンドラーはユニットテスト（stub使用）に加え、**ルー�
 - `docs/guidelines/document-review-criteria.md` — ドキュメント作成時の観点（正確性・完全性・明瞭さ等）
 - `docs/guidelines/development-flow.md` — 全体の開発フロー（PRD → Issue → 詳細設計 → TDD実装 → PRレビュー → マージ）
 - `docs/guidelines/transaction-guidelines.md` — トランザクション管理（DBへの書き込みを伴うCommandを実装するとき）
+- `docs/guidelines/playwright-mcp-guide.md` — Playwright MCPによるUI動作確認（フロントエンドのUI変更を実装するとき）
