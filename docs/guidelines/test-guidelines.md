@@ -10,6 +10,12 @@
 
 TDDで書くテストは主に**単体テスト**。統合テスト・E2Eテストは別途計画する。
 
+### バックエンド（Go）における層別の方針
+
+- `infra/http`層（HTTPハンドラ）と`infrastructure/repository`層（DBアクセス）は、モックでの分離が実装の本質的な価値を薄めるため、Testcontainersで起動した実際のPostgreSQLを使ったIntegration Testとして実装する
+- 対象のテストファイルには `//go:build integration` ビルドタグを付与し、`make test-coverage TAGS=integration` で実行する（CIでも同様に実行される）
+- テスト間の干渉を防ぐため、各テスト終了時に対象テーブルを`TRUNCATE`する
+
 ## テストケースの網羅観点
 
 ### 1. 正常系（Happy Path）
