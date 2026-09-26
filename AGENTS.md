@@ -35,7 +35,7 @@ Claude CodeのSkillツールを持たないツールでも、該当する `SKILL
 | スタックPR作成 | `.claude/skills/stack-pr/SKILL.md` |
 | レビュー対応 | `.claude/skills/review-response/SKILL.md` |
 | 振り返り | `.claude/skills/retrospective/SKILL.md` |
-| ハーネス修正 | `.claude/skills/fix-harness/SKILL.md` |
+| ハーネス修正 | `.claude/skills/update-harness/SKILL.md` |
 
 ## コマンド実行
 

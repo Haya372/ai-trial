@@ -1,9 +1,9 @@
 ---
-name: fix-harness
+name: update-harness
 description: retrospectiveで洗い出した改善アクションを実際のファイルに反映するとき。スキル・CLAUDE.md/AGENTS.md・hook・設定ファイルなど、AIエージェントの運用基盤（ハーネス）を修正する。
 ---
 
-# ハーネス修正スキル
+# ハーネス更新スキル
 
 ## 目的
 
