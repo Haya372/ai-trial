@@ -94,7 +94,7 @@ func writeHistogram(b *strings.Builder, name string, points []metricdata.Histogr
 			le := lblsWithLE(dp.Attributes, fmt.Sprintf("%g", bound))
 			_, _ = fmt.Fprintf(b, "%s_bucket%s %d\n", name, le, dp.BucketCounts[i])
 		}
-		_, _ = fmt.Fprintf(b, "%s_bucket{le=\"+Inf\"%s} %d\n", name, labelsInner(dp.Attributes), dp.Count)
+		_, _ = fmt.Fprintf(b, "%s_bucket%s %d\n", name, lblsWithLE(dp.Attributes, "+Inf"), dp.Count)
 		_, _ = fmt.Fprintf(b, "%s_sum%s %g\n", name, lbls, dp.Sum)
 		_, _ = fmt.Fprintf(b, "%s_count%s %d\n", name, lbls, dp.Count)
 	}

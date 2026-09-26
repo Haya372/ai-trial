@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/telemetry"
@@ -40,6 +42,32 @@ func TestMetricsHandler_outputsPrometheusContentType(t *testing.T) {
 	ct := w.Header().Get("Content-Type")
 	if !strings.HasPrefix(ct, "text/plain") {
 		t.Errorf("expected text/plain content type, got %q", ct)
+	}
+}
+
+func TestMetricsHandler_histogramInfBucket_isValidPrometheusFormat(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	meter := mp.Meter("test")
+
+	hist, err := meter.Float64Histogram("http_request_duration_seconds")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hist.Record(context.Background(), 0.1,
+		metric.WithAttributes(attribute.String("method", "GET"), attribute.String("path", "/health")))
+
+	handler := telemetry.NewMetricsHandler(reader)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	body := w.Body.String()
+	// A label set must be a brace-wrapped, comma-separated list; a bare
+	// `le="+Inf"method="GET"` with no comma is invalid exposition format.
+	if !strings.Contains(body, `{le="+Inf",method="GET",path="/health"}`) {
+		t.Errorf("expected comma-separated +Inf bucket labels, got:\n%s", body)
 	}
 }
 
