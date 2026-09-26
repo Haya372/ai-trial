@@ -39,8 +39,8 @@ export function useQuickRegistrationForm(start: Date) {
       expectedStatus: 201,
       mode: 'create',
       successMessage: '予定を登録しました',
-      onSuccess: (data) => {
-        setPhase({ status: 'success', event: data as EventResponse })
+      onSuccess: (createdEvent) => {
+        setPhase({ status: 'success', event: createdEvent as EventResponse })
       },
     })
   }
