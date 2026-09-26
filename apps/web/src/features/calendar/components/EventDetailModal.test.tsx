@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { EventResponse } from '../../../api/generated'
@@ -140,7 +146,7 @@ describe('EventDetailModal', () => {
       expect(onClose).not.toHaveBeenCalled()
     })
 
-    it('確認ダイアログで「削除する」を押すとdeleteEventを呼び、成功後にonCloseを呼ぶ', async () => {
+    it('確認ダイアログで「削除」を押すとdeleteEventを呼び、成功後にonCloseを呼ぶ', async () => {
       const { deleteEvent } = await import('../../../api/generated')
       vi.mocked(deleteEvent).mockResolvedValueOnce({
         data: undefined,
@@ -150,7 +156,10 @@ describe('EventDetailModal', () => {
 
       const { onClose } = renderModal()
       fireEvent.click(screen.getByRole('button', { name: '削除' }))
-      fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+      const confirmDialog = screen.getByRole('alertdialog')
+      fireEvent.click(
+        within(confirmDialog).getByRole('button', { name: '削除' }),
+      )
 
       await waitFor(() => {
         expect(deleteEvent).toHaveBeenCalledWith('event-1')
@@ -173,7 +182,11 @@ describe('EventDetailModal', () => {
 
       renderModal()
       fireEvent.click(screen.getByRole('button', { name: '削除' }))
-      fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+      fireEvent.click(
+        within(screen.getByRole('alertdialog')).getByRole('button', {
+          name: '削除',
+        }),
+      )
 
       await waitFor(() => {
         expect(
@@ -198,7 +211,11 @@ describe('EventDetailModal', () => {
 
       const { onClose } = renderModal()
       fireEvent.click(screen.getByRole('button', { name: '削除' }))
-      fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+      fireEvent.click(
+        within(screen.getByRole('alertdialog')).getByRole('button', {
+          name: '削除',
+        }),
+      )
 
       await waitFor(() => {
         expect(mockToastError).toHaveBeenCalledWith(

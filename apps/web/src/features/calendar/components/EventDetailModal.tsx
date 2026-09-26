@@ -129,7 +129,7 @@ export default function EventDetailModal({
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? '削除中…' : '削除する'}
+              {isDeleting ? '削除中…' : '削除'}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
