@@ -159,6 +159,29 @@ describe('EventDetailModal', () => {
       expect(mockToastSuccess).toHaveBeenCalled()
     })
 
+    it('削除中は確認ダイアログのキャンセルボタンが無効化される', async () => {
+      const { deleteEvent } = await import('../../../api/generated')
+      let resolveDelete: (value: unknown) => void = () => {}
+      vi.mocked(deleteEvent).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveDelete = resolve
+          }),
+      )
+
+      renderModal()
+      fireEvent.click(screen.getByRole('button', { name: '削除' }))
+      fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: 'キャンセル' }),
+        ).toBeDisabled()
+      })
+
+      resolveDelete({ data: undefined, status: 204, headers: new Headers() })
+    })
+
     it('削除失敗時はエラートーストを表示し、モーダルを閉じない', async () => {
       const { deleteEvent } = await import('../../../api/generated')
       vi.mocked(deleteEvent).mockResolvedValueOnce({

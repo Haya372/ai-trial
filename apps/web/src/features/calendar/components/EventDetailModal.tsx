@@ -121,7 +121,9 @@ export default function EventDetailModal({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>
+              キャンセル
+            </AlertDialogCancel>
             <Button
               variant="destructive"
               onClick={handleDelete}
