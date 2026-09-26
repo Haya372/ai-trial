@@ -86,13 +86,18 @@ func writeGaugeFloat(b *strings.Builder, name string, points []metricdata.DataPo
 	}
 }
 
+// writeHistogram renders OTel's per-bucket (non-cumulative) BucketCounts as
+// Prometheus's cumulative "le" buckets, where le="X" must count every
+// observation <= X, not just the observations in that one sub-range.
 func writeHistogram(b *strings.Builder, name string, points []metricdata.HistogramDataPoint[float64]) {
 	_, _ = fmt.Fprintf(b, "# TYPE %s histogram\n", name)
 	for _, dp := range points {
 		lbls := labelsStr(dp.Attributes)
+		var cumulative uint64
 		for i, bound := range dp.Bounds {
+			cumulative += dp.BucketCounts[i]
 			le := lblsWithLE(dp.Attributes, fmt.Sprintf("%g", bound))
-			_, _ = fmt.Fprintf(b, "%s_bucket%s %d\n", name, le, dp.BucketCounts[i])
+			_, _ = fmt.Fprintf(b, "%s_bucket%s %d\n", name, le, cumulative)
 		}
 		_, _ = fmt.Fprintf(b, "%s_bucket%s %d\n", name, lblsWithLE(dp.Attributes, "+Inf"), dp.Count)
 		_, _ = fmt.Fprintf(b, "%s_sum%s %g\n", name, lbls, dp.Sum)
