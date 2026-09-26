@@ -83,7 +83,7 @@ gh issue view <number>
 
 - 依存関係の順（先行Issueから）に `gh issue create` する
 - 後続Issueの番号はまだ存在しないため、作成時点では本文中の「後続Issue」欄を仮の記述にしておく
-- 全Issue作成後、`gh issue edit <番号> --body "..."` で「後続Issue」欄を実際の番号に更新する
+- 全Issue作成後、前方参照が仮のままのIssueの本文を更新する。`gh issue edit --body` は本文全体を置き換えるため、**差分だけを組み立てて渡さない**。必ず `gh issue view <番号> --json body --jq .body` で現在の本文を取得し、「後続Issue」欄だけを実番号に差し替えた全文を `gh issue edit <番号> --body "..."` に渡す（そうしないと関連Issue/依存Issue/受け入れ条件/設計メモなど他のフィールドが消える）
 
 ---
 
