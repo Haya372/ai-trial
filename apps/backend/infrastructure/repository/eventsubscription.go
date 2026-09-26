@@ -24,6 +24,12 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+func eventSubscriptionFromRow(row query.EventSubscription) eventsubscription.EventSubscription {
+	return eventsubscription.New(
+		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), uuid.UUID(row.UserID.Bytes), row.CreatedAt.Time,
+	)
+}
+
 const eventSubscriptionsTable = "event_subscriptions"
 
 type eventSubscriptionRepository struct {
@@ -52,9 +58,7 @@ func (r *eventSubscriptionRepository) Create(
 		return nil, fmt.Errorf("insert event subscription: %w", err)
 	}
 
-	return eventsubscription.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), uuid.UUID(row.UserID.Bytes), row.CreatedAt.Time,
-	), nil
+	return eventSubscriptionFromRow(row), nil
 }
 
 func (r *eventSubscriptionRepository) FindByID(
@@ -70,9 +74,7 @@ func (r *eventSubscriptionRepository) FindByID(
 		return nil, fmt.Errorf("find event subscription by id: %w", err)
 	}
 
-	return eventsubscription.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), uuid.UUID(row.UserID.Bytes), row.CreatedAt.Time,
-	), nil
+	return eventSubscriptionFromRow(row), nil
 }
 
 func (r *eventSubscriptionRepository) FindByEventAndUserID(
@@ -92,9 +94,7 @@ func (r *eventSubscriptionRepository) FindByEventAndUserID(
 		return nil, fmt.Errorf("find event subscription by event and user id: %w", err)
 	}
 
-	return eventsubscription.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), uuid.UUID(row.UserID.Bytes), row.CreatedAt.Time,
-	), nil
+	return eventSubscriptionFromRow(row), nil
 }
 
 func (r *eventSubscriptionRepository) ListByUserID(
@@ -109,9 +109,7 @@ func (r *eventSubscriptionRepository) ListByUserID(
 
 	result := make([]eventsubscription.EventSubscription, 0, len(rows))
 	for _, row := range rows {
-		result = append(result, eventsubscription.New(
-			uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), uuid.UUID(row.UserID.Bytes), row.CreatedAt.Time,
-		))
+		result = append(result, eventSubscriptionFromRow(row))
 	}
 	return result, nil
 }
