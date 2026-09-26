@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { EventResponse } from '../../api/generated'
 import {
+  DEFAULT_EVENT_DURATION_MS,
   getEventErrorMessage,
   toDateTimeLocalValue,
   toFormValues,
   toIsoString,
 } from './utils'
+
+describe('DEFAULT_EVENT_DURATION_MS', () => {
+  it('1時間をミリ秒で表す', () => {
+    expect(DEFAULT_EVENT_DURATION_MS).toBe(60 * 60 * 1000)
+  })
+})
 
 describe('toDateTimeLocalValue', () => {
   it('ISO文字列をdatetime-local形式（YYYY-MM-DDTHH:mm）に変換する', () => {
