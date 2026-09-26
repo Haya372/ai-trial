@@ -71,6 +71,10 @@ Claude CodeのSkillツールを持たないツールでも、該当する `SKILL
 
 各AgentはSkillを参照しながら作業する。Skillは `Skill` ツールで呼び出す。
 
+### コマンド実行時の注意
+
+`mise exec -- pnpm <command>` 等のmise経由のコマンドは、mise が環境変数解決のために `.env.example` を読み込む。BashツールのデフォルトサンドボックスはURLパターン `.env.*` を読み取り拒否対象にしており、これに `.env.example` もマッチしてしまうため、mise側の環境変数テンプレート解決が失敗しコマンドがエラーになることがある。このエラーが出た場合はサンドボックスを無効化して再実行する。
+
 ### 制約
 
 - 技術スタック決定後は `.claude/settings.local.json` のHookにLinterコマンドを追加する

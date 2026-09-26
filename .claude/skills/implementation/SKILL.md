@@ -66,6 +66,8 @@ HTTPハンドラーはユニットテスト（stub使用）に加え、**ルー�
 | 落とし穴 | 対処 |
 |---|---|
 | ハンドラーのユニットテストだけで終わらせる | 統合テストも実装する（上記「HTTPハンドラーを実装するとき」参照） |
+| 新規依存パッケージをキャレット等のレンジ指定で追加する | 追加先の `package.json` 内の既存の依存関係のバージョン指定方式（完全固定 or レンジ）に合わせる |
+| READMEやコメントに「見ればわかること」を書く | コードコメントだけでなく、実装に伴い作成・更新するドキュメントにも `docs/guidelines/document-review-criteria.md` の観点を適用する |
 
 ---
 
@@ -73,5 +75,6 @@ HTTPハンドラーはユニットテスト（stub使用）に加え、**ルー�
 
 - `superpowers:test-driven-development` — Red-Green-Refactorサイクルの詳細
 - `docs/guidelines/guidelines.md` — 設計原則
+- `docs/guidelines/document-review-criteria.md` — ドキュメント作成時の観点（正確性・完全性・明瞭さ等）
 - `docs/guidelines/development-flow.md` — 全体の開発フロー（PRD → Issue → 詳細設計 → TDD実装 → PRレビュー → マージ）
 - `docs/guidelines/transaction-guidelines.md` — トランザクション管理（DBへの書き込みを伴うCommandを実装するとき）
