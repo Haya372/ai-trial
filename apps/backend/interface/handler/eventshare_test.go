@@ -21,6 +21,8 @@ import (
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
+const testPlainToken = "plaintext-token"
+
 type stubCreateShareExec struct {
 	fn func(context.Context, uuid.UUID, eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error)
 }
@@ -65,7 +67,7 @@ func createShareRequestAsUser(t *testing.T, id, body string) *http.Request {
 
 func newTestShare(t *testing.T, eventID uuid.UUID, expiresAt time.Time) domaineventshare.EventShare {
 	t.Helper()
-	s, err := domaineventshare.New(uuid.New(), eventID, domaineventshare.HashToken("plaintext-token"), expiresAt)
+	s, err := domaineventshare.New(uuid.New(), eventID, domaineventshare.HashToken(testPlainToken), expiresAt)
 	if err != nil {
 		t.Fatalf("build test share: %v", err)
 	}
@@ -105,7 +107,7 @@ func TestEventShareHandler_CreateShare_NoBody_DefaultsExpiresAtToNilInput(t *tes
 			gotExpiresAt = in.ExpiresAt
 			return &eventshareuc.CreateShareResult{
 				Share: newTestShare(t, eventID, expiresAt),
-				Token: "plaintext-token",
+				Token: testPlainToken,
 			}, nil
 		},
 	}
@@ -137,6 +139,33 @@ func TestEventShareHandler_CreateShare_NoBody_DefaultsExpiresAtToNilInput(t *tes
 	}
 }
 
+func TestEventShareHandler_CreateShare_WhitespaceOnlyBody_DefaultsExpiresAtToNilInput(t *testing.T) {
+	eventID := uuid.New()
+	expiresAt := time.Now().UTC().Add(time.Hour)
+	var gotExpiresAt *time.Time
+	stub := &stubCreateShareExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error) {
+			gotExpiresAt = in.ExpiresAt
+			return &eventshareuc.CreateShareResult{
+				Share: newTestShare(t, eventID, expiresAt),
+				Token: testPlainToken,
+			}, nil
+		},
+	}
+	h := handler.NewEventShareHandler(stub, slog.New(slog.DiscardHandler))
+
+	req := createShareRequestAsUser(t, eventID.String(), "  \n  ")
+	w := httptest.NewRecorder()
+	h.CreateShare(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if gotExpiresAt != nil {
+		t.Errorf("expected nil ExpiresAt override, got %v", gotExpiresAt)
+	}
+}
+
 func TestEventShareHandler_CreateShare_WithExpiresAtBody_PassesExpiresAtToExecutor(t *testing.T) {
 	eventID := uuid.New()
 	override := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
@@ -146,7 +175,7 @@ func TestEventShareHandler_CreateShare_WithExpiresAtBody_PassesExpiresAtToExecut
 			gotExpiresAt = in.ExpiresAt
 			return &eventshareuc.CreateShareResult{
 				Share: newTestShare(t, eventID, override),
-				Token: "plaintext-token",
+				Token: testPlainToken,
 			}, nil
 		},
 	}
