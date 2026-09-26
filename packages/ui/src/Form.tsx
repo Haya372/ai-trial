@@ -7,6 +7,7 @@ import {
   FormProvider,
   useFormContext,
 } from 'react-hook-form'
+import { cn } from 'cn'
 import { Label } from './Label'
 
 const Form = FormProvider
@@ -50,10 +51,17 @@ function FormMessage(
   const { name } = React.useContext(FormFieldContext)
   const { getFieldState, formState } = useFormContext()
   const { error } = getFieldState(name, formState)
-  if (!error?.message) return null
   return (
-    <span className="text-destructive text-sm" {...props}>
-      {error.message}
+    <span
+      data-slot="form-message"
+      className={cn(
+        'text-destructive text-sm block min-h-5',
+        !error?.message && 'invisible',
+      )}
+      aria-hidden={!error?.message}
+      {...props}
+    >
+      {error?.message ?? ' '}
     </span>
   )
 }
