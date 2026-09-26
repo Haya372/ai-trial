@@ -11,20 +11,20 @@
 
 ## ファイル構成
 
-```
+```text
 src/i18n/
-├── config.ts          # i18next の初期化（副作用モジュール）
-├── resources.ts       # 全ロケールのJSONを集約
-├── i18n.d.ts          # TypeScript 型augmentation（キー補完を有効化）
-├── test-init.ts       # テスト用初期化（test-setup.ts から import）
-├── README.md          # このファイル
+├── config.ts
+├── resources.ts
+├── i18n.d.ts
+├── test-init.ts
+├── README.md
 └── locales/
-    ├── ja/            # 日本語リソース
+    ├── ja/
     │   ├── common.json
     │   ├── auth.json
     │   ├── calendar.json
     │   └── event.json
-    └── en/            # 英語リソース（ja と同じキー構成）
+    └── en/
         ├── common.json
         ├── auth.json
         ├── calendar.json
@@ -85,40 +85,6 @@ src/i18n/
 - ボタンラベルは体言止め（例: `save` / `cancel` / `delete`）
 - 動的補間を伴うキーに特別な接尾辞は付けない（`{{var}}` 記法で自然に判別できる）
 
-## 補間の書き方
-
-翻訳リソースに `{{変数名}}` 形式で埋め込み、`t()` 呼び出し時に値を渡す。
-
-```json
-{
-  "greeting": "こんにちは、{{name}}さん"
-}
-```
-
-```tsx
-t('greeting', { name: '田中' })  // → "こんにちは、田中さん"
-```
-
-## 言語切り替え
-
-コンポーネントから直接 `i18n.changeLanguage()` を呼ぶ。
-
-```tsx
-import { useTranslation } from 'react-i18next'
-
-const { i18n } = useTranslation()
-
-// 言語を英語に切り替え（localStorageに永続化される）
-await i18n.changeLanguage('en')
-```
-
-言語選択UIは未実装（別Issueで対応予定）。ブラウザの devtools コンソールから確認する場合は:
-
-```js
-localStorage.setItem('i18nextLng', 'en')
-// ページリロードすると英語表示になる
-```
-
 ## Zodスキーマでの利用（パターン A 推奨）
 
 Zodスキーマ内のバリデーションメッセージを i18n 化する場合、フォームフック内で `t` 関数を使ってスキーマを構築する。
@@ -136,9 +102,3 @@ const schema = useMemo(
 ```
 
 詳細な実装パターンは Issue #207 で確立予定。
-
-## 将来対応
-
-- **言語切り替えUI**: メニュー等のUIは未実装。別Issueで追加予定
-- **`ja`/`en` のキー parity チェック**: `en` の翻訳が本格的に追加され始めたタイミングで、parity検査スクリプトを別Issueとして起票する予定
-- **動的リソースロード**: 現在は静的importでリソースを同梱。翻訳量が増えた場合は `i18next-http-backend` への移行を検討する
