@@ -59,18 +59,19 @@ export default function CalendarPage() {
     setDetailModalOpen(true)
   }
 
-  function handleCreateClick() {
+  function openCreateForm(start: Date | null) {
     setSelectedEvent(null)
     setFormMode('create')
-    setInitialStart(null)
+    setInitialStart(start)
     setFormModalOpen(true)
   }
 
+  function handleCreateClick() {
+    openCreateForm(null)
+  }
+
   function handleDateClick(date: Date) {
-    setSelectedEvent(null)
-    setFormMode('create')
-    setInitialStart(date)
-    setFormModalOpen(true)
+    openCreateForm(date)
   }
 
   function handleEditClick(event: EventResponse) {
