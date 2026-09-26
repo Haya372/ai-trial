@@ -1,9 +1,9 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "npx",
+      "command": "pnpm",
       "args": [
-        "-y",
+        "dlx",
         "@playwright/mcp@latest",
         "--allowed-origins",
         "http://localhost:*;http://127.0.0.1:*"
