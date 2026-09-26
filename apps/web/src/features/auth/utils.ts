@@ -1,4 +1,4 @@
-import type { TFunction } from 'i18next'
+import type { ParseKeys, TFunction } from 'i18next'
 import {
   ConflictErrorResponseCode,
   InternalErrorResponseCode,
@@ -10,36 +10,46 @@ function hasCode(value: unknown): value is { code: string } {
   return typeof value === 'object' && value !== null && 'code' in value
 }
 
+function mapErrorToMessage<K extends ParseKeys<'auth'>>(
+  error: unknown,
+  t: TFunction<'auth'>,
+  codeToKey: Record<string, K>,
+  fallbackKey: K,
+): string {
+  if (hasCode(error) && error.code in codeToKey) {
+    return t(codeToKey[error.code])
+  }
+  return t(fallbackKey)
+}
+
 export function getLoginErrorMessage(
   error: unknown,
   t: TFunction<'auth'>,
 ): string {
-  if (hasCode(error)) {
-    switch (error.code) {
-      case UnauthorizedErrorResponseCode.UNAUTHORIZED:
-        return t('login.errors.unauthorized')
-      case ValidationErrorResponseCode.VALIDATION_ERROR:
-        return t('errors.validationError')
-      case InternalErrorResponseCode.INTERNAL_ERROR:
-        return t('errors.internalError')
-    }
-  }
-  return t('login.errors.fallback')
+  return mapErrorToMessage(
+    error,
+    t,
+    {
+      [UnauthorizedErrorResponseCode.UNAUTHORIZED]: 'login.errors.unauthorized',
+      [ValidationErrorResponseCode.VALIDATION_ERROR]: 'errors.validationError',
+      [InternalErrorResponseCode.INTERNAL_ERROR]: 'errors.internalError',
+    },
+    'login.errors.fallback',
+  )
 }
 
 export function getSignupErrorMessage(
   error: unknown,
   t: TFunction<'auth'>,
 ): string {
-  if (hasCode(error)) {
-    switch (error.code) {
-      case ConflictErrorResponseCode.CONFLICT:
-        return t('signup.errors.conflict')
-      case ValidationErrorResponseCode.VALIDATION_ERROR:
-        return t('errors.validationError')
-      case InternalErrorResponseCode.INTERNAL_ERROR:
-        return t('errors.internalError')
-    }
-  }
-  return t('signup.errors.fallback')
+  return mapErrorToMessage(
+    error,
+    t,
+    {
+      [ConflictErrorResponseCode.CONFLICT]: 'signup.errors.conflict',
+      [ValidationErrorResponseCode.VALIDATION_ERROR]: 'errors.validationError',
+      [InternalErrorResponseCode.INTERNAL_ERROR]: 'errors.internalError',
+    },
+    'signup.errors.fallback',
+  )
 }
