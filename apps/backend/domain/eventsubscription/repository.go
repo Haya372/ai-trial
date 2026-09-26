@@ -10,6 +10,8 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, s EventSubscription) (EventSubscription, error)
+	// FindByID returns ErrEventSubscriptionNotFound if no subscription with the
+	// given ID exists.
 	FindByID(ctx context.Context, id uuid.UUID) (EventSubscription, error)
 	// FindByEventAndUserID returns ErrEventSubscriptionNotFound if the user has
 	// not subscribed to the event, so callers can treat "add to my calendar"
