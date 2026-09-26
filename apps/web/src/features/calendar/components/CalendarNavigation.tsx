@@ -33,6 +33,7 @@ function formatPeriodLabel(
   const startYear = weekStart.getFullYear()
   const startMonth = weekStart.getMonth() + 1
   const startDay = weekStart.getDate()
+  const endYear = weekEnd.getFullYear()
   const endMonth = weekEnd.getMonth() + 1
   const endDay = weekEnd.getDate()
 
@@ -41,6 +42,16 @@ function formatPeriodLabel(
       year: startYear,
       month: startMonth,
       startDay,
+      endDay,
+    })
+  }
+  if (startYear !== endYear) {
+    return t('navigation.weekLabelDiffYear', {
+      year: startYear,
+      month: startMonth,
+      startDay,
+      endYear,
+      endMonth,
       endDay,
     })
   }

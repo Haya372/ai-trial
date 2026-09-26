@@ -5,7 +5,8 @@
     "today": "Today",
     "monthLabel": "{{year}}/{{month}}",
     "weekLabelSameMonth": "{{month}}/{{startDay}} - {{endDay}}, {{year}}",
-    "weekLabelDiffMonth": "{{month}}/{{startDay}} - {{endMonth}}/{{endDay}}, {{year}}"
+    "weekLabelDiffMonth": "{{month}}/{{startDay}} - {{endMonth}}/{{endDay}}, {{year}}",
+    "weekLabelDiffYear": "{{month}}/{{startDay}}/{{year}} - {{endMonth}}/{{endDay}}/{{endYear}}"
   },
   "viewTabs": {
     "month": "Month",
