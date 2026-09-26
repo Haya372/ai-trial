@@ -14,6 +14,7 @@ import (
 	"go.uber.org/dig"
 
 	"github.com/Haya372/ai-trial/backend/domain/event"
+	"github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
@@ -24,6 +25,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/usecase"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
+	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
 const serviceName = "ai-trial-backend"
@@ -43,6 +45,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		repository.NewSessionRepository,
 		repository.NewEventQueryRepository,
 		repository.NewEventRepository,
+		repository.NewEventShareRepository,
 		newSignupExecutor,
 		newLoginExecutor,
 		newLogoutExecutor,
@@ -50,9 +53,11 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newCreateEventExecutor,
 		newUpdateEventExecutor,
 		newDeleteEventExecutor,
+		newCreateShareExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
 		handler.NewEventHandler,
+		handler.NewEventShareHandler,
 		newRouter,
 	} {
 		if err := c.Provide(p); err != nil {
@@ -129,10 +134,17 @@ func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.Del
 	return eventuc.NewDeleteEventCommand(r, logger)
 }
 
+func newCreateShareExecutor(
+	er event.Repository, sr eventshare.Repository, logger *slog.Logger,
+) handler.CreateShareExecutor {
+	return eventshareuc.NewCreateShareCommand(er, sr, logger)
+}
+
 func newRouter(
 	health *handler.HealthHandler,
 	auth *handler.AuthHandler,
 	ev *handler.EventHandler,
+	es *handler.EventShareHandler,
 	sessRepo session.Repository,
 	userRepo user.Repository,
 	logger *slog.Logger,
@@ -154,5 +166,6 @@ func newRouter(
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events", ev.CreateEvent)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/events/{id}", ev.UpdateEvent)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/events/{id}", ev.DeleteEvent)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events/{id}/shares", es.CreateShare)
 	return r
 }
