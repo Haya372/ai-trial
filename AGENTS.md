@@ -23,6 +23,7 @@ Claude CodeのSkillツールを持たないツールでも、該当する `SKILL
 | 工程 | 参照するファイル |
 |---|---|
 | Issue着手 | `.claude/skills/start-issue/SKILL.md` |
+| Issue分割 | `.claude/skills/create-sub-issue/SKILL.md` |
 | 要件定義・PRD作成 | `.claude/skills/requirements-definition/SKILL.md` |
 | Issue起票 | `.claude/skills/create-issue/SKILL.md` |
 | 仕様定義 | `.claude/skills/specification/SKILL.md` |
