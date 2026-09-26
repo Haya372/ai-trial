@@ -1,0 +1,8 @@
+type: object
+properties:
+  expiresAt:
+    type: ["string", "null"]
+    format: date-time
+    description: >-
+      Optional expiry for the share link. Defaults to the event's end time
+      when omitted.

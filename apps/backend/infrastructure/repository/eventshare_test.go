@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 )
@@ -57,7 +58,7 @@ func TestEventShareRepository_Create_PersistsAndReturnsEventShare(t *testing.T) 
 	}
 }
 
-func TestEventShareRepository_Create_NonExistentEventID_ReturnsError(t *testing.T) {
+func TestEventShareRepository_Create_NonExistentEventID_ReturnsErrEventNotFound(t *testing.T) {
 	setupTest(t)
 
 	repo := repository.NewEventShareRepository(testPool, testTracerProvider)
@@ -65,8 +66,8 @@ func TestEventShareRepository_Create_NonExistentEventID_ReturnsError(t *testing.
 	s := newTestEventShare(t, uuid.New(), "plain-token-orphan", time.Now().UTC().Add(time.Hour))
 
 	_, err := repo.Create(context.Background(), s)
-	if err == nil {
-		t.Fatal("expected an error for a non-existent event_id, got nil")
+	if !errors.Is(err, domainevent.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound for a non-existent event_id, got %v", err)
 	}
 }
 

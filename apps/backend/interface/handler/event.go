@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/oapi-codegen/runtime"
 
-	"github.com/Haya372/ai-trial/backend/domain"
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
@@ -291,26 +289,7 @@ func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventI
 }
 
 func (h *EventHandler) writeEventError(w http.ResponseWriter, r *http.Request, err error) {
-	var ve *domain.ValidationError
-	var de *domain.DomainError
-
-	switch {
-	case errors.As(err, &ve):
-		details := make([]response.ErrorDetail, len(ve.Details))
-		for i, d := range ve.Details {
-			details[i] = response.ErrorDetail{Field: d.Field, Code: d.Code, Message: d.Message}
-		}
-		response.WriteValidationError(w, details)
-	case errors.As(err, &de):
-		switch de.Code() {
-		case domainevent.CodeEventNotFound:
-			response.WriteError(w, http.StatusNotFound, errCodeNotFound, "Resource not found")
-		default:
-			h.logger.Error("unexpected domain error in event handler", "error", err, "path", r.URL.Path)
-			response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
-		}
-	default:
-		h.logger.Error("internal error in event handler", "error", err, "path", r.URL.Path)
-		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
-	}
+	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
+		domainevent.CodeEventNotFound: {status: http.StatusNotFound, code: errCodeNotFound, message: "Resource not found"},
+	})
 }

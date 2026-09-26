@@ -1,0 +1,12 @@
+type: object
+required:
+  - url
+  - expiresAt
+properties:
+  url:
+    type: string
+    description: Share link path, e.g. "/share/{token}".
+    example: "/share/AbCdEf0123456789"
+  expiresAt:
+    type: string
+    format: date-time
