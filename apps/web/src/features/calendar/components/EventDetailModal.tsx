@@ -72,20 +72,20 @@ export default function EventDetailModal({
           <div className="flex flex-col gap-2 text-sm">
             <div>
               <span className="text-muted-foreground">
-                {t('eventDetail.startLabel')}
+                {t('eventDetail.startLabel')}:{' '}
               </span>
               <span>{formatDateTime(t, event.startAt)}</span>
             </div>
             <div>
               <span className="text-muted-foreground">
-                {t('eventDetail.endLabel')}
+                {t('eventDetail.endLabel')}:{' '}
               </span>
               <span>{formatDateTime(t, event.endAt)}</span>
             </div>
             {event.description && (
               <div>
                 <span className="text-muted-foreground">
-                  {t('eventDetail.noteLabel')}
+                  {t('eventDetail.noteLabel')}:{' '}
                 </span>
                 <span>{event.description}</span>
               </div>
@@ -93,7 +93,7 @@ export default function EventDetailModal({
             {event.location && (
               <div>
                 <span className="text-muted-foreground">
-                  {t('eventDetail.locationLabel')}
+                  {t('eventDetail.locationLabel')}:{' '}
                 </span>
                 <span>{event.location}</span>
               </div>
@@ -101,7 +101,7 @@ export default function EventDetailModal({
             {event.url && (
               <div>
                 <span className="text-muted-foreground">
-                  {t('eventDetail.urlLabel')}
+                  {t('eventDetail.urlLabel')}:{' '}
                 </span>
                 <a
                   href={event.url}
