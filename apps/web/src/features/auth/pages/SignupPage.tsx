@@ -8,6 +8,7 @@ import {
   Input,
   Text,
 } from '@repo/ui'
+import { useTranslation } from 'react-i18next'
 import { useSignupForm } from '../hooks/useSignupForm'
 
 interface SignupPageProps {
@@ -15,6 +16,7 @@ interface SignupPageProps {
 }
 
 export default function SignupPage({ onSuccess }: SignupPageProps) {
+  const { t } = useTranslation('auth')
   const { form, onSubmit } = useSignupForm(onSuccess)
 
   return (
@@ -23,13 +25,13 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
         onSubmit={form.handleSubmit(onSubmit)}
         className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
       >
-        <Text variant="h2">新規登録</Text>
+        <Text variant="h2">{t('signup.title')}</Text>
         <FormField
           control={form.control}
           name="email"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>メールアドレス</FormLabel>
+              <FormLabel>{t('fields.email')}</FormLabel>
               <Input
                 id={field.name}
                 type="email"
@@ -46,7 +48,7 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
           name="password"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>パスワード</FormLabel>
+              <FormLabel>{t('fields.password')}</FormLabel>
               <Input
                 id={field.name}
                 type="password"
@@ -63,7 +65,7 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
           name="displayName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>表示名</FormLabel>
+              <FormLabel>{t('fields.displayName')}</FormLabel>
               <Input id={field.name} type="text" {...field} />
               <FormMessage />
             </FormItem>
@@ -74,7 +76,9 @@ export default function SignupPage({ onSuccess }: SignupPageProps) {
           variant="primary"
           disabled={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? '登録中…' : '登録'}
+          {form.formState.isSubmitting
+            ? t('signup.submitButtonLoading')
+            : t('signup.submitButton')}
         </Button>
       </form>
     </Form>
