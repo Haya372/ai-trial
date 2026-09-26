@@ -9,6 +9,7 @@ import type {
   EventClickInfo,
 } from '@fullcalendar/react'
 import { useEffect, useRef } from 'react'
+import { extractDateClickResult } from './createDateClickHandler'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -55,10 +56,8 @@ export function WeekCalendar({
   }
 
   function handleDateClick(arg: DateClickInfo) {
-    onTimeSlotClick(arg.date, {
-      x: arg.jsEvent.clientX,
-      y: arg.jsEvent.clientY,
-    })
+    const { date, anchor } = extractDateClickResult(arg)
+    onTimeSlotClick(date, anchor)
   }
 
   function handleDatesSet(info: DatesSetInfo) {
