@@ -106,4 +106,16 @@ describe('getEventErrorMessage', () => {
       '予定の更新に失敗しました',
     )
   })
+
+  it('未知のエラーの場合、deleteモードでは削除失敗メッセージを返す', () => {
+    expect(getEventErrorMessage(new Error('unknown'), 'delete')).toBe(
+      '予定の削除に失敗しました',
+    )
+  })
+
+  it('deleteモードでもNOT_FOUND等のコード別メッセージを返す', () => {
+    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'delete')).toBe(
+      '予定が見つかりませんでした（削除された可能性があります）',
+    )
+  })
 })
