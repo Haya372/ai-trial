@@ -37,4 +37,4 @@ CREATE TABLE event_shares (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX event_shares_event_id_idx ON event_shares (event_id);
+CREATE INDEX idx_event_shares_event_id ON event_shares (event_id);
