@@ -12,6 +12,7 @@
     "week": "Week"
   },
   "eventDetail": {
+    "dateTimeFormat": "{{month}}/{{day}}/{{year}} {{time}}",
     "startLabel": "Start: ",
     "endLabel": "End: ",
     "noteLabel": "Note: ",

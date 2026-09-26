@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@repo/ui'
+import type { TFunction } from 'i18next'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
@@ -32,13 +33,13 @@ function formatTime(date: Date): string {
   return `${h}:${m}`
 }
 
-function formatDateTime(iso: string): string {
+function formatDateTime(t: TFunction<'calendar'>, iso: string): string {
   const date = new Date(iso)
-  const y = date.getFullYear()
-  const mo = date.getMonth() + 1
-  const d = date.getDate()
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
   const time = formatTime(date)
-  return `${y}年${mo}月${d}日 ${time}`
+  return t('eventDetail.dateTimeFormat', { year, month, day, time })
 }
 
 export default function EventDetailModal({
@@ -73,13 +74,13 @@ export default function EventDetailModal({
               <span className="text-muted-foreground">
                 {t('eventDetail.startLabel')}
               </span>
-              <span>{formatDateTime(event.startAt)}</span>
+              <span>{formatDateTime(t, event.startAt)}</span>
             </div>
             <div>
               <span className="text-muted-foreground">
                 {t('eventDetail.endLabel')}
               </span>
-              <span>{formatDateTime(event.endAt)}</span>
+              <span>{formatDateTime(t, event.endAt)}</span>
             </div>
             {event.description && (
               <div>

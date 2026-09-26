@@ -12,6 +12,7 @@
     "week": "週"
   },
   "eventDetail": {
+    "dateTimeFormat": "{{year}}年{{month}}月{{day}}日 {{time}}",
     "startLabel": "開始: ",
     "endLabel": "終了: ",
     "noteLabel": "メモ: ",
