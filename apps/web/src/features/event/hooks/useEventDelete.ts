@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { deleteEvent } from '../../../api/generated'
 import { runEventMutation } from '../runEventMutation'
@@ -8,6 +9,7 @@ export function useEventDelete(
   event: EventResponse | null,
   onDeleted: () => void,
 ) {
+  const { t } = useTranslation(['event', 'common'])
   const queryClient = useQueryClient()
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -19,7 +21,8 @@ export function useEventDelete(
       request: deleteEvent(event.id),
       expectedStatus: 204,
       mode: 'delete',
-      successMessage: '予定を削除しました',
+      successMessage: t('toast.deleteSuccess'),
+      t,
       onSuccess: onDeleted,
     })
     setIsDeleting(false)

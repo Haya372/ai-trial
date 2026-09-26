@@ -1,5 +1,10 @@
+import i18next from 'i18next'
 import { describe, expect, it } from 'vitest'
-import { eventFormSchema, quickRegistrationSchema } from './types'
+import { createEventFormSchema, createQuickRegistrationSchema } from './types'
+
+const t = i18next.getFixedT('ja', 'event')
+const eventFormSchema = createEventFormSchema(t)
+const quickRegistrationSchema = createQuickRegistrationSchema(t)
 
 const validData = {
   title: '定例ミーティング',

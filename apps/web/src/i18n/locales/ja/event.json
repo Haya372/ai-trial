@@ -1,1 +1,42 @@
-{}
+{
+  "fields": {
+    "title": "タイトル",
+    "startAt": "開始日時",
+    "endAt": "終了日時",
+    "description": "メモ",
+    "location": "場所",
+    "url": "URL"
+  },
+  "form": {
+    "createTitle": "予定を作成",
+    "editTitle": "予定を編集",
+    "cancelButton": "キャンセル",
+    "submitButton": "保存",
+    "submitButtonLoading": "保存中…"
+  },
+  "quickRegistration": {
+    "titlePlaceholder": "タイトルを入力",
+    "submitButton": "保存",
+    "submitButtonLoading": "登録中…",
+    "successMessage": "予定を登録しました",
+    "editDetailLink": "詳細を編集"
+  },
+  "toast": {
+    "createSuccess": "予定を登録しました",
+    "updateSuccess": "予定を更新しました",
+    "deleteSuccess": "予定を削除しました"
+  },
+  "validation": {
+    "titleRequired": "タイトルを入力してください",
+    "startAtRequired": "開始日時を入力してください",
+    "endAtRequired": "終了日時を入力してください",
+    "endAtAfterStart": "終了日時は開始日時より後に設定してください"
+  },
+  "errors": {
+    "notFound": "予定が見つかりませんでした（削除された可能性があります）",
+    "unauthorized": "ログインが必要です",
+    "createFallback": "予定の登録に失敗しました",
+    "editFallback": "予定の更新に失敗しました",
+    "deleteFallback": "予定の削除に失敗しました"
+  }
+}

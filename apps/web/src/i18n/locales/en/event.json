@@ -1,1 +1,42 @@
-{}
+{
+  "fields": {
+    "title": "Title",
+    "startAt": "Start",
+    "endAt": "End",
+    "description": "Notes",
+    "location": "Location",
+    "url": "URL"
+  },
+  "form": {
+    "createTitle": "Create event",
+    "editTitle": "Edit event",
+    "cancelButton": "Cancel",
+    "submitButton": "Save",
+    "submitButtonLoading": "Saving…"
+  },
+  "quickRegistration": {
+    "titlePlaceholder": "Enter a title",
+    "submitButton": "Save",
+    "submitButtonLoading": "Saving…",
+    "successMessage": "Event created",
+    "editDetailLink": "Edit details"
+  },
+  "toast": {
+    "createSuccess": "Event created",
+    "updateSuccess": "Event updated",
+    "deleteSuccess": "Event deleted"
+  },
+  "validation": {
+    "titleRequired": "Title is required",
+    "startAtRequired": "Start time is required",
+    "endAtRequired": "End time is required",
+    "endAtAfterStart": "End time must be after start time"
+  },
+  "errors": {
+    "notFound": "Event not found (it may have been deleted)",
+    "unauthorized": "Login is required",
+    "createFallback": "Failed to create event",
+    "editFallback": "Failed to update event",
+    "deleteFallback": "Failed to delete event"
+  }
+}

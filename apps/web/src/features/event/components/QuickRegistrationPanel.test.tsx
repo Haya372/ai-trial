@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import i18n from 'i18next'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import QuickRegistrationPanel from './QuickRegistrationPanel'
@@ -87,6 +88,20 @@ describe('QuickRegistrationPanel', () => {
         ).toBeInTheDocument()
       })
       expect(createEvent).not.toHaveBeenCalled()
+    })
+
+    it('表示中のバリデーションエラーは言語切り替え後に翻訳し直される', async () => {
+      renderPanel()
+      fireEvent.click(screen.getByRole('button', { name: '保存' }))
+      await waitFor(() => {
+        expect(
+          screen.getByText('タイトルを入力してください'),
+        ).toBeInTheDocument()
+      })
+      await i18n.changeLanguage('en')
+      await waitFor(() => {
+        expect(screen.getByText('Title is required')).toBeInTheDocument()
+      })
     })
   })
 

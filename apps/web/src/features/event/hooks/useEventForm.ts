@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import type { CreateEventRequest, EventResponse } from '../../../api/generated'
 import { createEvent, updateEvent } from '../../../api/generated'
 import { runEventMutation } from '../runEventMutation'
 import {
+  createEventFormSchema,
   type EventFormMode,
   type EventFormValues,
-  eventFormSchema,
 } from '../types'
 import { toFormValues, toIsoString } from '../utils'
 
@@ -30,9 +31,11 @@ export function useEventForm(
   initialStart: Date | null | undefined,
   onSaved: () => void,
 ) {
+  const { t } = useTranslation(['event', 'common'])
   const queryClient = useQueryClient()
+  const schema = useMemo(() => createEventFormSchema(t), [t])
   const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
+    resolver: zodResolver(schema),
     mode: 'onTouched',
     defaultValues: toFormValues(event, initialStart),
   })
@@ -44,6 +47,21 @@ export function useEventForm(
     if (open) form.reset(toFormValues(event, initialStart))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  useEffect(() => {
+    const erroredFields = Object.keys(form.formState.errors) as Array<
+      keyof EventFormValues
+    >
+    if (erroredFields.length > 0) {
+      form.trigger(erroredFields)
+    }
+    // Deliberately keyed on `t` alone: this re-validates currently-errored
+    // fields only when the language changes, so a displayed error message
+    // is re-translated instead of staying stuck until the field is next
+    // touched. Adding form.formState.errors here would make trigger()
+    // re-fire this same effect in a loop.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [t])
 
   const onSubmit = async (data: EventFormValues) => {
     const payload = toRequestPayload(data)
@@ -60,7 +78,8 @@ export function useEventForm(
       expectedStatus: mode === 'create' ? 201 : 200,
       mode,
       successMessage:
-        mode === 'create' ? '予定を登録しました' : '予定を更新しました',
+        mode === 'create' ? t('toast.createSuccess') : t('toast.updateSuccess'),
+      t,
       onSuccess: onSaved,
     })
   }
