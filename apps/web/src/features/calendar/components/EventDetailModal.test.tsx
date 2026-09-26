@@ -13,6 +13,13 @@ const mockEvent: EventResponse = {
   url: null,
 }
 
+const mockEventWithDetails: EventResponse = {
+  ...mockEvent,
+  description: '設計方針をレビューする',
+  location: '会議室A',
+  url: 'https://example.com/agenda',
+}
+
 describe('EventDetailModal', () => {
   describe('表示制御', () => {
     it('open が false のとき何も表示しない', () => {
@@ -66,6 +73,36 @@ describe('EventDetailModal', () => {
       // 時刻が何らかの形で表示されること
       expect(screen.getByText(/10:00/)).toBeInTheDocument()
       expect(screen.getByText(/11:00/)).toBeInTheDocument()
+    })
+
+    it('メモ・場所・URLがある場合はそれぞれ表示する', () => {
+      render(
+        <EventDetailModal
+          open={true}
+          event={mockEventWithDetails}
+          onClose={vi.fn()}
+          onEdit={vi.fn()}
+        />,
+      )
+      expect(screen.getByText('設計方針をレビューする')).toBeInTheDocument()
+      expect(screen.getByText('会議室A')).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: 'https://example.com/agenda' }),
+      ).toHaveAttribute('href', 'https://example.com/agenda')
+    })
+
+    it('メモ・場所・URLがnullの場合はそれぞれ表示しない', () => {
+      render(
+        <EventDetailModal
+          open={true}
+          event={mockEvent}
+          onClose={vi.fn()}
+          onEdit={vi.fn()}
+        />,
+      )
+      expect(screen.queryByText('メモ')).not.toBeInTheDocument()
+      expect(screen.queryByText('場所')).not.toBeInTheDocument()
+      expect(screen.queryByText('URL')).not.toBeInTheDocument()
     })
   })
 

@@ -59,6 +59,31 @@ export default function EventDetailModal({
             <span className="text-muted-foreground">終了: </span>
             <span>{formatDateTime(event.endAt)}</span>
           </div>
+          {event.description && (
+            <div>
+              <span className="text-muted-foreground">メモ: </span>
+              <span>{event.description}</span>
+            </div>
+          )}
+          {event.location && (
+            <div>
+              <span className="text-muted-foreground">場所: </span>
+              <span>{event.location}</span>
+            </div>
+          )}
+          {event.url && (
+            <div>
+              <span className="text-muted-foreground">URL: </span>
+              <a
+                href={event.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline"
+              >
+                {event.url}
+              </a>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="secondary" onClick={() => onEdit(event)}>
