@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -38,18 +37,9 @@ func Metrics(mp metric.MeterProvider) func(http.Handler) http.Handler {
 			start := time.Now()
 			next.ServeHTTP(ww, r)
 
-			status := ww.Status()
-			if status == 0 {
-				status = http.StatusOK
-			}
+			status := statusOf(ww)
 			elapsed := time.Since(start).Seconds()
-
-			// Use chi's route pattern to avoid cardinality explosion
-			// from path parameters such as /events/abc-123.
-			routePattern := chi.RouteContext(r.Context()).RoutePattern()
-			if routePattern == "" {
-				routePattern = r.URL.Path
-			}
+			routePattern := routePatternOf(r)
 
 			attrs := []attribute.KeyValue{
 				attribute.String("method", r.Method),

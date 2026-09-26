@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -23,21 +22,14 @@ func Tracing(tp trace.TracerProvider) func(http.Handler) http.Handler {
 			defer span.End()
 
 			ww := chimw.NewWrapResponseWriter(w, r.ProtoMajor)
-			next.ServeHTTP(ww, r.WithContext(ctx))
+			req := r.WithContext(ctx)
+			next.ServeHTTP(ww, req)
 
-			status := ww.Status()
-			if status == 0 {
-				status = http.StatusOK
-			}
-
-			routePattern := chi.RouteContext(ctx).RoutePattern()
-			if routePattern == "" {
-				routePattern = r.URL.Path
-			}
+			status := statusOf(ww)
 
 			span.SetAttributes(
 				attribute.String("http.method", r.Method),
-				attribute.String("http.route", routePattern),
+				attribute.String("http.route", routePatternOf(req)),
 				attribute.Int("http.status_code", status),
 			)
 			if status >= http.StatusInternalServerError {
