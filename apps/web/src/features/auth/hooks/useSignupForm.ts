@@ -1,15 +1,19 @@
+import { useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from '@repo/ui'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { signup } from '../../../api/generated'
 import { useAuthStore } from '../../../stores/auth'
-import { type SignupFormValues, signupSchema } from '../types'
+import { createSignupSchema, type SignupFormValues } from '../types'
 import { getSignupErrorMessage } from '../utils'
 
 export function useSignupForm(onSuccess?: () => void) {
+  const { t } = useTranslation('auth')
   const setUser = useAuthStore((s) => s.setUser)
+  const schema = useMemo(() => createSignupSchema(t), [t])
   const form = useForm<SignupFormValues>({
-    resolver: zodResolver(signupSchema),
+    resolver: zodResolver(schema),
     mode: 'onTouched',
     defaultValues: { email: '', password: '', displayName: '' },
   })
@@ -22,14 +26,14 @@ export function useSignupForm(onSuccess?: () => void) {
         displayName: data.displayName || undefined,
       })
       if (res.status !== 201) {
-        toast.error(getSignupErrorMessage(res.data))
+        toast.error(getSignupErrorMessage(res.data, t))
         return
       }
       setUser(res.data)
-      toast.success('アカウントを作成しました')
+      toast.success(t('signup.toastSuccess'))
       onSuccess?.()
     } catch (error) {
-      toast.error(getSignupErrorMessage(error))
+      toast.error(getSignupErrorMessage(error, t))
     }
   }
 

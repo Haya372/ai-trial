@@ -1,27 +1,32 @@
+import type { TFunction } from 'i18next'
 import { z } from 'zod'
 
-export const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'メールアドレスを入力してください')
-    .email('正しいメールアドレスを入力してください'),
-  password: z.string().min(1, 'パスワードを入力してください'),
-})
+export function createLoginSchema(t: TFunction<'auth'>) {
+  return z.object({
+    email: z
+      .string()
+      .min(1, t('validation.emailRequired'))
+      .email(t('validation.emailInvalid')),
+    password: z.string().min(1, t('validation.passwordRequired')),
+  })
+}
 
-export const signupSchema = z.object({
-  email: z
-    .string()
-    .min(1, 'メールアドレスを入力してください')
-    .email('正しいメールアドレスを入力してください'),
-  password: z
-    .string()
-    .min(8, 'パスワードは8文字以上で入力してください')
-    .max(128, 'パスワードは128文字以内で入力してください'),
-  displayName: z
-    .string()
-    .max(50, '表示名は50文字以内で入力してください')
-    .optional(),
-})
+export function createSignupSchema(t: TFunction<'auth'>) {
+  return z.object({
+    email: z
+      .string()
+      .min(1, t('validation.emailRequired'))
+      .email(t('validation.emailInvalid')),
+    password: z
+      .string()
+      .min(8, t('validation.passwordMinLength'))
+      .max(128, t('validation.passwordMaxLength')),
+    displayName: z
+      .string()
+      .max(50, t('validation.displayNameMaxLength'))
+      .optional(),
+  })
+}
 
-export type LoginFormValues = z.infer<typeof loginSchema>
-export type SignupFormValues = z.infer<typeof signupSchema>
+export type LoginFormValues = z.infer<ReturnType<typeof createLoginSchema>>
+export type SignupFormValues = z.infer<ReturnType<typeof createSignupSchema>>
