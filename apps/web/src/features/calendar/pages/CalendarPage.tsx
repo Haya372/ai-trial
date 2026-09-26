@@ -1,7 +1,7 @@
 import { Button } from '@repo/ui'
 import type { CalendarEvent } from '@repo/ui'
 import { MonthCalendar, WeekCalendar } from '@repo/ui'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../store/calendarStore'
@@ -44,9 +44,13 @@ export default function CalendarPage() {
   const [formMode, setFormMode] = useState<EventFormMode>('create')
   const [initialStart, setInitialStart] = useState<Date | null>(null)
   const [quickPanel, setQuickPanel] = useState<{
+    key: number
     start: Date
     anchor: { x: number; y: number }
   } | null>(null)
+  // 同じ時間帯セルを連続でクリックしても必ずパネルを再マウントし、
+  // 前回の登録完了状態が残らないようにするためのクリック連番
+  const quickPanelClickSeqRef = useRef(0)
 
   const { startDate, endDate } = getViewDateRange(view, currentDate)
   const { data, isPending, isError } = useEventsQuery(startDate, endDate)
@@ -80,7 +84,8 @@ export default function CalendarPage() {
   }
 
   function handleTimeSlotClick(date: Date, anchor: { x: number; y: number }) {
-    setQuickPanel({ start: date, anchor })
+    quickPanelClickSeqRef.current += 1
+    setQuickPanel({ key: quickPanelClickSeqRef.current, start: date, anchor })
   }
 
   function handleEditClick(event: EventResponse) {
@@ -176,7 +181,7 @@ export default function CalendarPage() {
 
       {quickPanel && (
         <QuickRegistrationPanel
-          key={quickPanel.start.getTime()}
+          key={quickPanel.key}
           open={true}
           anchor={quickPanel.anchor}
           start={quickPanel.start}
