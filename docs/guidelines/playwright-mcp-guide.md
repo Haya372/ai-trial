@@ -24,14 +24,6 @@ AIコーディングエージェント（Claude Codeなど）が、実装後のU
 Playwright MCP公式ドキュメントの記載どおり、`--allowed-origins` / `--blocked-origins` は**厳密なセキュリティ境界としては機能しない**（リダイレクトには影響しないなどの制約がある）。
 あくまで誤操作による意図しない外部アクセスを防ぐための便宜的な制御であり、機密情報を扱う操作をエージェントに任せる場合は別途レビューが必要。
 
-### 動作確認方法
-
-以下の手順で、許可オリジン以外へのアクセスが拒否されることを確認できる。
-
-1. `mise exec -- pnpm dev:web` で `apps/web` を起動する（`http://localhost:5173`）
-2. Playwright MCPの `browser_navigate` ツールで `http://localhost:5173/` に遷移 → 成功する
-3. 同ツールで `https://example.com/` など許可外のURLに遷移 → `net::ERR_BLOCKED_BY_CLIENT` エラーで拒否される
-
 ## 利用方法
 
 Claude Codeでは `.mcp.json` の設定により、セッション起動時に自動でPlaywright MCPサーバーが起動する。
