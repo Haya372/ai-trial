@@ -135,9 +135,9 @@ func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.Del
 }
 
 func newCreateShareExecutor(
-	er event.Repository, sr eventshare.Repository, logger *slog.Logger,
+	er event.Repository, sr eventshare.Repository, tx usecase.TransactionManager, logger *slog.Logger,
 ) handler.CreateShareExecutor {
-	return eventshareuc.NewCreateShareCommand(er, sr, logger)
+	return eventshareuc.NewCreateShareCommand(er, sr, tx, logger)
 }
 
 func newRouter(

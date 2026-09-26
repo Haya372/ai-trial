@@ -6,15 +6,25 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/uuid"
 
+	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/eventshare"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
+
+// isForeignKeyViolation reports whether err is a Postgres foreign-key
+// violation (SQLSTATE 23503), e.g. inserting a share for an event that was
+// concurrently deleted.
+func isForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+}
 
 const eventSharesTable = "event_shares"
 
@@ -37,6 +47,9 @@ func (r *eventShareRepository) Create(ctx context.Context, s eventshare.EventSha
 	})
 	endDBSpan(span, err)
 	if err != nil {
+		if isForeignKeyViolation(err) {
+			return nil, domainevent.ErrEventNotFound
+		}
 		return nil, fmt.Errorf("insert event share: %w", err)
 	}
 

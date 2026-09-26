@@ -31,7 +31,7 @@ func buildEventShareTestRouter() *chi.Mux {
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
-	createShare := eventshareuc.NewCreateShareCommand(eventRepo, eventShareRepo, logger)
+	createShare := eventshareuc.NewCreateShareCommand(eventRepo, eventShareRepo, txMgr, logger)
 
 	auth := handler.NewAuthHandler(signup, authuc.NewLoginCommand(userRepo, sessRepo), authuc.NewLogoutCommand(sessRepo), logger)
 	es := handler.NewEventShareHandler(createShare, logger)
