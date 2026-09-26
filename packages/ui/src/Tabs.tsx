@@ -44,7 +44,7 @@ function TabsTrigger({ ...props }: TabsTriggerProps) {
         'text-muted-foreground outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-        'data-[active]:bg-primary data-[active]:text-primary-foreground data-[active]:shadow-sm',
+        'data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm',
       )}
       {...props}
     />
