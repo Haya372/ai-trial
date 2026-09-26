@@ -17,6 +17,8 @@ paths:
     $ref: "./paths/events/index.yaml"
   /events/{id}:
     $ref: "./paths/events/detail.yaml"
+  /events/{id}/shares:
+    $ref: "./paths/events/shares.yaml"
 components:
   schemas:
     HealthResponse:
@@ -39,6 +41,8 @@ components:
       $ref: "./components/schemas/InternalErrorResponse.yaml"
     NotFoundErrorResponse:
       $ref: "./components/schemas/NotFoundErrorResponse.yaml"
+    ForbiddenErrorResponse:
+      $ref: "./components/schemas/ForbiddenErrorResponse.yaml"
     EventResponse:
       $ref: "./components/schemas/EventResponse.yaml"
     EventsListResponse:
@@ -47,3 +51,7 @@ components:
       $ref: "./components/schemas/CreateEventRequest.yaml"
     UpdateEventRequest:
       $ref: "./components/schemas/UpdateEventRequest.yaml"
+    CreateEventShareRequest:
+      $ref: "./components/schemas/CreateEventShareRequest.yaml"
+    CreateEventShareResponse:
+      $ref: "./components/schemas/CreateEventShareResponse.yaml"
