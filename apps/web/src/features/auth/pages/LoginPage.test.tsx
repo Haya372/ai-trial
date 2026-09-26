@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import i18n from 'i18next'
 import { describe, expect, it, vi } from 'vitest'
 import LoginPage from './LoginPage'
 
@@ -77,6 +78,20 @@ describe('LoginPage', () => {
       name: /アカウントをお持ちでない方はこちら/,
     })
     expect(link).toHaveAttribute('href', '/signup')
+  })
+
+  it('updates a displayed validation error to the new language when the language changes', async () => {
+    render(<LoginPage />)
+    fireEvent.click(screen.getByRole('button', { name: /ログイン/ }))
+    await waitFor(() => {
+      expect(
+        screen.getByText(/メールアドレスを入力してください/),
+      ).toBeInTheDocument()
+    })
+    await i18n.changeLanguage('en')
+    await waitFor(() => {
+      expect(screen.getByText(/Email is required/)).toBeInTheDocument()
+    })
   })
 
   it('calls toast.error with unauthorized message when API returns UNAUTHORIZED', async () => {

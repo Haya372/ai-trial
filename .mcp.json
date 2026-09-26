@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "pnpm",
+      "args": [
+        "dlx",
+        "@playwright/mcp@0.0.82",
+        "--allowed-origins",
+        "http://localhost:*;http://127.0.0.1:*"
+      ]
+    }
+  }
+}

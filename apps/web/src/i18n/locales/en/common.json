@@ -1,4 +1,8 @@
 {
   "languageName": "English",
-  "appName": "AI Trial"
+  "appName": "AI Trial",
+  "errors": {
+    "validationError": "Please check your input",
+    "internalError": "A server error occurred. Please try again later"
+  }
 }
