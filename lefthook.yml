@@ -29,3 +29,6 @@ pre-commit:
       glob: "apps/backend/**/*.go"
       root: "apps/backend"
       run: mise exec -- golangci-lint run ./...
+    - name: markdown-lint
+      glob: "{**/*.md,*.md}"
+      run: mise exec -- markdownlint-cli2 {staged_files}
