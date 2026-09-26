@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	"github.com/Haya372/ai-trial/backend/domain"
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
@@ -94,28 +93,10 @@ func decodeCreateShareInput(r *http.Request, eventID uuid.UUID) (eventshareuc.Cr
 }
 
 func (h *EventShareHandler) writeEventShareError(w http.ResponseWriter, r *http.Request, err error) {
-	var ve *domain.ValidationError
-	var de *domain.DomainError
-
-	switch {
-	case errors.As(err, &ve):
-		details := make([]response.ErrorDetail, len(ve.Details))
-		for i, d := range ve.Details {
-			details[i] = response.ErrorDetail{Field: d.Field, Code: d.Code, Message: d.Message}
-		}
-		response.WriteValidationError(w, details)
-	case errors.As(err, &de):
-		switch de.Code() {
-		case domainevent.CodeEventNotFound:
-			response.WriteError(w, http.StatusNotFound, errCodeNotFound, "Resource not found")
-		case domainevent.CodeEventForbidden:
-			response.WriteError(w, http.StatusForbidden, errCodeForbidden, "You do not have access to this resource")
-		default:
-			h.logger.Error("unexpected domain error in event share handler", "error", err, "path", r.URL.Path)
-			response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
-		}
-	default:
-		h.logger.Error("internal error in event share handler", "error", err, "path", r.URL.Path)
-		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
-	}
+	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
+		domainevent.CodeEventNotFound: {status: http.StatusNotFound, code: errCodeNotFound, message: "Resource not found"},
+		domainevent.CodeEventForbidden: {
+			status: http.StatusForbidden, code: errCodeForbidden, message: "You do not have access to this resource",
+		},
+	})
 }
