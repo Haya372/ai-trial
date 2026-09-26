@@ -1,1 +1,32 @@
-{}
+{
+  "navigation": {
+    "prev": "前へ",
+    "next": "次へ",
+    "today": "今日",
+    "monthLabel": "{{year}}年{{month}}月",
+    "weekLabelSameMonth": "{{year}}年{{month}}月{{startDay}}日〜{{endDay}}日",
+    "weekLabelDiffMonth": "{{year}}年{{month}}月{{startDay}}日〜{{endMonth}}月{{endDay}}日"
+  },
+  "viewTabs": {
+    "month": "月",
+    "week": "週"
+  },
+  "eventDetail": {
+    "startLabel": "開始: ",
+    "endLabel": "終了: ",
+    "noteLabel": "メモ: ",
+    "locationLabel": "場所: ",
+    "urlLabel": "URL: ",
+    "delete": "削除",
+    "deleting": "削除中…",
+    "edit": "編集",
+    "cancel": "キャンセル",
+    "confirmDeleteTitle": "この予定を削除しますか？",
+    "confirmDeleteDescription": "この操作は取り消せません。"
+  },
+  "page": {
+    "createButton": "新規作成",
+    "loading": "読み込み中...",
+    "loadError": "予定を読み込めませんでした"
+  }
+}
