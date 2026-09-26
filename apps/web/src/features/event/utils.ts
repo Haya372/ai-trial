@@ -16,21 +16,24 @@ export function toIsoString(value: string): string {
   return new Date(value).toISOString()
 }
 
-function defaultFormValues(): EventFormValues {
-  const now = new Date()
-  const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000)
+function defaultFormValues(initialStart?: Date | null): EventFormValues {
+  const start = initialStart ?? new Date()
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
   return {
     title: '',
-    startAt: toDateTimeLocalValue(now.toISOString()),
-    endAt: toDateTimeLocalValue(oneHourLater.toISOString()),
+    startAt: toDateTimeLocalValue(start.toISOString()),
+    endAt: toDateTimeLocalValue(end.toISOString()),
     description: '',
     location: '',
     url: '',
   }
 }
 
-export function toFormValues(event: EventResponse | null): EventFormValues {
-  if (!event) return defaultFormValues()
+export function toFormValues(
+  event: EventResponse | null,
+  initialStart?: Date | null,
+): EventFormValues {
+  if (!event) return defaultFormValues(initialStart)
   return {
     title: event.title,
     startAt: toDateTimeLocalValue(event.startAt),

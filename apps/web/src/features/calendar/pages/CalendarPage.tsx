@@ -41,6 +41,7 @@ export default function CalendarPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<EventFormMode>('create')
+  const [initialStart, setInitialStart] = useState<Date | null>(null)
 
   const { startDate, endDate } = getViewDateRange(view, currentDate)
   const { data, isPending, isError } = useEventsQuery(startDate, endDate)
@@ -58,10 +59,19 @@ export default function CalendarPage() {
     setDetailModalOpen(true)
   }
 
-  function handleCreateClick() {
+  function openCreateForm(start: Date | null) {
     setSelectedEvent(null)
     setFormMode('create')
+    setInitialStart(start)
     setFormModalOpen(true)
+  }
+
+  function handleCreateClick() {
+    openCreateForm(null)
+  }
+
+  function handleDateClick(date: Date) {
+    openCreateForm(date)
   }
 
   function handleEditClick(event: EventResponse) {
@@ -120,6 +130,7 @@ export default function CalendarPage() {
               events={calendarEvents}
               currentDate={currentDate}
               onEventClick={handleEventClick}
+              onDateClick={handleDateClick}
               onDateChange={setCurrentDate}
             />
           ) : (
@@ -127,6 +138,7 @@ export default function CalendarPage() {
               events={calendarEvents}
               currentDate={currentDate}
               onEventClick={handleEventClick}
+              onDateClick={handleDateClick}
               onDateChange={setCurrentDate}
             />
           )}
@@ -144,6 +156,7 @@ export default function CalendarPage() {
         open={formModalOpen}
         mode={formMode}
         event={selectedEvent}
+        initialStart={initialStart}
         onClose={() => setFormModalOpen(false)}
       />
     </div>

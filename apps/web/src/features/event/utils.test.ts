@@ -53,6 +53,36 @@ describe('toFormValues', () => {
     expect(values.endAt).toBe(toDateTimeLocalValue(event.endAt))
   })
 
+  it('eventがnullでinitialStartが渡された場合、開始日時にinitialStartを設定する', () => {
+    const initialStart = new Date(2026, 8, 22, 14, 30)
+    const values = toFormValues(null, initialStart)
+    expect(values.startAt).toBe(
+      toDateTimeLocalValue(initialStart.toISOString()),
+    )
+  })
+
+  it('eventがnullでinitialStartが渡された場合、終了日時は開始日時の1時間後にする', () => {
+    const initialStart = new Date(2026, 8, 22, 14, 30)
+    const values = toFormValues(null, initialStart)
+    const expectedEnd = new Date(initialStart.getTime() + 60 * 60 * 1000)
+    expect(values.endAt).toBe(toDateTimeLocalValue(expectedEnd.toISOString()))
+  })
+
+  it('eventが渡された場合、initialStartが渡されても既存の開始日時を使う', () => {
+    const initialStart = new Date(2026, 8, 22, 14, 30)
+    const event: EventResponse = {
+      id: 'event-1',
+      title: 'デザインレビュー',
+      description: null,
+      startAt: '2026-09-22T01:00:00.000Z',
+      endAt: '2026-09-22T02:00:00.000Z',
+      location: null,
+      url: null,
+    }
+    const values = toFormValues(event, initialStart)
+    expect(values.startAt).toBe(toDateTimeLocalValue(event.startAt))
+  })
+
   it('eventのdescription/location/urlがnullの場合は空文字にする', () => {
     const event: EventResponse = {
       id: 'event-1',

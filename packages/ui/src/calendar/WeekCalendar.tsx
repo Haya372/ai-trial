@@ -1,4 +1,5 @@
 import FullCalendar from '@fullcalendar/react'
+import interactionPlugin from '@fullcalendar/react/interaction'
 import timeGridPlugin from '@fullcalendar/react/timegrid'
 import classicThemePlugin from '@fullcalendar/react/themes/classic'
 import type {
@@ -7,6 +8,7 @@ import type {
   EventClickInfo,
 } from '@fullcalendar/react'
 import { useEffect, useRef } from 'react'
+import { createDateClickHandler } from './createDateClickHandler'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -17,6 +19,7 @@ interface WeekCalendarProps {
   events: CalendarEvent[]
   currentDate: Date
   onEventClick: (event: CalendarEvent) => void
+  onDateClick: (date: Date) => void
   onDateChange: (date: Date) => void
 }
 
@@ -24,6 +27,7 @@ export function WeekCalendar({
   events,
   currentDate,
   onEventClick,
+  onDateClick,
   onDateChange,
 }: WeekCalendarProps) {
   const calendarRef = useRef<CalendarRef>(null)
@@ -50,6 +54,8 @@ export function WeekCalendar({
     onEventClick(calendarEvent)
   }
 
+  const handleDateClick = createDateClickHandler(onDateClick)
+
   function handleDatesSet(info: DatesSetInfo) {
     if (isProgrammaticNavRef.current) {
       isProgrammaticNavRef.current = false
@@ -61,11 +67,12 @@ export function WeekCalendar({
   return (
     <FullCalendar
       ref={calendarRef}
-      plugins={[timeGridPlugin, classicThemePlugin]}
+      plugins={[timeGridPlugin, interactionPlugin, classicThemePlugin]}
       initialView="timeGridWeek"
       initialDate={currentDate}
       events={fullCalendarEvents}
       eventClick={handleEventClick}
+      dateClick={handleDateClick}
       datesSet={handleDatesSet}
       locale="ja"
       headerToolbar={false}

@@ -22,6 +22,7 @@ interface EventFormModalProps {
   open: boolean
   mode: EventFormMode
   event: EventResponse | null
+  initialStart?: Date | null
   onClose: () => void
 }
 
@@ -29,9 +30,16 @@ export default function EventFormModal({
   open,
   mode,
   event,
+  initialStart,
   onClose,
 }: EventFormModalProps) {
-  const { form, onSubmit } = useEventForm(open, mode, event, onClose)
+  const { form, onSubmit } = useEventForm(
+    open,
+    mode,
+    event,
+    initialStart,
+    onClose,
+  )
 
   useEffect(() => {
     if (open) form.setFocus('title')

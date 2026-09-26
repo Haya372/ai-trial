@@ -1,5 +1,6 @@
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/react/daygrid'
+import interactionPlugin from '@fullcalendar/react/interaction'
 import classicThemePlugin from '@fullcalendar/react/themes/classic'
 import type {
   CalendarRef,
@@ -7,6 +8,7 @@ import type {
   EventClickInfo,
 } from '@fullcalendar/react'
 import { useEffect, useRef } from 'react'
+import { createDateClickHandler } from './createDateClickHandler'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -17,6 +19,7 @@ interface MonthCalendarProps {
   events: CalendarEvent[]
   currentDate: Date
   onEventClick: (event: CalendarEvent) => void
+  onDateClick: (date: Date) => void
   onDateChange: (date: Date) => void
 }
 
@@ -24,6 +27,7 @@ export function MonthCalendar({
   events,
   currentDate,
   onEventClick,
+  onDateClick,
   onDateChange,
 }: MonthCalendarProps) {
   const calendarRef = useRef<CalendarRef>(null)
@@ -50,6 +54,8 @@ export function MonthCalendar({
     onEventClick(calendarEvent)
   }
 
+  const handleDateClick = createDateClickHandler(onDateClick)
+
   function handleDatesSet(info: DatesSetInfo) {
     if (isProgrammaticNavRef.current) {
       isProgrammaticNavRef.current = false
@@ -61,11 +67,12 @@ export function MonthCalendar({
   return (
     <FullCalendar
       ref={calendarRef}
-      plugins={[dayGridPlugin, classicThemePlugin]}
+      plugins={[dayGridPlugin, interactionPlugin, classicThemePlugin]}
       initialView="dayGridMonth"
       initialDate={currentDate}
       events={fullCalendarEvents}
       eventClick={handleEventClick}
+      dateClick={handleDateClick}
       datesSet={handleDatesSet}
       locale="ja"
       headerToolbar={false}

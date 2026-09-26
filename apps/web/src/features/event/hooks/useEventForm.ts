@@ -27,20 +27,21 @@ export function useEventForm(
   open: boolean,
   mode: EventFormMode,
   event: EventResponse | null,
+  initialStart: Date | null | undefined,
   onSaved: () => void,
 ) {
   const queryClient = useQueryClient()
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventFormSchema),
     mode: 'onTouched',
-    defaultValues: toFormValues(event),
+    defaultValues: toFormValues(event, initialStart),
   })
 
   useEffect(() => {
     // open のたびにリセットする。event/mode が前回と同じ組み合わせで
     // 再オープンされた場合でも入力途中の値を破棄するため、
     // event/mode ではなく open のみを依存にする。
-    if (open) form.reset(toFormValues(event))
+    if (open) form.reset(toFormValues(event, initialStart))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 

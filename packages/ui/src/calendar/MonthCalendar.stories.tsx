@@ -33,6 +33,7 @@ const meta = {
     events: sampleEvents,
     currentDate: new Date(2026, 8, 1),
     onEventClick: (event) => console.log('Event clicked:', event),
+    onDateClick: (date) => console.log('Date clicked:', date),
     onDateChange: (date) => console.log('Date changed:', date),
   },
 } satisfies Meta<typeof MonthCalendar>
