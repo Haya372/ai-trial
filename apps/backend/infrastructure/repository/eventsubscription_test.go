@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
+	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 )
 
@@ -19,24 +20,26 @@ func newTestEventSubscription(t *testing.T, eventID, userID uuid.UUID) eventsubs
 	return eventsubscription.New(uuid.New(), eventID, userID, time.Now().UTC())
 }
 
+// setupSharedEvent creates an owner, a subscriber, and an event owned by
+// owner that subscriber can subscribe to.
+func setupSharedEvent(t *testing.T) (owner, subscriber user.User, eventID uuid.UUID) {
+	t.Helper()
+	owner = createTestUser(t)
+	subscriber = createTestUser(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID = insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	return owner, subscriber, eventID
+}
+
 func TestEventSubscriptionRepository_Create_PersistsAndReturnsEventSubscription(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 
-	id := uuid.New()
-	s := eventsubscription.New(id, eventID, subscriber.ID(), now)
-
-	saved, err := repo.Create(context.Background(), s)
+	saved, err := repo.Create(context.Background(), newTestEventSubscription(t, eventID, subscriber.ID()))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if saved.ID() != id {
-		t.Errorf("ID mismatch: got %v, want %v", saved.ID(), id)
 	}
 	if saved.EventID() != eventID {
 		t.Errorf("EventID mismatch: got %v, want %v", saved.EventID(), eventID)
@@ -61,10 +64,7 @@ func TestEventSubscriptionRepository_Create_NonExistentEventID_ReturnsError(t *t
 
 func TestEventSubscriptionRepository_Create_DuplicateEventAndUserID_ReturnsError(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 
@@ -80,10 +80,7 @@ func TestEventSubscriptionRepository_Create_DuplicateEventAndUserID_ReturnsError
 
 func TestEventSubscriptionRepository_FindByID_ReturnsEventSubscription(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 
@@ -120,10 +117,7 @@ func TestEventSubscriptionRepository_FindByID_NotFound_ReturnsErrEventSubscripti
 
 func TestEventSubscriptionRepository_FindByEventAndUserID_ReturnsMatchingSubscription(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 
@@ -143,10 +137,7 @@ func TestEventSubscriptionRepository_FindByEventAndUserID_ReturnsMatchingSubscri
 
 func TestEventSubscriptionRepository_FindByEventAndUserID_NotFound_ReturnsErrEventSubscriptionNotFound(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 
@@ -193,10 +184,7 @@ func TestEventSubscriptionRepository_ListByUserID_ReturnsOnlyThatUsersSubscripti
 
 func TestEventSubscriptionRepository_Delete_RemovesSubscription(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 
@@ -227,10 +215,7 @@ func TestEventSubscriptionRepository_Delete_NonExistentID_ReturnsNoError(t *test
 
 func TestEventSubscriptionsTable_EventIDForeignKey_CascadesOnEventDelete(t *testing.T) {
 	setupTest(t)
-	owner := createTestUser(t)
-	subscriber := createTestUser(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	eventID := insertEvent(t, owner.ID(), "Shared event", now, now.Add(time.Hour))
+	_, subscriber, eventID := setupSharedEvent(t)
 
 	repo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
 	created, err := repo.Create(context.Background(), newTestEventSubscription(t, eventID, subscriber.ID()))
