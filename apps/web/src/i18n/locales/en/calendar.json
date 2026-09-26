@@ -1,1 +1,32 @@
-{}
+{
+  "navigation": {
+    "prev": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "monthLabel": "{{year}}/{{month}}",
+    "weekLabelSameMonth": "{{month}}/{{startDay}} - {{endDay}}, {{year}}",
+    "weekLabelDiffMonth": "{{month}}/{{startDay}} - {{endMonth}}/{{endDay}}, {{year}}"
+  },
+  "viewTabs": {
+    "month": "Month",
+    "week": "Week"
+  },
+  "eventDetail": {
+    "startLabel": "Start: ",
+    "endLabel": "End: ",
+    "noteLabel": "Note: ",
+    "locationLabel": "Location: ",
+    "urlLabel": "URL: ",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "confirmDeleteTitle": "Delete this event?",
+    "confirmDeleteDescription": "This action cannot be undone."
+  },
+  "page": {
+    "createButton": "Create",
+    "loading": "Loading...",
+    "loadError": "Failed to load events"
+  }
+}

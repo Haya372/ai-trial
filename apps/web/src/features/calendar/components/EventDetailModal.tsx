@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@repo/ui'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { pad } from '../../../lib/dateFormat'
 import { useEventDelete } from '../../event/hooks/useEventDelete'
@@ -46,6 +47,7 @@ export default function EventDetailModal({
   onClose,
   onEdit,
 }: EventDetailModalProps) {
+  const { t } = useTranslation('calendar')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const { handleDelete, isDeleting } = useEventDelete(event, () => {
     setConfirmOpen(false)
@@ -68,28 +70,38 @@ export default function EventDetailModal({
           </DialogHeader>
           <div className="flex flex-col gap-2 text-sm">
             <div>
-              <span className="text-muted-foreground">開始: </span>
+              <span className="text-muted-foreground">
+                {t('eventDetail.startLabel')}
+              </span>
               <span>{formatDateTime(event.startAt)}</span>
             </div>
             <div>
-              <span className="text-muted-foreground">終了: </span>
+              <span className="text-muted-foreground">
+                {t('eventDetail.endLabel')}
+              </span>
               <span>{formatDateTime(event.endAt)}</span>
             </div>
             {event.description && (
               <div>
-                <span className="text-muted-foreground">メモ: </span>
+                <span className="text-muted-foreground">
+                  {t('eventDetail.noteLabel')}
+                </span>
                 <span>{event.description}</span>
               </div>
             )}
             {event.location && (
               <div>
-                <span className="text-muted-foreground">場所: </span>
+                <span className="text-muted-foreground">
+                  {t('eventDetail.locationLabel')}
+                </span>
                 <span>{event.location}</span>
               </div>
             )}
             {event.url && (
               <div>
-                <span className="text-muted-foreground">URL: </span>
+                <span className="text-muted-foreground">
+                  {t('eventDetail.urlLabel')}
+                </span>
                 <a
                   href={event.url}
                   target="_blank"
@@ -103,10 +115,10 @@ export default function EventDetailModal({
           </div>
           <DialogFooter>
             <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
-              削除
+              {t('eventDetail.delete')}
             </Button>
             <Button variant="secondary" onClick={() => onEdit(event)}>
-              編集
+              {t('eventDetail.edit')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -115,21 +127,23 @@ export default function EventDetailModal({
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>この予定を削除しますか？</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('eventDetail.confirmDeleteTitle')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              この操作は取り消せません。
+              {t('eventDetail.confirmDeleteDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>
-              キャンセル
+              {t('eventDetail.cancel')}
             </AlertDialogCancel>
             <Button
               variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? '削除中…' : '削除'}
+              {isDeleting ? t('eventDetail.deleting') : t('eventDetail.delete')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
