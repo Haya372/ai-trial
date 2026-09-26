@@ -101,7 +101,7 @@ function Button({ variant, size, ...props }: ButtonProps) {
   <DialogContent>
     <DialogFooter>
       <Button variant="outline">キャンセル</Button>
-      <Button variant="destructive">削除する</Button>  {/* 最終確認で destructive */}
+      <Button variant="destructive">削除</Button>  {/* 最終確認で destructive */}
     </DialogFooter>
   </DialogContent>
 </Dialog>
@@ -114,6 +114,25 @@ function Button({ variant, size, ...props }: ButtonProps) {
   <XIcon />
 </Button>
 ```
+
+---
+
+## ボタンラベルの文言
+
+アクションボタンのラベルは**体言止め**（動詞+目的語のみ）で表記し、「〜する」などの丁寧語尾を付けない。
+
+```tsx
+// OK: 体言止め
+<Button variant="primary">保存</Button>
+<Button variant="destructive">削除</Button>
+<Button variant="secondary">編集</Button>
+
+// NG: 「〜する」を付ける
+<Button variant="primary">保存する</Button>
+<Button variant="destructive">削除する</Button>
+```
+
+**理由**: ボタンは操作の起点であり文ではないため、名詞的な短いラベルの方が視認性が高い。`isDeleting` 等のローディング表示（例: 「削除中…」）はこの規則の対象外とする。
 
 ---
 

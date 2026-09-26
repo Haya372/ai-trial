@@ -1,17 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
-import { toast } from '@repo/ui'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import type { CreateEventRequest, EventResponse } from '../../../api/generated'
 import { createEvent, updateEvent } from '../../../api/generated'
-import { eventsKeys } from '../../../lib/queryKeys'
+import { runEventMutation } from '../runEventMutation'
 import {
   type EventFormMode,
   type EventFormValues,
   eventFormSchema,
 } from '../types'
-import { getEventErrorMessage, toFormValues, toIsoString } from '../utils'
+import { toFormValues, toIsoString } from '../utils'
 
 function toRequestPayload(data: EventFormValues): CreateEventRequest {
   return {
@@ -46,28 +45,23 @@ export function useEventForm(
   }, [open])
 
   const onSubmit = async (data: EventFormValues) => {
-    try {
-      const payload = toRequestPayload(data)
-      let res: Awaited<ReturnType<typeof createEvent | typeof updateEvent>>
-      if (mode === 'create') {
-        res = await createEvent(payload)
-      } else {
-        if (!event) return
-        res = await updateEvent(event.id, payload)
-      }
-      const expectedStatus = mode === 'create' ? 201 : 200
-      if (res.status !== expectedStatus) {
-        toast.error(getEventErrorMessage(res.data, mode))
-        return
-      }
-      await queryClient.invalidateQueries({ queryKey: eventsKeys.all })
-      toast.success(
-        mode === 'create' ? '予定を登録しました' : '予定を更新しました',
-      )
-      onSaved()
-    } catch (error) {
-      toast.error(getEventErrorMessage(error, mode))
+    const payload = toRequestPayload(data)
+    let request: ReturnType<typeof createEvent> | ReturnType<typeof updateEvent>
+    if (mode === 'create') {
+      request = createEvent(payload)
+    } else {
+      if (!event) return
+      request = updateEvent(event.id, payload)
     }
+    await runEventMutation({
+      queryClient,
+      request,
+      expectedStatus: mode === 'create' ? 201 : 200,
+      mode,
+      successMessage:
+        mode === 'create' ? '予定を登録しました' : '予定を更新しました',
+      onSuccess: onSaved,
+    })
   }
 
   return { form, onSubmit }

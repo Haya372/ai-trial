@@ -47,7 +47,7 @@ function hasCode(value: unknown): value is { code: string } {
 
 export function getEventErrorMessage(
   error: unknown,
-  mode: EventFormMode,
+  mode: EventFormMode | 'delete',
 ): string {
   if (hasCode(error)) {
     switch (error.code) {
@@ -61,7 +61,7 @@ export function getEventErrorMessage(
         return 'サーバーエラーが発生しました。しばらく経ってから再試行してください'
     }
   }
-  return mode === 'create'
-    ? '予定の登録に失敗しました'
-    : '予定の更新に失敗しました'
+  if (mode === 'create') return '予定の登録に失敗しました'
+  if (mode === 'edit') return '予定の更新に失敗しました'
+  return '予定の削除に失敗しました'
 }
