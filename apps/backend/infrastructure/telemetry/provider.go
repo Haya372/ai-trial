@@ -3,6 +3,8 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
@@ -18,9 +20,11 @@ import (
 type Config struct {
 	// ServiceName labels all spans and metrics emitted by this process.
 	ServiceName string
-	// OTLPEndpoint is the HTTP target for the OTLP trace exporter.
-	// When empty a human-readable stdout exporter is used instead,
-	// which is suitable for local development.
+	// OTLPEndpoint is the HTTP target for the OTLP trace exporter, following
+	// the OTEL_EXPORTER_OTLP_ENDPOINT convention: either a full URL
+	// (scheme+host+port, e.g. "http://otel-collector:4318") or a bare
+	// "host:port". When empty a human-readable stdout exporter is used
+	// instead, which is suitable for local development.
 	OTLPEndpoint string
 }
 
@@ -98,8 +102,32 @@ func NewSpanExporter(ctx context.Context, cfg Config) (sdktrace.SpanExporter, er
 	if cfg.OTLPEndpoint == "" {
 		return stdouttrace.New(stdouttrace.WithPrettyPrint())
 	}
+	// otlptracehttp.WithEndpoint expects a bare "host:port" and rejects a
+	// scheme; WithEndpointURL expects a full URL but, unlike WithEndpoint,
+	// does not default the path to /v1/traces. Route each form to the
+	// matching option so both the bare and the OTEL_EXPORTER_OTLP_ENDPOINT
+	// convention's full-URL form work.
+	if strings.Contains(cfg.OTLPEndpoint, "://") {
+		return otlptracehttp.New(ctx,
+			otlptracehttp.WithEndpointURL(normalizeOTLPEndpointURL(cfg.OTLPEndpoint)),
+			otlptracehttp.WithInsecure(),
+		)
+	}
 	return otlptracehttp.New(ctx,
 		otlptracehttp.WithEndpoint(cfg.OTLPEndpoint),
 		otlptracehttp.WithInsecure(),
 	)
+}
+
+// normalizeOTLPEndpointURL appends the default traces path (/v1/traces) to
+// a scheme-qualified endpoint URL that has no path of its own, matching the
+// behavior operators expect from the OTEL_EXPORTER_OTLP_ENDPOINT convention.
+// An explicit path, or a URL that fails to parse, is returned unchanged.
+func normalizeOTLPEndpointURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Path != "" && u.Path != "/") {
+		return rawURL
+	}
+	u.Path = "/v1/traces"
+	return u.String()
 }

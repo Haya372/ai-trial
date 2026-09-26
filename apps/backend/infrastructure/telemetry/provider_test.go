@@ -76,3 +76,15 @@ func TestNewSpanExporter_usesOTLP_whenOTLPEndpointSet(t *testing.T) {
 		t.Errorf("expected *otlptrace.Exporter, got %T", exp)
 	}
 }
+
+func TestNewSpanExporter_usesOTLP_whenOTLPEndpointIsFullURL(t *testing.T) {
+	exp, err := telemetry.NewSpanExporter(context.Background(), telemetry.Config{OTLPEndpoint: "http://localhost:4318"})
+	if err != nil {
+		t.Fatalf("NewSpanExporter failed: %v", err)
+	}
+	defer exp.Shutdown(context.Background())
+
+	if _, ok := exp.(*otlptrace.Exporter); !ok {
+		t.Errorf("expected *otlptrace.Exporter, got %T", exp)
+	}
+}
