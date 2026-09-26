@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import i18n from 'i18next'
 import { describe, expect, it, vi } from 'vitest'
 import SignupPage from './SignupPage'
 
@@ -42,6 +43,24 @@ describe('SignupPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /登録/ }))
     await waitFor(() => {
       expect(screen.getByText(/8文字以上/)).toBeInTheDocument()
+    })
+  })
+
+  it('updates a displayed validation error to the new language when the language changes', async () => {
+    render(<SignupPage />)
+    fireEvent.change(screen.getByLabelText(/メールアドレス/), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.change(screen.getByLabelText(/パスワード/), {
+      target: { value: 'ab' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /登録/ }))
+    await waitFor(() => {
+      expect(screen.getByText(/8文字以上/)).toBeInTheDocument()
+    })
+    await i18n.changeLanguage('en')
+    await waitFor(() => {
+      expect(screen.getByText(/at least 8 characters/)).toBeInTheDocument()
     })
   })
 

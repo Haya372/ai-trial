@@ -1,3 +1,4 @@
+import './test-locale-stub'
 import i18n from 'i18next'
 import { afterEach } from 'vitest'
 import './config'

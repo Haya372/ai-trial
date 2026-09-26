@@ -9,6 +9,7 @@ import {
   Text,
 } from '@repo/ui'
 import { Link } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useLoginForm } from '../hooks/useLoginForm'
 
 interface LoginPageProps {
@@ -16,6 +17,7 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onSuccess }: LoginPageProps) {
+  const { t } = useTranslation('auth')
   const { form, onSubmit } = useLoginForm(onSuccess)
 
   return (
@@ -24,13 +26,13 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         onSubmit={form.handleSubmit(onSubmit)}
         className="flex flex-col gap-4 max-w-sm mx-auto mt-16"
       >
-        <Text variant="h2">ログイン</Text>
+        <Text variant="h2">{t('login.title')}</Text>
         <FormField
           control={form.control}
           name="email"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>メールアドレス</FormLabel>
+              <FormLabel>{t('fields.email')}</FormLabel>
               <Input
                 id={field.name}
                 type="email"
@@ -47,7 +49,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
           name="password"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>パスワード</FormLabel>
+              <FormLabel>{t('fields.password')}</FormLabel>
               <Input
                 id={field.name}
                 type="password"
@@ -64,13 +66,15 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
           variant="primary"
           disabled={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? 'ログイン中…' : 'ログイン'}
+          {form.formState.isSubmitting
+            ? t('login.submitButtonLoading')
+            : t('login.submitButton')}
         </Button>
         <Link
           to="/signup"
           className="text-sm text-primary underline-offset-4 hover:underline"
         >
-          アカウントをお持ちでない方はこちら
+          {t('login.signupLink')}
         </Link>
       </form>
     </Form>

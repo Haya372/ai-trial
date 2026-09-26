@@ -1,4 +1,8 @@
 {
   "languageName": "日本語",
-  "appName": "AI Trial"
+  "appName": "AI Trial",
+  "errors": {
+    "validationError": "入力内容を確認してください",
+    "internalError": "サーバーエラーが発生しました。しばらく経ってから再試行してください"
+  }
 }
