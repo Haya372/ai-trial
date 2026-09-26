@@ -66,8 +66,8 @@ func TestMain(m *testing.M) {
 }
 
 func buildRouteTestRouter() *chi.Mux {
-	userRepo := repository.NewUserRepository(routeTestPool)
-	sessRepo := repository.NewSessionRepository(routeTestPool)
+	userRepo := repository.NewUserRepository(routeTestPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(routeTestPool, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)

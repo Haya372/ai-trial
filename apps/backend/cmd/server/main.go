@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/di"
+	"github.com/Haya372/ai-trial/backend/infrastructure/telemetry"
 )
 
 const (
@@ -40,7 +41,17 @@ func start() error {
 	return c.Invoke(run)
 }
 
-func run(r *chi.Mux, logger *slog.Logger) error {
+func run(r *chi.Mux, logger *slog.Logger, tel telemetry.Providers) error {
+	// Deferred (not tied to the graceful-shutdown path below) so pending
+	// spans/metrics are flushed even if the server fails to start.
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := tel.Shutdown(shutdownCtx); err != nil {
+			logger.Error("shutdown telemetry", "error", err)
+		}
+	}()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort

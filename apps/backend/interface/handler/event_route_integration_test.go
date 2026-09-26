@@ -26,10 +26,10 @@ import (
 
 func buildEventTestRouter() *chi.Mux {
 	logger := slog.New(slog.DiscardHandler)
-	userRepo := repository.NewUserRepository(routeTestPool)
-	sessRepo := repository.NewSessionRepository(routeTestPool)
-	eventQueryRepo := repository.NewEventQueryRepository(routeTestPool, logger)
-	eventRepo := repository.NewEventRepository(routeTestPool, logger)
+	userRepo := repository.NewUserRepository(routeTestPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(routeTestPool, testTracerProvider)
+	eventQueryRepo := repository.NewEventQueryRepository(routeTestPool, logger, testTracerProvider)
+	eventRepo := repository.NewEventRepository(routeTestPool, logger, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
