@@ -54,7 +54,7 @@ type ToasterProps = {
 }
 
 function Toaster({
-  position = 'bottom-right',
+  position = 'top-center',
   richColors = true,
   closeButton = true,
   duration,
