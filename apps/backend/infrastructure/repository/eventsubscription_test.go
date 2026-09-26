@@ -73,8 +73,8 @@ func TestEventSubscriptionRepository_Create_DuplicateEventAndUserID_ReturnsError
 	}
 
 	_, err := repo.Create(context.Background(), newTestEventSubscription(t, eventID, subscriber.ID()))
-	if err == nil {
-		t.Fatal("expected a unique constraint violation for a duplicate (event_id, user_id), got nil")
+	if !errors.Is(err, eventsubscription.ErrAlreadySubscribed) {
+		t.Errorf("expected ErrAlreadySubscribed, got %v", err)
 	}
 }
 

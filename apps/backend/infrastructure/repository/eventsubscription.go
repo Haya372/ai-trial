@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
@@ -15,6 +16,13 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
+
+// isUniqueViolation reports whether err is a Postgres unique-constraint
+// violation (SQLSTATE 23505), e.g. a duplicate (event_id, user_id) pair.
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
 
 const eventSubscriptionsTable = "event_subscriptions"
 
@@ -38,6 +46,9 @@ func (r *eventSubscriptionRepository) Create(
 	})
 	endDBSpan(span, err)
 	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, eventsubscription.ErrAlreadySubscribed
+		}
 		return nil, fmt.Errorf("insert event subscription: %w", err)
 	}
 
