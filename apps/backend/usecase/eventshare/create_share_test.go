@@ -199,6 +199,32 @@ func TestCreateShareCommand_Execute_ExpiresAtBeforeEventStart_ReturnsValidationE
 	}
 }
 
+func TestCreateShareCommand_Execute_ExpiresAtNotInFuture_ReturnsValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	eventRepo := eventmock.NewMockRepository(ctrl)
+	shareRepo := eventsharemock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	// An in-progress event (started in the past, ends in the future) so the
+	// "not in the future" check is what fails, not the "before event start" one.
+	start := time.Now().UTC().Add(-2 * time.Hour)
+	end := time.Now().UTC().Add(2 * time.Hour)
+	alreadyPast := time.Now().UTC().Add(-time.Minute)
+	ev, _ := domainevent.New(eventID, userID, "Meeting", "", start, end, "", "")
+
+	eventRepo.EXPECT().FindByID(gomock.Any(), eventID).Return(ev, nil)
+
+	cmd := eventshareuc.NewCreateShareCommand(eventRepo, shareRepo, &testutil.StubTxManager{}, testLogger)
+	_, err := cmd.Execute(context.Background(), userID, eventshareuc.CreateShareInput{
+		EventID: eventID, ExpiresAt: &alreadyPast,
+	})
+	var ve *domain.ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected *domain.ValidationError, got %T: %v", err, err)
+	}
+}
+
 func TestCreateShareCommand_Execute_RepoCreateError_ReturnsError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	eventRepo := eventmock.NewMockRepository(ctrl)

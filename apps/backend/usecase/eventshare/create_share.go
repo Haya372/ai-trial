@@ -65,11 +65,19 @@ func (c *CreateShareCommand) Execute(
 		expiresAt := ev.EndAt()
 		if in.ExpiresAt != nil {
 			expiresAt = *in.ExpiresAt
-		}
-		if expiresAt.Before(ev.StartAt()) {
-			return &domain.ValidationError{Details: []domain.ValidationDetail{
-				{Field: "expiresAt", Code: "BEFORE_EVENT_START", Message: "expiresAt must not be before the event's start time"},
-			}}
+			// SPEC-004 requires an explicit expiresAt to be both on/after the
+			// event's start and a future date; the default (event end) is
+			// exempted so sharing a past event keeps working as before.
+			if expiresAt.Before(ev.StartAt()) {
+				return &domain.ValidationError{Details: []domain.ValidationDetail{
+					{Field: "expiresAt", Code: "BEFORE_EVENT_START", Message: "expiresAt must not be before the event's start time"},
+				}}
+			}
+			if !time.Now().Before(expiresAt) {
+				return &domain.ValidationError{Details: []domain.ValidationDetail{
+					{Field: "expiresAt", Code: "NOT_IN_FUTURE", Message: "expiresAt must be in the future"},
+				}}
+			}
 		}
 
 		token, err := domaineventshare.GenerateToken()
