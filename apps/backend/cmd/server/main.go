@@ -42,6 +42,16 @@ func start() error {
 }
 
 func run(r *chi.Mux, logger *slog.Logger, tel telemetry.Providers) error {
+	// Deferred (not tied to the graceful-shutdown path below) so pending
+	// spans/metrics are flushed even if the server fails to start.
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := tel.Shutdown(shutdownCtx); err != nil {
+			logger.Error("shutdown telemetry", "error", err)
+		}
+	}()
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
@@ -81,9 +91,6 @@ func run(r *chi.Mux, logger *slog.Logger, tel telemetry.Providers) error {
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("graceful shutdown: %w", err)
-	}
-	if err := tel.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("shutdown telemetry: %w", err)
 	}
 	return <-serverErr
 }
