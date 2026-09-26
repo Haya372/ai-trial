@@ -14,21 +14,6 @@ import (
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 )
 
-// createTestEvent inserts a minimal event row owned by userID and returns its ID.
-func createTestEvent(t *testing.T, userID uuid.UUID) uuid.UUID {
-	t.Helper()
-	now := time.Now().UTC().Truncate(time.Second)
-	var id uuid.UUID
-	err := testPool.QueryRow(context.Background(),
-		`INSERT INTO events (user_id, title, start_at, end_at) VALUES ($1, $2, $3, $4) RETURNING id`,
-		userID, "Share target event", now, now.Add(time.Hour),
-	).Scan(&id)
-	if err != nil {
-		t.Fatalf("insert test event: %v", err)
-	}
-	return id
-}
-
 func newTestEventShare(t *testing.T, eventID uuid.UUID, token string, expiresAt time.Time) eventshare.EventShare {
 	t.Helper()
 	s, err := eventshare.New(uuid.New(), eventID, eventshare.HashToken(token), expiresAt)
@@ -41,7 +26,8 @@ func newTestEventShare(t *testing.T, eventID uuid.UUID, token string, expiresAt 
 func TestEventShareRepository_Create_PersistsAndReturnsEventShare(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
-	eventID := createTestEvent(t, u.ID())
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	repo := repository.NewEventShareRepository(testPool, testTracerProvider)
 
@@ -87,7 +73,8 @@ func TestEventShareRepository_Create_NonExistentEventID_ReturnsError(t *testing.
 func TestEventShareRepository_FindByToken_ReturnsMatchingShare(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
-	eventID := createTestEvent(t, u.ID())
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	repo := repository.NewEventShareRepository(testPool, testTracerProvider)
 
@@ -128,7 +115,8 @@ func TestEventShareRepository_FindByToken_UnknownToken_ReturnsErrEventShareNotFo
 func TestEventShareRepository_FindByToken_ExpiredShare_ReturnsShareWithIsExpiredTrue(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
-	eventID := createTestEvent(t, u.ID())
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	repo := repository.NewEventShareRepository(testPool, testTracerProvider)
 
@@ -151,7 +139,8 @@ func TestEventShareRepository_FindByToken_ExpiredShare_ReturnsShareWithIsExpired
 func TestEventShareRepository_FindByToken_MultipleSharesForSameEvent_ReturnsMatchingOne(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
-	eventID := createTestEvent(t, u.ID())
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	repo := repository.NewEventShareRepository(testPool, testTracerProvider)
 
@@ -177,7 +166,8 @@ func TestEventShareRepository_FindByToken_MultipleSharesForSameEvent_ReturnsMatc
 func TestEventSharesTable_TokenHash_HasUniqueConstraint(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
-	eventID := createTestEvent(t, u.ID())
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	expiresAt := time.Now().UTC().Add(time.Hour)
 	duplicateHash := eventshare.HashToken("duplicate-source-token")
@@ -202,7 +192,8 @@ func TestEventSharesTable_TokenHash_HasUniqueConstraint(t *testing.T) {
 func TestEventSharesTable_EventIDForeignKey_CascadesOnEventDelete(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
-	eventID := createTestEvent(t, u.ID())
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	var shareID uuid.UUID
 	err := testPool.QueryRow(context.Background(),

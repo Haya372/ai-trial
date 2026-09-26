@@ -115,15 +115,17 @@ func TestEventQueryRepository_List_OnlyReturnsUserEvents(t *testing.T) {
 	}
 }
 
-func insertEvent(t *testing.T, userID uuid.UUID, title string, start, end time.Time) {
+func insertEvent(t *testing.T, userID uuid.UUID, title string, start, end time.Time) uuid.UUID {
 	t.Helper()
-	_, err := testPool.Exec(context.Background(),
-		"INSERT INTO events (user_id, title, start_at, end_at) VALUES ($1, $2, $3, $4)",
+	var id uuid.UUID
+	err := testPool.QueryRow(context.Background(),
+		"INSERT INTO events (user_id, title, start_at, end_at) VALUES ($1, $2, $3, $4) RETURNING id",
 		userID, title, start, end,
-	)
+	).Scan(&id)
 	if err != nil {
 		t.Fatalf("insert event: %v", err)
 	}
+	return id
 }
 
 func TestEventQueryRepository_List_ReturnsLocationAndUrl(t *testing.T) {
@@ -196,14 +198,7 @@ func TestEventRepository_FindByID_ReturnsEvent(t *testing.T) {
 	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
-	insertEvent(t, u.ID(), "Findable event", now, now.Add(time.Hour))
-
-	var id uuid.UUID
-	if err := testPool.QueryRow(context.Background(),
-		"SELECT id FROM events WHERE user_id = $1", u.ID(),
-	).Scan(&id); err != nil {
-		t.Fatalf("select event id: %v", err)
-	}
+	id := insertEvent(t, u.ID(), "Findable event", now, now.Add(time.Hour))
 
 	e, err := eventRepo.FindByID(context.Background(), id)
 	if err != nil {
@@ -234,14 +229,7 @@ func TestEventRepository_Update_PersistsChanges(t *testing.T) {
 	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
-	insertEvent(t, u.ID(), "Original title", now, now.Add(time.Hour))
-
-	var id uuid.UUID
-	if err := testPool.QueryRow(context.Background(),
-		"SELECT id FROM events WHERE user_id = $1", u.ID(),
-	).Scan(&id); err != nil {
-		t.Fatalf("select event id: %v", err)
-	}
+	id := insertEvent(t, u.ID(), "Original title", now, now.Add(time.Hour))
 
 	newStart := now.Add(2 * time.Hour)
 	newEnd := now.Add(3 * time.Hour)
@@ -284,14 +272,7 @@ func TestEventRepository_Delete_RemovesEvent(t *testing.T) {
 	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
-	insertEvent(t, u.ID(), "To be deleted", now, now.Add(time.Hour))
-
-	var id uuid.UUID
-	if err := testPool.QueryRow(context.Background(),
-		"SELECT id FROM events WHERE user_id = $1", u.ID(),
-	).Scan(&id); err != nil {
-		t.Fatalf("select event id: %v", err)
-	}
+	id := insertEvent(t, u.ID(), "To be deleted", now, now.Add(time.Hour))
 
 	if err := eventRepo.Delete(context.Background(), id); err != nil {
 		t.Fatalf("unexpected error: %v", err)
