@@ -10,6 +10,7 @@ import {
   PopoverContent,
 } from '@repo/ui'
 import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { useQuickRegistrationForm } from '../hooks/useQuickRegistrationForm'
 
@@ -28,6 +29,7 @@ export default function QuickRegistrationPanel({
   onClose,
   onEditDetail,
 }: QuickRegistrationPanelProps) {
+  const { t } = useTranslation('event')
   const { form, phase, onSubmit } = useQuickRegistrationForm(start)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
@@ -61,10 +63,10 @@ export default function QuickRegistrationPanel({
                 name="title"
                 render={({ field, fieldState }) => (
                   <FormItem>
-                    <FormLabel>タイトル</FormLabel>
+                    <FormLabel>{t('fields.title')}</FormLabel>
                     <Input
                       id={field.name}
-                      placeholder="タイトルを入力"
+                      placeholder={t('quickRegistration.titlePlaceholder')}
                       state={fieldState.error ? 'error' : 'default'}
                       aria-invalid={!!fieldState.error}
                       {...field}
@@ -84,21 +86,23 @@ export default function QuickRegistrationPanel({
                   size="sm"
                   disabled={form.formState.isSubmitting}
                 >
-                  {form.formState.isSubmitting ? '登録中…' : '保存'}
+                  {form.formState.isSubmitting
+                    ? t('quickRegistration.submitButtonLoading')
+                    : t('quickRegistration.submitButton')}
                 </Button>
               </div>
             </form>
           </Form>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-sm">予定を登録しました</p>
+            <p className="text-sm">{t('quickRegistration.successMessage')}</p>
             <Button
               type="button"
               variant="link"
               size="sm"
               onClick={() => onEditDetail(phase.event)}
             >
-              詳細を編集
+              {t('quickRegistration.editDetailLink')}
             </Button>
           </div>
         )}

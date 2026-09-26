@@ -1,3 +1,4 @@
+import i18next from 'i18next'
 import { describe, expect, it } from 'vitest'
 import type { EventResponse } from '../../api/generated'
 import {
@@ -7,6 +8,8 @@ import {
   toFormValues,
   toIsoString,
 } from './utils'
+
+const t = i18next.getFixedT('ja', 'event')
 
 describe('DEFAULT_EVENT_DURATION_MS', () => {
   it('1時間をミリ秒で表す', () => {
@@ -109,49 +112,49 @@ describe('toFormValues', () => {
 
 describe('getEventErrorMessage', () => {
   it('VALIDATION_ERRORの場合は入力確認メッセージを返す', () => {
-    expect(getEventErrorMessage({ code: 'VALIDATION_ERROR' }, 'create')).toBe(
-      '入力内容を確認してください',
-    )
+    expect(
+      getEventErrorMessage({ code: 'VALIDATION_ERROR' }, 'create', t),
+    ).toBe('入力内容を確認してください')
   })
 
   it('NOT_FOUNDの場合は予定が見つからない旨のメッセージを返す', () => {
-    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'edit')).toBe(
+    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'edit', t)).toBe(
       '予定が見つかりませんでした（削除された可能性があります）',
     )
   })
 
   it('UNAUTHORIZEDの場合はログインが必要な旨のメッセージを返す', () => {
-    expect(getEventErrorMessage({ code: 'UNAUTHORIZED' }, 'create')).toBe(
+    expect(getEventErrorMessage({ code: 'UNAUTHORIZED' }, 'create', t)).toBe(
       'ログインが必要です',
     )
   })
 
   it('INTERNAL_ERRORの場合はサーバーエラーメッセージを返す', () => {
-    expect(getEventErrorMessage({ code: 'INTERNAL_ERROR' }, 'create')).toBe(
+    expect(getEventErrorMessage({ code: 'INTERNAL_ERROR' }, 'create', t)).toBe(
       'サーバーエラーが発生しました。しばらく経ってから再試行してください',
     )
   })
 
   it('未知のエラーの場合、createモードでは登録失敗メッセージを返す', () => {
-    expect(getEventErrorMessage(new Error('unknown'), 'create')).toBe(
+    expect(getEventErrorMessage(new Error('unknown'), 'create', t)).toBe(
       '予定の登録に失敗しました',
     )
   })
 
   it('未知のエラーの場合、editモードでは更新失敗メッセージを返す', () => {
-    expect(getEventErrorMessage(new Error('unknown'), 'edit')).toBe(
+    expect(getEventErrorMessage(new Error('unknown'), 'edit', t)).toBe(
       '予定の更新に失敗しました',
     )
   })
 
   it('未知のエラーの場合、deleteモードでは削除失敗メッセージを返す', () => {
-    expect(getEventErrorMessage(new Error('unknown'), 'delete')).toBe(
+    expect(getEventErrorMessage(new Error('unknown'), 'delete', t)).toBe(
       '予定の削除に失敗しました',
     )
   })
 
   it('deleteモードでもNOT_FOUND等のコード別メッセージを返す', () => {
-    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'delete')).toBe(
+    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'delete', t)).toBe(
       '予定が見つかりませんでした（削除された可能性があります）',
     )
   })

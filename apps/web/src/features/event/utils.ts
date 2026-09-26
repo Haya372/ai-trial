@@ -1,3 +1,4 @@
+import type { ParseKeys, TFunction } from 'i18next'
 import type { EventResponse } from '../../api/generated'
 import { pad } from '../../lib/dateFormat'
 import type { EventFormMode, EventFormValues } from './types'
@@ -50,23 +51,33 @@ function hasCode(value: unknown): value is { code: string } {
   return typeof value === 'object' && value !== null && 'code' in value
 }
 
+type EventTFunction = TFunction<['event', 'common']>
+
+const fallbackKeyByMode: Record<
+  EventFormMode | 'delete',
+  ParseKeys<['event', 'common']>
+> = {
+  create: 'errors.createFallback',
+  edit: 'errors.editFallback',
+  delete: 'errors.deleteFallback',
+}
+
 export function getEventErrorMessage(
   error: unknown,
   mode: EventFormMode | 'delete',
+  t: EventTFunction,
 ): string {
   if (hasCode(error)) {
     switch (error.code) {
       case 'VALIDATION_ERROR':
-        return '入力内容を確認してください'
+        return t('common:errors.validationError')
       case 'NOT_FOUND':
-        return '予定が見つかりませんでした（削除された可能性があります）'
+        return t('errors.notFound')
       case 'UNAUTHORIZED':
-        return 'ログインが必要です'
+        return t('errors.unauthorized')
       case 'INTERNAL_ERROR':
-        return 'サーバーエラーが発生しました。しばらく経ってから再試行してください'
+        return t('common:errors.internalError')
     }
   }
-  if (mode === 'create') return '予定の登録に失敗しました'
-  if (mode === 'edit') return '予定の更新に失敗しました'
-  return '予定の削除に失敗しました'
+  return t(fallbackKeyByMode[mode])
 }

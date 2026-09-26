@@ -14,6 +14,7 @@ import {
   Textarea,
 } from '@repo/ui'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { useEventForm } from '../hooks/useEventForm'
 import type { EventFormMode } from '../types'
@@ -33,6 +34,7 @@ export default function EventFormModal({
   initialStart,
   onClose,
 }: EventFormModalProps) {
+  const { t } = useTranslation('event')
   const { form, onSubmit } = useEventForm(
     open,
     mode,
@@ -56,7 +58,7 @@ export default function EventFormModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? '予定を作成' : '予定を編集'}
+            {mode === 'create' ? t('form.createTitle') : t('form.editTitle')}
           </DialogTitle>
         </DialogHeader>
         <Form {...form}>
@@ -69,7 +71,7 @@ export default function EventFormModal({
               name="title"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>タイトル</FormLabel>
+                  <FormLabel>{t('fields.title')}</FormLabel>
                   <Input
                     id={field.name}
                     state={fieldState.error ? 'error' : 'default'}
@@ -85,7 +87,7 @@ export default function EventFormModal({
               name="startAt"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>開始日時</FormLabel>
+                  <FormLabel>{t('fields.startAt')}</FormLabel>
                   <Input
                     id={field.name}
                     type="datetime-local"
@@ -102,7 +104,7 @@ export default function EventFormModal({
               name="endAt"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>終了日時</FormLabel>
+                  <FormLabel>{t('fields.endAt')}</FormLabel>
                   <Input
                     id={field.name}
                     type="datetime-local"
@@ -119,7 +121,7 @@ export default function EventFormModal({
               name="description"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>メモ</FormLabel>
+                  <FormLabel>{t('fields.description')}</FormLabel>
                   <Textarea
                     id={field.name}
                     state={fieldState.error ? 'error' : 'default'}
@@ -135,7 +137,7 @@ export default function EventFormModal({
               name="location"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>場所</FormLabel>
+                  <FormLabel>{t('fields.location')}</FormLabel>
                   <Input
                     id={field.name}
                     state={fieldState.error ? 'error' : 'default'}
@@ -151,7 +153,7 @@ export default function EventFormModal({
               name="url"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel>URL</FormLabel>
+                  <FormLabel>{t('fields.url')}</FormLabel>
                   <Input
                     id={field.name}
                     state={fieldState.error ? 'error' : 'default'}
@@ -164,14 +166,16 @@ export default function EventFormModal({
             />
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={onClose}>
-                キャンセル
+                {t('form.cancelButton')}
               </Button>
               <Button
                 type="submit"
                 variant="primary"
                 disabled={form.formState.isSubmitting}
               >
-                {form.formState.isSubmitting ? '保存中…' : '保存'}
+                {form.formState.isSubmitting
+                  ? t('form.submitButtonLoading')
+                  : t('form.submitButton')}
               </Button>
             </DialogFooter>
           </form>

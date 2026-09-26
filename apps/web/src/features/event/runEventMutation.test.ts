@@ -1,7 +1,10 @@
 import { QueryClient } from '@tanstack/react-query'
+import i18next from 'i18next'
 import { describe, expect, it, vi } from 'vitest'
 import { eventsKeys } from '../../lib/queryKeys'
 import { runEventMutation } from './runEventMutation'
+
+const t = i18next.getFixedT('ja', 'event')
 
 const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
   mockToastError: vi.fn(),
@@ -35,6 +38,7 @@ describe('runEventMutation', () => {
       expectedStatus: 204,
       mode: 'delete',
       successMessage: '予定を削除しました',
+      t,
       onSuccess,
     })
 
@@ -54,6 +58,7 @@ describe('runEventMutation', () => {
       expectedStatus: 201,
       mode: 'create',
       successMessage: '予定を登録しました',
+      t,
       onSuccess,
     })
 
@@ -73,6 +78,7 @@ describe('runEventMutation', () => {
       expectedStatus: 204,
       mode: 'delete',
       successMessage: '予定を削除しました',
+      t,
       onSuccess,
     })
 
@@ -92,6 +98,7 @@ describe('runEventMutation', () => {
       expectedStatus: 204,
       mode: 'delete',
       successMessage: '予定を削除しました',
+      t,
       onSuccess,
     })
 
