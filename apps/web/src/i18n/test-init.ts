@@ -1,8 +1,10 @@
 import i18n from 'i18next'
-import { afterEach } from 'vitest'
+import { beforeEach } from 'vitest'
 import './config'
 
-// Reset language to 'ja' after each test so changeLanguage() calls don't bleed across test files
-afterEach(async () => {
+// Force language to 'ja' before each test: LanguageDetector can pick up 'en'
+// from jsdom's default navigator.language, and changeLanguage() calls in one
+// test must not bleed into the next.
+beforeEach(async () => {
   await i18n.changeLanguage('ja')
 })
