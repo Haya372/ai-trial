@@ -10,9 +10,11 @@ function hasCode(value: unknown): value is { code: string } {
   return typeof value === 'object' && value !== null && 'code' in value
 }
 
-function mapErrorToMessage<K extends ParseKeys<'auth'>>(
+type AuthTFunction = TFunction<['auth', 'common']>
+
+function mapErrorToMessage<K extends ParseKeys<['auth', 'common']>>(
   error: unknown,
-  t: TFunction<'auth'>,
+  t: AuthTFunction,
   codeToKey: Record<string, K>,
   fallbackKey: K,
 ): string {
@@ -22,17 +24,15 @@ function mapErrorToMessage<K extends ParseKeys<'auth'>>(
   return t(fallbackKey)
 }
 
-export function getLoginErrorMessage(
-  error: unknown,
-  t: TFunction<'auth'>,
-): string {
+export function getLoginErrorMessage(error: unknown, t: AuthTFunction): string {
   return mapErrorToMessage(
     error,
     t,
     {
       [UnauthorizedErrorResponseCode.UNAUTHORIZED]: 'login.errors.unauthorized',
-      [ValidationErrorResponseCode.VALIDATION_ERROR]: 'errors.validationError',
-      [InternalErrorResponseCode.INTERNAL_ERROR]: 'errors.internalError',
+      [ValidationErrorResponseCode.VALIDATION_ERROR]:
+        'common:errors.validationError',
+      [InternalErrorResponseCode.INTERNAL_ERROR]: 'common:errors.internalError',
     },
     'login.errors.fallback',
   )
@@ -40,15 +40,16 @@ export function getLoginErrorMessage(
 
 export function getSignupErrorMessage(
   error: unknown,
-  t: TFunction<'auth'>,
+  t: AuthTFunction,
 ): string {
   return mapErrorToMessage(
     error,
     t,
     {
       [ConflictErrorResponseCode.CONFLICT]: 'signup.errors.conflict',
-      [ValidationErrorResponseCode.VALIDATION_ERROR]: 'errors.validationError',
-      [InternalErrorResponseCode.INTERNAL_ERROR]: 'errors.internalError',
+      [ValidationErrorResponseCode.VALIDATION_ERROR]:
+        'common:errors.validationError',
+      [InternalErrorResponseCode.INTERNAL_ERROR]: 'common:errors.internalError',
     },
     'signup.errors.fallback',
   )

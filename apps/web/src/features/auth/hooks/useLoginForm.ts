@@ -9,7 +9,7 @@ import { createLoginSchema, type LoginFormValues } from '../types'
 import { getLoginErrorMessage } from '../utils'
 
 export function useLoginForm(onSuccess?: () => void) {
-  const { t } = useTranslation('auth')
+  const { t } = useTranslation(['auth', 'common'])
   const setUser = useAuthStore((s) => s.setUser)
   const schema = useMemo(() => createLoginSchema(t), [t])
   const form = useForm<LoginFormValues>({
@@ -25,9 +25,12 @@ export function useLoginForm(onSuccess?: () => void) {
     if (erroredFields.length > 0) {
       form.trigger(erroredFields)
     }
-    // Re-validate only when the language changes, so an already-displayed
-    // error message is re-translated instead of staying stuck in the old
-    // language until the user next touches the field.
+    // Deliberately keyed on `t` alone: this re-validates currently-errored
+    // fields only when the language changes, so a displayed error message
+    // is re-translated instead of staying stuck until the field is next
+    // touched. Adding form.formState.errors here would make trigger()
+    // re-fire this same effect in a loop.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [t])
 
   const onSubmit = async (data: LoginFormValues) => {
