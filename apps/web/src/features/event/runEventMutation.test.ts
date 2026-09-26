@@ -43,6 +43,23 @@ describe('runEventMutation', () => {
     expect(onSuccess).toHaveBeenCalled()
   })
 
+  it('成功時、レスポンスのdataをonSuccessに渡す', async () => {
+    const queryClient = createQueryClient()
+    const onSuccess = vi.fn()
+    const createdEvent = { id: 'event-1', title: '新しい予定' }
+
+    await runEventMutation({
+      queryClient,
+      request: Promise.resolve({ status: 201, data: createdEvent }),
+      expectedStatus: 201,
+      mode: 'create',
+      successMessage: '予定を登録しました',
+      onSuccess,
+    })
+
+    expect(onSuccess).toHaveBeenCalledWith(createdEvent)
+  })
+
   it('期待しないstatusが返った場合、エラートーストを表示しonSuccessを呼ばない', async () => {
     const queryClient = createQueryClient()
     const onSuccess = vi.fn()

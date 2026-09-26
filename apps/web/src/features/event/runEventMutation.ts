@@ -10,7 +10,7 @@ interface RunEventMutationParams {
   expectedStatus: number
   mode: EventFormMode | 'delete'
   successMessage: string
-  onSuccess: () => void
+  onSuccess: (data: unknown) => void
 }
 
 export async function runEventMutation({
@@ -29,7 +29,7 @@ export async function runEventMutation({
     }
     await queryClient.invalidateQueries({ queryKey: eventsKeys.all })
     toast.success(successMessage)
-    onSuccess()
+    onSuccess(res.data)
   } catch (error) {
     toast.error(getEventErrorMessage(error, mode))
   }
