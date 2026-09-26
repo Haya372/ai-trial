@@ -13,8 +13,8 @@ import (
 
 func TestSessionRepository_Create_and_FindByID(t *testing.T) {
 	setupTest(t)
-	userRepo := repository.NewUserRepository(testPool)
-	sessRepo := repository.NewSessionRepository(testPool)
+	userRepo := repository.NewUserRepository(testPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(testPool, testTracerProvider)
 
 	email, _ := user.NewEmail("sess@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -46,8 +46,8 @@ func TestSessionRepository_Create_and_FindByID(t *testing.T) {
 
 func TestSessionRepository_FindByID_expiredSession_returnsSession(t *testing.T) {
 	setupTest(t)
-	userRepo := repository.NewUserRepository(testPool)
-	sessRepo := repository.NewSessionRepository(testPool)
+	userRepo := repository.NewUserRepository(testPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(testPool, testTracerProvider)
 
 	email, _ := user.NewEmail("expired-findbyid@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -79,8 +79,8 @@ func TestSessionRepository_FindByID_expiredSession_returnsSession(t *testing.T) 
 
 func TestSessionRepository_Delete_removes_session(t *testing.T) {
 	setupTest(t)
-	userRepo := repository.NewUserRepository(testPool)
-	sessRepo := repository.NewSessionRepository(testPool)
+	userRepo := repository.NewUserRepository(testPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(testPool, testTracerProvider)
 
 	email, _ := user.NewEmail("del@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -110,8 +110,8 @@ func TestSessionRepository_Delete_removes_session(t *testing.T) {
 
 func TestSessionRepository_FindActiveByID_active_returnsSession(t *testing.T) {
 	setupTest(t)
-	userRepo := repository.NewUserRepository(testPool)
-	sessRepo := repository.NewSessionRepository(testPool)
+	userRepo := repository.NewUserRepository(testPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(testPool, testTracerProvider)
 
 	email, _ := user.NewEmail("active@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
@@ -140,8 +140,8 @@ func TestSessionRepository_FindActiveByID_active_returnsSession(t *testing.T) {
 
 func TestSessionRepository_FindActiveByID_expiredSession_returnsNil(t *testing.T) {
 	setupTest(t)
-	userRepo := repository.NewUserRepository(testPool)
-	sessRepo := repository.NewSessionRepository(testPool)
+	userRepo := repository.NewUserRepository(testPool, testTracerProvider)
+	sessRepo := repository.NewSessionRepository(testPool, testTracerProvider)
 
 	email, _ := user.NewEmail("expired@example.com")
 	password, _ := user.NewPassword("SecurePass1!")

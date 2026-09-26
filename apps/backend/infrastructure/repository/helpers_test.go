@@ -14,13 +14,16 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 )
 
 var (
-	testPool   *pgxpool.Pool
-	testLogger = slog.New(slog.DiscardHandler)
+	testPool           *pgxpool.Pool
+	testLogger                              = slog.New(slog.DiscardHandler)
+	testTracerProvider trace.TracerProvider = noop.NewTracerProvider()
 )
 
 func TestMain(m *testing.M) {

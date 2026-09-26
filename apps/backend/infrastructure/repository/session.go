@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/uuid"
 
@@ -15,21 +16,25 @@ import (
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
 
+const sessionsTable = "sessions"
+
 type sessionRepository struct {
 	baseRepository
 }
 
-func NewSessionRepository(pool *pgxpool.Pool) session.Repository {
-	return &sessionRepository{baseRepository{pool: pool}}
+func NewSessionRepository(pool *pgxpool.Pool, tp trace.TracerProvider) session.Repository {
+	return &sessionRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}}
 }
 
 func (r *sessionRepository) Create(
 	ctx context.Context, userID uuid.UUID, expiresAt time.Time,
 ) (session.Session, error) {
-	row, err := r.querier(ctx).InsertSession(ctx, query.InsertSessionParams{
+	spanCtx, span := r.startDBSpan(ctx, "INSERT", sessionsTable)
+	row, err := r.querier(spanCtx).InsertSession(spanCtx, query.InsertSessionParams{
 		UserID:    pgtype.UUID{Bytes: userID, Valid: true},
 		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
 	})
+	endDBSpan(span, err)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +42,9 @@ func (r *sessionRepository) Create(
 }
 
 func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session.Session, error) {
-	row, err := r.querier(ctx).FindSessionByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", sessionsTable)
+	row, err := r.querier(spanCtx).FindSessionByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	endDBSpan(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -48,7 +55,9 @@ func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session
 }
 
 func (r *sessionRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (session.Session, error) {
-	row, err := r.querier(ctx).FindActiveSessionByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", sessionsTable)
+	row, err := r.querier(spanCtx).FindActiveSessionByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	endDBSpan(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -59,5 +68,8 @@ func (r *sessionRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (s
 }
 
 func (r *sessionRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.querier(ctx).DeleteSession(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	spanCtx, span := r.startDBSpan(ctx, "DELETE", sessionsTable)
+	err := r.querier(spanCtx).DeleteSession(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	endDBSpan(span, err)
+	return err
 }

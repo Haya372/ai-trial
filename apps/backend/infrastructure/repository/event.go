@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/google/uuid"
 
@@ -16,6 +17,8 @@ import (
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
+
+const eventsTable = "events"
 
 // --- read side ---
 
@@ -25,16 +28,18 @@ type eventQueryRepository struct {
 	logger *slog.Logger
 }
 
-func NewEventQueryRepository(pool *pgxpool.Pool, logger *slog.Logger) eventuc.QueryService {
-	return &eventQueryRepository{baseRepository{pool: pool}, logger}
+func NewEventQueryRepository(pool *pgxpool.Pool, logger *slog.Logger, tp trace.TracerProvider) eventuc.QueryService {
+	return &eventQueryRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}, logger}
 }
 
 func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
-	rows, err := r.querier(ctx).ListEventsByUserAndDateRange(ctx, query.ListEventsByUserAndDateRangeParams{
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
+	rows, err := r.querier(spanCtx).ListEventsByUserAndDateRange(spanCtx, query.ListEventsByUserAndDateRangeParams{
 		UserID:    pgtype.UUID{Bytes: filter.UserID, Valid: true},
 		StartDate: pgtype.Timestamptz{Time: filter.StartDate, Valid: true},
 		EndDate:   pgtype.Timestamptz{Time: filter.EndDate, Valid: true},
 	})
+	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("list events query failed", "error", err)
 		return nil, fmt.Errorf("list events: %w", err)
@@ -74,12 +79,13 @@ type eventRepository struct {
 }
 
 // NewEventRepository returns an event.Repository backed by PostgreSQL.
-func NewEventRepository(pool *pgxpool.Pool, logger *slog.Logger) domainevent.Repository {
-	return &eventRepository{baseRepository{pool: pool}, logger}
+func NewEventRepository(pool *pgxpool.Pool, logger *slog.Logger, tp trace.TracerProvider) domainevent.Repository {
+	return &eventRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}, logger}
 }
 
 func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
-	row, err := r.querier(ctx).InsertEvent(ctx, query.InsertEventParams{
+	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventsTable)
+	row, err := r.querier(spanCtx).InsertEvent(spanCtx, query.InsertEventParams{
 		ID:          pgtype.UUID{Bytes: e.ID(), Valid: true},
 		UserID:      pgtype.UUID{Bytes: e.UserID(), Valid: true},
 		Title:       e.Title(),
@@ -89,6 +95,7 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 		Location:    textOrNull(e.Location()),
 		Url:         textOrNull(e.URL()),
 	})
+	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("insert event query failed", "error", err)
 		return nil, fmt.Errorf("insert event: %w", err)
@@ -122,7 +129,9 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 }
 
 func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
-	row, err := r.querier(ctx).FindEventByID(ctx, pgtype.UUID{Bytes: id, Valid: true})
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
+	row, err := r.querier(spanCtx).FindEventByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	endDBSpan(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, domainevent.ErrEventNotFound
 	}
@@ -149,7 +158,8 @@ func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domaineve
 }
 
 func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error {
-	_, err := r.querier(ctx).UpdateEvent(ctx, query.UpdateEventParams{
+	spanCtx, span := r.startDBSpan(ctx, "UPDATE", eventsTable)
+	_, err := r.querier(spanCtx).UpdateEvent(spanCtx, query.UpdateEventParams{
 		ID:          pgtype.UUID{Bytes: e.ID(), Valid: true},
 		Title:       e.Title(),
 		Description: textOrNull(e.Description()),
@@ -158,6 +168,7 @@ func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error
 		Location:    textOrNull(e.Location()),
 		Url:         textOrNull(e.URL()),
 	})
+	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("update event query failed", "error", err)
 		return fmt.Errorf("update event: %w", err)
@@ -166,7 +177,10 @@ func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error
 }
 
 func (r *eventRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.querier(ctx).DeleteEvent(ctx, pgtype.UUID{Bytes: id, Valid: true}); err != nil {
+	spanCtx, span := r.startDBSpan(ctx, "DELETE", eventsTable)
+	err := r.querier(spanCtx).DeleteEvent(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	endDBSpan(span, err)
+	if err != nil {
 		r.logger.Error("delete event query failed", "error", err)
 		return fmt.Errorf("delete event: %w", err)
 	}

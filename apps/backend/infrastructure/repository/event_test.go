@@ -18,7 +18,7 @@ import (
 
 func createTestUser(t *testing.T) user.User {
 	t.Helper()
-	repo := repository.NewUserRepository(testPool)
+	repo := repository.NewUserRepository(testPool, testTracerProvider)
 	email, _ := user.NewEmail("event-user-" + uuid.New().String() + "@example.com")
 	password, _ := user.NewPassword("SecurePass1!")
 	u, err := repo.Create(context.Background(), email, "Event User", password)
@@ -32,7 +32,7 @@ func TestEventQueryRepository_List_ReturnsEventsInRange(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	start := now
@@ -67,7 +67,7 @@ func TestEventQueryRepository_List_ExcludesOutOfRangeEvents(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 
@@ -92,7 +92,7 @@ func TestEventQueryRepository_List_OnlyReturnsUserEvents(t *testing.T) {
 	u1 := createTestUser(t)
 	u2 := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	insertEvent(t, u1.ID(), "User1 event", now, now.Add(time.Hour))
@@ -130,7 +130,7 @@ func TestEventQueryRepository_List_ReturnsLocationAndUrl(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventQueryRepository(testPool, testLogger)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	start := now
@@ -193,7 +193,7 @@ func TestEventRepository_FindByID_ReturnsEvent(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventRepository(testPool, testLogger)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	insertEvent(t, u.ID(), "Findable event", now, now.Add(time.Hour))
@@ -219,7 +219,7 @@ func TestEventRepository_FindByID_ReturnsEvent(t *testing.T) {
 
 func TestEventRepository_FindByID_NotFound_ReturnsErrEventNotFound(t *testing.T) {
 	setupTest(t)
-	eventRepo := repository.NewEventRepository(testPool, testLogger)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	_, err := eventRepo.FindByID(context.Background(), uuid.New())
 	if !errors.Is(err, event.ErrEventNotFound) {
@@ -231,7 +231,7 @@ func TestEventRepository_Update_PersistsChanges(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventRepository(testPool, testLogger)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	insertEvent(t, u.ID(), "Original title", now, now.Add(time.Hour))
@@ -281,7 +281,7 @@ func TestEventRepository_Delete_RemovesEvent(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	eventRepo := repository.NewEventRepository(testPool, testLogger)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	insertEvent(t, u.ID(), "To be deleted", now, now.Add(time.Hour))
@@ -305,7 +305,7 @@ func TestEventRepository_Delete_RemovesEvent(t *testing.T) {
 
 func TestEventRepository_Delete_NonExistentID_ReturnsNoError(t *testing.T) {
 	setupTest(t)
-	eventRepo := repository.NewEventRepository(testPool, testLogger)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	if err := eventRepo.Delete(context.Background(), uuid.New()); err != nil {
 		t.Errorf("unexpected error: %v", err)
@@ -338,7 +338,7 @@ func TestEventRepository_Create_PersistsEventAndReturnsIt(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	repo := repository.NewEventRepository(testPool, testLogger)
+	repo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	startAt := now
@@ -385,7 +385,7 @@ func TestEventRepository_Create_NullableFieldsStoredAsNull(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
 
-	repo := repository.NewEventRepository(testPool, testLogger)
+	repo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
 
 	now := time.Now().UTC().Truncate(time.Second)
 	id := uuid.New()
