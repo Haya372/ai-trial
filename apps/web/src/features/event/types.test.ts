@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventFormSchema } from './types'
+import { eventFormSchema, quickRegistrationSchema } from './types'
 
 const validData = {
   title: '定例ミーティング',
@@ -61,5 +61,20 @@ describe('eventFormSchema', () => {
       endAt: '2026-09-22T11:00',
     })
     expect(result.success).toBe(true)
+  })
+})
+
+describe('quickRegistrationSchema', () => {
+  it('タイトルがあれば成功する', () => {
+    const result = quickRegistrationSchema.safeParse({ title: '仮予定' })
+    expect(result.success).toBe(true)
+  })
+
+  it('タイトルが空の場合はエラーになる', () => {
+    const result = quickRegistrationSchema.safeParse({ title: '' })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('タイトルを入力してください')
+    }
   })
 })
