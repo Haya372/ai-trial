@@ -3,3 +3,4 @@ node_modules
 .env
 packages/schema/dist
 packages/ui/storybook-static
+.playwright-mcp
