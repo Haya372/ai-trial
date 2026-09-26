@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import LoginPage from './LoginPage'
@@ -5,6 +6,16 @@ import LoginPage from './LoginPage'
 vi.mock('../../../api/generated', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/generated')>()
   return { ...actual, login: vi.fn() }
+})
+
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return {
+    ...actual,
+    Link: ({ to, children }: { to: string; children: ReactNode }) => (
+      <a href={to}>{children}</a>
+    ),
+  }
 })
 
 const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
@@ -51,6 +62,14 @@ describe('LoginPage', () => {
         screen.getByText(/パスワードを入力してください/),
       ).toBeInTheDocument()
     })
+  })
+
+  it('renders a link to the signup page', () => {
+    render(<LoginPage />)
+    const link = screen.getByRole('link', {
+      name: /アカウントをお持ちでない方はこちら/,
+    })
+    expect(link).toHaveAttribute('href', '/signup')
   })
 
   it('calls toast.error with unauthorized message when API returns UNAUTHORIZED', async () => {

@@ -8,6 +8,7 @@ import {
   Input,
   Text,
 } from '@repo/ui'
+import { Link } from '@tanstack/react-router'
 import { useLoginForm } from '../hooks/useLoginForm'
 
 interface LoginPageProps {
@@ -65,6 +66,12 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         >
           {form.formState.isSubmitting ? 'ログイン中…' : 'ログイン'}
         </Button>
+        <Link
+          to="/signup"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+        >
+          アカウントをお持ちでない方はこちら
+        </Link>
       </form>
     </Form>
   )
