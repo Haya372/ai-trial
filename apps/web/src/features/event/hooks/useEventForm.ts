@@ -45,14 +45,17 @@ export function useEventForm(
   }, [open])
 
   const onSubmit = async (data: EventFormValues) => {
-    if (mode === 'edit' && !event) return
     const payload = toRequestPayload(data)
+    let request: ReturnType<typeof createEvent> | ReturnType<typeof updateEvent>
+    if (mode === 'create') {
+      request = createEvent(payload)
+    } else {
+      if (!event) return
+      request = updateEvent(event.id, payload)
+    }
     await runEventMutation({
       queryClient,
-      request:
-        mode === 'create'
-          ? createEvent(payload)
-          : updateEvent(event.id, payload),
+      request,
       expectedStatus: mode === 'create' ? 201 : 200,
       mode,
       successMessage:

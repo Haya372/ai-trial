@@ -161,7 +161,9 @@ describe('EventDetailModal', () => {
 
     it('削除中は確認ダイアログのキャンセルボタンが無効化される', async () => {
       const { deleteEvent } = await import('../../../api/generated')
-      let resolveDelete: (value: unknown) => void = () => {}
+      let resolveDelete: (
+        value: Awaited<ReturnType<typeof deleteEvent>>,
+      ) => void = () => {}
       vi.mocked(deleteEvent).mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -179,7 +181,11 @@ describe('EventDetailModal', () => {
         ).toBeDisabled()
       })
 
-      resolveDelete({ data: undefined, status: 204, headers: new Headers() })
+      resolveDelete({
+        data: undefined,
+        status: 204,
+        headers: new Headers(),
+      } as never)
     })
 
     it('削除失敗時はエラートーストを表示し、モーダルを閉じない', async () => {

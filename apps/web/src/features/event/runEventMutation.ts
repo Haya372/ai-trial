@@ -4,23 +4,23 @@ import { eventsKeys } from '../../lib/queryKeys'
 import type { EventFormMode } from './types'
 import { getEventErrorMessage } from './utils'
 
-interface RunEventMutationParams<T> {
+interface RunEventMutationParams {
   queryClient: QueryClient
-  request: Promise<{ status: number; data: T }>
+  request: Promise<{ status: number; data: unknown }>
   expectedStatus: number
   mode: EventFormMode | 'delete'
   successMessage: string
   onSuccess: () => void
 }
 
-export async function runEventMutation<T>({
+export async function runEventMutation({
   queryClient,
   request,
   expectedStatus,
   mode,
   successMessage,
   onSuccess,
-}: RunEventMutationParams<T>): Promise<void> {
+}: RunEventMutationParams): Promise<void> {
   try {
     const res = await request
     if (res.status !== expectedStatus) {
