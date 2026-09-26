@@ -1,11 +1,12 @@
 import { Button } from '@repo/ui'
 import type { CalendarEvent } from '@repo/ui'
 import { MonthCalendar, WeekCalendar } from '@repo/ui'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../store/calendarStore'
 import EventFormModal from '../../event/components/EventFormModal'
+import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
 import type { EventFormMode } from '../../event/types'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
@@ -42,6 +43,14 @@ export default function CalendarPage() {
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<EventFormMode>('create')
   const [initialStart, setInitialStart] = useState<Date | null>(null)
+  const [quickPanel, setQuickPanel] = useState<{
+    key: number
+    start: Date
+    anchor: { x: number; y: number }
+  } | null>(null)
+  // 同じ時間帯セルを連続でクリックしても必ずパネルを再マウントし、
+  // 前回の登録完了状態が残らないようにするためのクリック連番
+  const quickPanelClickSeqRef = useRef(0)
 
   const { startDate, endDate } = getViewDateRange(view, currentDate)
   const { data, isPending, isError } = useEventsQuery(startDate, endDate)
@@ -74,11 +83,21 @@ export default function CalendarPage() {
     openCreateForm(date)
   }
 
+  function handleTimeSlotClick(date: Date, anchor: { x: number; y: number }) {
+    quickPanelClickSeqRef.current += 1
+    setQuickPanel({ key: quickPanelClickSeqRef.current, start: date, anchor })
+  }
+
   function handleEditClick(event: EventResponse) {
     setSelectedEvent(event)
     setFormMode('edit')
     setDetailModalOpen(false)
     setFormModalOpen(true)
+  }
+
+  function handleQuickPanelEditDetail(event: EventResponse) {
+    setQuickPanel(null)
+    handleEditClick(event)
   }
 
   function handlePrev() {
@@ -138,7 +157,7 @@ export default function CalendarPage() {
               events={calendarEvents}
               currentDate={currentDate}
               onEventClick={handleEventClick}
-              onDateClick={handleDateClick}
+              onTimeSlotClick={handleTimeSlotClick}
               onDateChange={setCurrentDate}
             />
           )}
@@ -159,6 +178,17 @@ export default function CalendarPage() {
         initialStart={initialStart}
         onClose={() => setFormModalOpen(false)}
       />
+
+      {quickPanel && (
+        <QuickRegistrationPanel
+          key={quickPanel.key}
+          open={true}
+          anchor={quickPanel.anchor}
+          start={quickPanel.start}
+          onClose={() => setQuickPanel(null)}
+          onEditDetail={handleQuickPanelEditDetail}
+        />
+      )}
     </div>
   )
 }

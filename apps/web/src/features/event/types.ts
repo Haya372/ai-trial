@@ -16,3 +16,9 @@ export const eventFormSchema = z
 
 export type EventFormValues = z.infer<typeof eventFormSchema>
 export type EventFormMode = 'create' | 'edit'
+
+export const quickRegistrationSchema = z.object({
+  title: z.string().min(1, 'タイトルを入力してください'),
+})
+
+export type QuickRegistrationValues = z.infer<typeof quickRegistrationSchema>

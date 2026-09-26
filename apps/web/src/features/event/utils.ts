@@ -16,9 +16,11 @@ export function toIsoString(value: string): string {
   return new Date(value).toISOString()
 }
 
+export const DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000
+
 function defaultFormValues(initialStart?: Date | null): EventFormValues {
   const start = initialStart ?? new Date()
-  const end = new Date(start.getTime() + 60 * 60 * 1000)
+  const end = new Date(start.getTime() + DEFAULT_EVENT_DURATION_MS)
   return {
     title: '',
     startAt: toDateTimeLocalValue(start.toISOString()),

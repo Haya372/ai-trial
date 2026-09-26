@@ -33,7 +33,8 @@ const meta = {
     events: sampleEvents,
     currentDate: new Date(2026, 8, 13),
     onEventClick: (event) => console.log('Event clicked:', event),
-    onDateClick: (date) => console.log('Date clicked:', date),
+    onTimeSlotClick: (date, anchor) =>
+      console.log('Time slot clicked:', date, anchor),
     onDateChange: (date) => console.log('Date changed:', date),
   },
 } satisfies Meta<typeof WeekCalendar>

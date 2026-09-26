@@ -4,11 +4,12 @@ import timeGridPlugin from '@fullcalendar/react/timegrid'
 import classicThemePlugin from '@fullcalendar/react/themes/classic'
 import type {
   CalendarRef,
+  DateClickInfo,
   DatesSetInfo,
   EventClickInfo,
 } from '@fullcalendar/react'
 import { useEffect, useRef } from 'react'
-import { createDateClickHandler } from './createDateClickHandler'
+import { extractDateClickResult } from './createDateClickHandler'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -19,7 +20,7 @@ interface WeekCalendarProps {
   events: CalendarEvent[]
   currentDate: Date
   onEventClick: (event: CalendarEvent) => void
-  onDateClick: (date: Date) => void
+  onTimeSlotClick: (date: Date, anchor: { x: number; y: number }) => void
   onDateChange: (date: Date) => void
 }
 
@@ -27,7 +28,7 @@ export function WeekCalendar({
   events,
   currentDate,
   onEventClick,
-  onDateClick,
+  onTimeSlotClick,
   onDateChange,
 }: WeekCalendarProps) {
   const calendarRef = useRef<CalendarRef>(null)
@@ -54,7 +55,10 @@ export function WeekCalendar({
     onEventClick(calendarEvent)
   }
 
-  const handleDateClick = createDateClickHandler(onDateClick)
+  function handleDateClick(arg: DateClickInfo) {
+    const { date, anchor } = extractDateClickResult(arg)
+    onTimeSlotClick(date, anchor)
+  }
 
   function handleDatesSet(info: DatesSetInfo) {
     if (isProgrammaticNavRef.current) {

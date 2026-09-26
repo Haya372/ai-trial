@@ -56,6 +56,32 @@ vi.mock('../../event/components/EventFormModal', () => ({
   ),
 }))
 
+vi.mock('../../event/components/QuickRegistrationPanel', () => ({
+  default: vi.fn(({ open, anchor, start, onClose, onEditDetail }) =>
+    open ? (
+      <div data-testid="quick-registration-panel">
+        start:{(start as Date).toISOString()} anchor:{anchor.x},{anchor.y}
+        <button onClick={onClose}>閉じる</button>
+        <button
+          onClick={() =>
+            onEditDetail({
+              id: 'quick-event',
+              title: '仮予定',
+              description: null,
+              location: null,
+              url: null,
+              startAt: (start as Date).toISOString(),
+              endAt: (start as Date).toISOString(),
+            })
+          }
+        >
+          詳細を編集
+        </button>
+      </div>
+    ) : null,
+  ),
+}))
+
 import CalendarPage from './CalendarPage'
 
 function createWrapper() {
@@ -219,6 +245,89 @@ describe('CalendarPage', () => {
       expect(modal).toHaveTextContent(
         `initialStart:${clickedDate.toISOString()}`,
       )
+    })
+  })
+
+  describe('週ビューの時間軸クリックによるクイック登録', () => {
+    function setupWeekView() {
+      return async () => {
+        const { useCalendarStore } = await import(
+          '../../../store/calendarStore'
+        )
+        vi.mocked(useCalendarStore).mockImplementation(
+          (selector: (state: CalendarState) => unknown) => {
+            const state: CalendarState = {
+              view: 'week',
+              currentDate: new Date(2026, 8, 13),
+              setView: vi.fn(),
+              setCurrentDate: vi.fn(),
+            }
+            return selector ? selector(state) : state
+          },
+        )
+        const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+        vi.mocked(useEventsQuery).mockReturnValue({
+          data: { events: [] },
+          isPending: false,
+          isError: false,
+          isSuccess: true,
+          error: null,
+        } as never)
+      }
+    }
+
+    it('WeekCalendarのonTimeSlotClickでクリック日時・座標を渡してクイック登録パネルを開く', async () => {
+      await setupWeekView()()
+      const { WeekCalendar } = await import('@repo/ui')
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(WeekCalendar)
+      const clickedDate = new Date(2026, 8, 15, 10, 0)
+      act(() => {
+        props.onTimeSlotClick(clickedDate, { x: 100, y: 200 })
+      })
+
+      const panel = screen.getByTestId('quick-registration-panel')
+      expect(panel).toHaveTextContent(`start:${clickedDate.toISOString()}`)
+      expect(panel).toHaveTextContent('anchor:100,200')
+    })
+
+    it('クイック登録パネルのonCloseでパネルを閉じる', async () => {
+      await setupWeekView()()
+      const { WeekCalendar } = await import('@repo/ui')
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(WeekCalendar)
+      act(() => {
+        props.onTimeSlotClick(new Date(2026, 8, 15, 10, 0), { x: 0, y: 0 })
+      })
+      fireEvent.click(screen.getByRole('button', { name: '閉じる' }))
+
+      expect(
+        screen.queryByTestId('quick-registration-panel'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('クイック登録パネルのonEditDetailで登録した予定をeditモードのフォームモーダルに渡す', async () => {
+      await setupWeekView()()
+      const { WeekCalendar } = await import('@repo/ui')
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(WeekCalendar)
+      act(() => {
+        props.onTimeSlotClick(new Date(2026, 8, 15, 10, 0), { x: 0, y: 0 })
+      })
+      fireEvent.click(screen.getByRole('button', { name: '詳細を編集' }))
+
+      const modal = screen.getByTestId('event-form-modal')
+      expect(modal).toHaveTextContent('mode:edit')
+      expect(modal).toHaveTextContent('event:quick-event')
+      expect(
+        screen.queryByTestId('quick-registration-panel'),
+      ).not.toBeInTheDocument()
     })
   })
 
