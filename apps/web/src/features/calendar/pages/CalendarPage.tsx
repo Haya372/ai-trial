@@ -2,6 +2,7 @@ import { Button } from '@repo/ui'
 import type { CalendarEvent } from '@repo/ui'
 import { MonthCalendar, WeekCalendar } from '@repo/ui'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../store/calendarStore'
@@ -33,6 +34,7 @@ function getViewDateRange(
 }
 
 export default function CalendarPage() {
+  const { t } = useTranslation('calendar')
   const view = useCalendarStore((s) => s.view)
   const currentDate = useCalendarStore((s) => s.currentDate)
   const setView = useCalendarStore((s) => s.setView)
@@ -124,7 +126,7 @@ export default function CalendarPage() {
         />
         <div className="flex items-center gap-2">
           <Button variant="primary" onClick={handleCreateClick}>
-            新規作成
+            {t('page.createButton')}
           </Button>
           <CalendarViewTabs view={view} onViewChange={setView} />
         </div>
@@ -132,13 +134,13 @@ export default function CalendarPage() {
 
       {isPending && (
         <div className="flex items-center justify-center p-16 text-muted-foreground">
-          読み込み中...
+          {t('page.loading')}
         </div>
       )}
 
       {isError && (
         <div className="flex items-center justify-center p-16 text-destructive">
-          予定を読み込めませんでした
+          {t('page.loadError')}
         </div>
       )}
 

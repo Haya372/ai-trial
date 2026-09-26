@@ -118,6 +118,12 @@ describe('EventDetailModal', () => {
       expect(screen.queryByText('場所')).not.toBeInTheDocument()
       expect(screen.queryByText('URL')).not.toBeInTheDocument()
     })
+
+    it('開始・終了ラベルをコロン区切りで表示する', () => {
+      renderModal()
+      expect(screen.getByText('開始:', { exact: false })).toBeInTheDocument()
+      expect(screen.getByText('終了:', { exact: false })).toBeInTheDocument()
+    })
   })
 
   describe('編集', () => {

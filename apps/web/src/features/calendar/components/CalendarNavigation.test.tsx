@@ -29,6 +29,18 @@ describe('CalendarNavigation', () => {
       // 週の範囲が表示されること（フォーマットは実装次第）
       expect(screen.getByText(/2026年9月/)).toBeInTheDocument()
     })
+
+    it('週が年をまたぐとき終了日の年も表示する', () => {
+      render(
+        <CalendarNavigation
+          {...defaultProps}
+          view={CALENDAR_VIEW.WEEK}
+          currentDate={new Date(2026, 11, 30)} // 2026-12-30 (水): 週は12/27〜2027/1/2
+        />,
+      )
+      expect(screen.getByText(/2026年12月27日/)).toBeInTheDocument()
+      expect(screen.getByText(/2027年1月2日/)).toBeInTheDocument()
+    })
   })
 
   describe('ナビゲーションボタン', () => {
