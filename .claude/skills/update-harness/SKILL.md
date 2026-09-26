@@ -39,7 +39,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 1. 入力を確認する: `retrospective` の「改善アクション」表、または直接指摘されたハーネスの不備を確認する。対象ファイルが不明な場合は上表で判断する
 2. ブランチを作成する: 対応するGitHub Issueがある場合は `start-issue` スキルの命名規則に従う。ない場合は `chore/harness-<内容>` 形式で作成する。mainの最新から作成する
 3. 各アクションについて対象ファイルを編集する
-   - 新規スキルを作成する場合は既存スキル（例: `retrospective`, `commit`）の frontmatter（`name`/`description`）と見出し構成（目的→手順→チェックリスト）を模倣する
+   - 新規スキルを作成する場合は `superpowers:writing-skills` スキルを参照し、既存スキル（例: `retrospective`, `commit`）の frontmatter（`name`/`description`）と見出し構成（目的→手順→チェックリスト）を模倣する
    - 既存スキルの一部だけを直す場合は該当セクションのみ変更し、無関係な節は変更しない
 4. 変更内容が既存の規約と矛盾しないか確認する（`AGENTS.md` の参照表・`development-flow.md` との整合性、他スキルからの参照が壊れていないか）
 5. `commit` スキルの規約に従いコミットする。「新規スキル追加」と「既存フローへの組み込み」など論理的に独立していればコミットを分ける
