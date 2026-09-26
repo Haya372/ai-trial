@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/di"
+	"github.com/Haya372/ai-trial/backend/infrastructure/telemetry"
 )
 
 const (
@@ -40,7 +41,7 @@ func start() error {
 	return c.Invoke(run)
 }
 
-func run(r *chi.Mux, logger *slog.Logger) error {
+func run(r *chi.Mux, logger *slog.Logger, tel telemetry.Providers) error {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
@@ -80,6 +81,9 @@ func run(r *chi.Mux, logger *slog.Logger) error {
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("graceful shutdown: %w", err)
+	}
+	if err := tel.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("shutdown telemetry: %w", err)
 	}
 	return <-serverErr
 }
