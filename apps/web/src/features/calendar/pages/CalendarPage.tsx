@@ -115,7 +115,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="flex h-screen flex-col gap-4 p-4">
+    <div className="flex h-svh flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
         <CalendarNavigation
           view={view}
