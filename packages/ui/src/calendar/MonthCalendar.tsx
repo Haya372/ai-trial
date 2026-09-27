@@ -76,6 +76,8 @@ export function MonthCalendar({
       datesSet={handleDatesSet}
       locale="ja"
       headerToolbar={false}
+      height="100%"
+      expandRows={true}
     />
   )
 }

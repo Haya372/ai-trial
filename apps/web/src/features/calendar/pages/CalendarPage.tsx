@@ -115,7 +115,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="flex h-svh flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
         <CalendarNavigation
           view={view}
@@ -145,7 +145,7 @@ export default function CalendarPage() {
       )}
 
       {!isPending && !isError && (
-        <>
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {view === CALENDAR_VIEW.MONTH ? (
             <MonthCalendar
               events={calendarEvents}
@@ -163,7 +163,7 @@ export default function CalendarPage() {
               onDateChange={setCurrentDate}
             />
           )}
-        </>
+        </div>
       )}
 
       <EventDetailModal
