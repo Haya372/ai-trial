@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { FieldValues, UseFormReturn } from 'react-hook-form'
+import type { FieldPath, FieldValues, UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
 export function useRevalidateOnLanguageChange<T extends FieldValues>(
@@ -8,7 +8,7 @@ export function useRevalidateOnLanguageChange<T extends FieldValues>(
   const { i18n } = useTranslation()
 
   useEffect(() => {
-    const erroredFields = Object.keys(form.formState.errors) as Array<keyof T>
+    const erroredFields = Object.keys(form.formState.errors) as FieldPath<T>[]
     if (erroredFields.length > 0) {
       form.trigger(erroredFields)
     }
