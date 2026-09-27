@@ -19,6 +19,8 @@ paths:
     $ref: "./paths/events/detail.yaml"
   /events/{id}/shares:
     $ref: "./paths/events/shares.yaml"
+  /shares/{token}:
+    $ref: "./paths/shares/detail.yaml"
 components:
   schemas:
     HealthResponse:
@@ -55,3 +57,7 @@ components:
       $ref: "./components/schemas/CreateEventShareRequest.yaml"
     CreateEventShareResponse:
       $ref: "./components/schemas/CreateEventShareResponse.yaml"
+    ShareResponse:
+      $ref: "./components/schemas/ShareResponse.yaml"
+    GoneErrorResponse:
+      $ref: "./components/schemas/GoneErrorResponse.yaml"

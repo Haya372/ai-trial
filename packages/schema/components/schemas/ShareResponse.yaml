@@ -1,0 +1,26 @@
+type: object
+required:
+  - title
+  - startAt
+  - endAt
+  - isOwnEvent
+  - isSubscribed
+properties:
+  title:
+    type: string
+  description:
+    type: ["string", "null"]
+  startAt:
+    type: string
+    format: date-time
+  endAt:
+    type: string
+    format: date-time
+  location:
+    type: ["string", "null"]
+  url:
+    type: ["string", "null"]
+  isOwnEvent:
+    type: boolean
+  isSubscribed:
+    type: boolean
