@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { CreateEventRequest, EventResponse } from '../../../api/generated'
 import { createEvent, updateEvent } from '../../../api/generated'
+import { useRevalidateOnLanguageChange } from '../../../hooks/useRevalidateOnLanguageChange'
 import { runEventMutation } from '../runEventMutation'
 import {
   createEventFormSchema,
@@ -48,20 +49,7 @@ export function useEventForm(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  useEffect(() => {
-    const erroredFields = Object.keys(form.formState.errors) as Array<
-      keyof EventFormValues
-    >
-    if (erroredFields.length > 0) {
-      form.trigger(erroredFields)
-    }
-    // Deliberately keyed on `t` alone: this re-validates currently-errored
-    // fields only when the language changes, so a displayed error message
-    // is re-translated instead of staying stuck until the field is next
-    // touched. Adding form.formState.errors here would make trigger()
-    // re-fire this same effect in a loop.
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [t])
+  useRevalidateOnLanguageChange(form)
 
   const onSubmit = async (data: EventFormValues) => {
     const payload = toRequestPayload(data)
