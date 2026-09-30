@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -25,18 +27,7 @@ jobs:
         uses: zizmorcore/zizmor-action@v0.6.4
         with:
           advanced-security: false
-
-  verify-actions-lock:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
       - name: Install gh-actions-lock
-        run: gh extension install github/gh-actions-lock
+        run: gh extension install github/gh-actions-lock --pin v0.1.6
       - name: Verify actions.lock matches workflows
         run: gh actions-lock --no-fix

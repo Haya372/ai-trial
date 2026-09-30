@@ -4,7 +4,7 @@
 
 `.github/workflows/` 配下のワークフローが参照する Actions は、[gh-actions-lock](https://github.com/github/gh-actions-lock)（`gh` CLI拡張機能）でコミットSHAにロックし、`.github/workflows/actions.lock` で管理する。
 
-ワークフロー内の `uses:` はタグ参照（例: `actions/checkout@v7.0.1`）のまま保つ。実体のコミットSHAは `actions.lock` に記録され、CI上でワークフローとロックファイルの内容が一致するか検証される。改ざん・意図しない変更があるとPRが失敗する。
+ワークフロー内の `uses:` はタグ参照（例: `actions/checkout@v7.0.1`）のまま保つ。実体のコミットSHAは `actions.lock` に記録される。GitHub Actions自体がワークフロー実行時にこのロックファイルを検証し、記述と食い違う場合はジョブ開始前にrunをブロックする（`Invalid lockfile` エラー）。これに加えてCI上でも `gh actions-lock --no-fix` による検証を行い、PRレビュー時点で乖離を検出する。
 
 `actions.lock` は `gh actions-lock` が生成するため、手動で編集しない。
 
@@ -18,7 +18,7 @@ zizmorの `unpinned-uses` ルールはデフォルトでハッシュピン留め
 mise run actions-lock-setup
 ```
 
-未インストールの場合のみ `gh extension install github/gh-actions-lock` を実行する。
+CIと同じバージョン（`v0.1.6`）にピン留めしてインストールする。
 
 ## 運用手順
 
@@ -44,10 +44,10 @@ gh actions-lock --relock
 
 ### CI上の検証
 
-`.github/workflows/action-lint.yml` の `verify-actions-lock` ジョブが、PRごとに以下を実行する。
+`.github/workflows/action-lint.yml` の `actionlint` ジョブが、PRごとに以下を実行する。
 
 ```bash
 gh actions-lock --no-fix
 ```
 
-ワークフロー定義とロックファイルの内容に乖離がある場合、このジョブが失敗する。
+ワークフロー定義とロックファイルの内容に乖離がある場合、このジョブが失敗する。なお、この検証を経ずにワークフローが実行された場合でも、GitHub Actions自体のネイティブ検証（上記）により乖離があればrunは起動しない。

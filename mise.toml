@@ -21,5 +21,5 @@ run = "bash scripts/git-clean-branches.sh"
 description = "Delete local branches whose remote is gone"
 
 [tasks.actions-lock-setup]
-run = "gh extension list | grep -q github/gh-actions-lock || gh extension install github/gh-actions-lock"
-description = "Install the gh-actions-lock extension if missing"
+run = "gh extension install github/gh-actions-lock --pin v0.1.6 --force"
+description = "Install (or pin to the CI version) the gh-actions-lock extension"
