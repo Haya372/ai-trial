@@ -25,6 +25,7 @@ func resolveSessionUser(
 ) (user.User, error) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
+		logger.Warn("session cookie not found", "path", r.URL.Path)
 		return nil, nil //nolint:nilerr // no cookie means anonymous, not a failure
 	}
 	sessionID, err := uuid.Parse(cookie.Value)
@@ -43,6 +44,12 @@ func resolveSessionUser(
 	u, err := userRepo.FindByID(ctx, sess.UserID())
 	if err != nil {
 		return nil, err
+	}
+	if u == nil {
+		logger.Error("data inconsistency: user not found for active session",
+			"user_id", sess.UserID(),
+			"path", r.URL.Path,
+		)
 	}
 	return u, nil
 }
