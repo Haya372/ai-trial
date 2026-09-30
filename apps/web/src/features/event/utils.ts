@@ -1,6 +1,7 @@
 import type { ParseKeys, TFunction } from 'i18next'
 import type { EventResponse } from '../../api/generated'
 import { pad } from '../../lib/dateFormat'
+import { mapErrorToMessage } from '../../lib/errorMessage'
 import type { EventFormMode, EventFormValues } from './types'
 
 export function toDateTimeLocalValue(iso: string): string {
@@ -47,10 +48,6 @@ export function toFormValues(
   }
 }
 
-function hasCode(value: unknown): value is { code: string } {
-  return typeof value === 'object' && value !== null && 'code' in value
-}
-
 type EventTFunction = TFunction<['event', 'common']>
 
 const fallbackKeyByMode: Record<
@@ -62,22 +59,17 @@ const fallbackKeyByMode: Record<
   delete: 'errors.deleteFallback',
 }
 
+const codeToKey: Record<string, ParseKeys<['event', 'common']>> = {
+  VALIDATION_ERROR: 'common:errors.validationError',
+  NOT_FOUND: 'errors.notFound',
+  UNAUTHORIZED: 'errors.unauthorized',
+  INTERNAL_ERROR: 'common:errors.internalError',
+}
+
 export function getEventErrorMessage(
   error: unknown,
   mode: EventFormMode | 'delete',
   t: EventTFunction,
 ): string {
-  if (hasCode(error)) {
-    switch (error.code) {
-      case 'VALIDATION_ERROR':
-        return t('common:errors.validationError')
-      case 'NOT_FOUND':
-        return t('errors.notFound')
-      case 'UNAUTHORIZED':
-        return t('errors.unauthorized')
-      case 'INTERNAL_ERROR':
-        return t('common:errors.internalError')
-    }
-  }
-  return t(fallbackKeyByMode[mode])
+  return mapErrorToMessage(error, t, codeToKey, fallbackKeyByMode[mode])
 }
