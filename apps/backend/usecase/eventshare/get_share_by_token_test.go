@@ -227,7 +227,7 @@ func TestGetShareByTokenQuery_Execute_subsRepoError_propagates(t *testing.T) {
 			r.EXPECT().FindByID(gomock.Any(), ev.ID()).Return(ev, nil)
 		},
 		func(r *subscriptionmock.MockRepository) {
-			r.EXPECT().FindByEventAndUserID(gomock.Any(), ev.ID(), viewerID).Return(nil, errDB)
+			r.EXPECT().FindByEventAndUserID(gomock.Any(), ev.ID(), viewerID).Return(nil, errDBFailure)
 		},
 	)
 
@@ -236,7 +236,7 @@ func TestGetShareByTokenQuery_Execute_subsRepoError_propagates(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !errors.Is(err, errDB) {
-		t.Errorf("expected errDB to propagate, got %v", err)
+	if !errors.Is(err, errDBFailure) {
+		t.Errorf("expected errDBFailure to propagate, got %v", err)
 	}
 }

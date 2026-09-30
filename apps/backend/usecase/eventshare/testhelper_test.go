@@ -15,7 +15,6 @@ import (
 
 var (
 	errDBFailure = errors.New("db error")
-	errDB        = errors.New("db error")
 	testLogger   = slog.New(slog.DiscardHandler)
 )
 
