@@ -41,11 +41,10 @@ func (q *GetShareByTokenQuery) Execute(
 	ctx context.Context,
 	in GetShareByTokenInput,
 ) (GetShareByTokenOutput, error) {
-	share, ev, err := q.loader.Load(ctx, in.Token)
+	_, ev, err := q.loader.Load(ctx, in.Token)
 	if err != nil {
 		return GetShareByTokenOutput{}, err
 	}
-	_ = share
 
 	out := GetShareByTokenOutput{
 		Title:       ev.Title(),
