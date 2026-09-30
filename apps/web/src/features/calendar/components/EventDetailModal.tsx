@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { pad } from '../../../lib/dateFormat'
 import { useEventDelete } from '../../event/hooks/useEventDelete'
+import LabeledField from './LabeledField'
 
 interface EventDetailModalProps {
   open: boolean
@@ -70,39 +71,24 @@ export default function EventDetailModal({
             <DialogTitle>{event.title}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2 text-sm">
-            <div>
-              <span className="text-muted-foreground">
-                {t('eventDetail.startLabel')}:{' '}
-              </span>
-              <span>{formatDateTime(t, event.startAt)}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">
-                {t('eventDetail.endLabel')}:{' '}
-              </span>
-              <span>{formatDateTime(t, event.endAt)}</span>
-            </div>
+            <LabeledField label={t('eventDetail.startLabel')}>
+              {formatDateTime(t, event.startAt)}
+            </LabeledField>
+            <LabeledField label={t('eventDetail.endLabel')}>
+              {formatDateTime(t, event.endAt)}
+            </LabeledField>
             {event.description && (
-              <div>
-                <span className="text-muted-foreground">
-                  {t('eventDetail.noteLabel')}:{' '}
-                </span>
-                <span>{event.description}</span>
-              </div>
+              <LabeledField label={t('eventDetail.noteLabel')}>
+                {event.description}
+              </LabeledField>
             )}
             {event.location && (
-              <div>
-                <span className="text-muted-foreground">
-                  {t('eventDetail.locationLabel')}:{' '}
-                </span>
-                <span>{event.location}</span>
-              </div>
+              <LabeledField label={t('eventDetail.locationLabel')}>
+                {event.location}
+              </LabeledField>
             )}
             {event.url && (
-              <div>
-                <span className="text-muted-foreground">
-                  {t('eventDetail.urlLabel')}:{' '}
-                </span>
+              <LabeledField label={t('eventDetail.urlLabel')}>
                 <a
                   href={event.url}
                   target="_blank"
@@ -111,7 +97,7 @@ export default function EventDetailModal({
                 >
                   {event.url}
                 </a>
-              </div>
+              </LabeledField>
             )}
           </div>
           <DialogFooter>
