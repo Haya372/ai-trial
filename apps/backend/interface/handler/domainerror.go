@@ -17,6 +17,10 @@ type domainErrorResponse struct {
 	message string
 }
 
+// msgResourceNotFound is the shared 404 message for every "not found" domain
+// error mapping, so handlers don't each restate the same literal.
+const msgResourceNotFound = "Resource not found"
+
 // writeDomainError maps a *domain.ValidationError to a 400 with field
 // details, and a *domain.DomainError to whatever mapping registers for its
 // Code(); anything else, including an unmapped domain error code, is logged

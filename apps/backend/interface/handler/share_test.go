@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
@@ -126,6 +127,23 @@ func TestShareHandler_GetShareByToken_expired_410(t *testing.T) {
 	}
 	if resp["code"] != "GONE" {
 		t.Errorf("expected code GONE, got %v", resp["code"])
+	}
+}
+
+func TestShareHandler_GetShareByToken_eventDeletedRace_returns404(t *testing.T) {
+	stub := &stubGetShareByTokenExec{
+		fn: func(_ context.Context, _ eventshareuc.GetShareByTokenInput) (eventshareuc.GetShareByTokenOutput, error) {
+			return eventshareuc.GetShareByTokenOutput{}, domainevent.ErrEventNotFound
+		},
+	}
+	h := handler.NewShareHandler(stub, testLogger)
+
+	req := shareTokenRequest(t, "racytoken")
+	w := httptest.NewRecorder()
+	h.GetShareByToken(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
