@@ -1,3 +1,5 @@
+# This workflow is managed by gh actions-lock.
+
 name: Backend CI
 on:
   push:
@@ -35,17 +37,17 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - uses: jdx/mise-action@v4.3.0
         with:
           install: true
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: "26"
           cache: pnpm
@@ -55,7 +57,7 @@ jobs:
         run: pnpm --filter @ai-trial/schema bundle
       - name: Cache sqlc generated files
         id: cache-sqlc
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache@v6.1.0
         with:
           path: apps/backend/infrastructure/db/generated/
           key: sqlc-${{ hashFiles('apps/backend/**/*.sql', 'apps/backend/sqlc.yaml') }}
@@ -65,7 +67,7 @@ jobs:
         working-directory: apps/backend
       - name: Cache oapi-codegen generated files
         id: cache-oapi
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache@v6.1.0
         with:
           path: apps/backend/interface/api/generated/
           key: oapi-${{ hashFiles('packages/schema/openapi.yaml', 'packages/schema/oapi-codegen.yaml', 'packages/schema/paths/**', 'packages/schema/components/**') }}
@@ -75,7 +77,7 @@ jobs:
         working-directory: apps/backend
       - name: Cache mockery generated files
         id: cache-mockery
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache@v6.1.0
         with:
           path: |
             apps/backend/domain/*/generated/
@@ -94,32 +96,32 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
           cache: false
       - name: Restore sqlc generated files
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: apps/backend/infrastructure/db/generated/
           key: sqlc-${{ hashFiles('apps/backend/**/*.sql', 'apps/backend/sqlc.yaml') }}
       - name: Restore oapi-codegen generated files
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: apps/backend/interface/api/generated/
           key: oapi-${{ hashFiles('packages/schema/openapi.yaml', 'packages/schema/oapi-codegen.yaml', 'packages/schema/paths/**', 'packages/schema/components/**') }}
       - name: Restore mockery generated files
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: |
             apps/backend/domain/*/generated/
             apps/backend/infrastructure/db/mock/
           key: mockery-${{ hashFiles('apps/backend/go.sum', 'apps/backend/**/*repository*.go', 'apps/backend/**/tx_manager.go') }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        uses: golangci/golangci-lint-action@v9.3.0
         with:
           working-directory: apps/backend
           version: v2.13.2
@@ -133,27 +135,27 @@ jobs:
       actions: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - uses: jdx/mise-action@v4.3.0
         with:
           install: true
       - name: Restore sqlc generated files
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: apps/backend/infrastructure/db/generated/
           key: sqlc-${{ hashFiles('apps/backend/**/*.sql', 'apps/backend/sqlc.yaml') }}
       - name: Restore oapi-codegen generated files
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: apps/backend/interface/api/generated/
           key: oapi-${{ hashFiles('packages/schema/openapi.yaml', 'packages/schema/oapi-codegen.yaml', 'packages/schema/paths/**', 'packages/schema/components/**') }}
       - name: Restore mockery generated files
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@v6.1.0
         with:
           path: |
             apps/backend/domain/*/generated/
@@ -168,12 +170,12 @@ jobs:
         # expects "apps/backend/". This sed replaces the module path to match.
         run: sed -i 's|github.com/Haya372/ai-trial/backend/|github.com/Haya372/ai-trial/apps/backend/|g' apps/backend/coverage.out
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: go-coverage
           path: apps/backend/coverage.out
       - name: Coverage report
-        uses: fgrosse/go-coverage-report@e432de98ee94a276e8f666d25bfd76347665f75b # v1.3.1
+        uses: fgrosse/go-coverage-report@v1.3.1
         continue-on-error: true
         with:
           coverage-artifact-name: go-coverage
