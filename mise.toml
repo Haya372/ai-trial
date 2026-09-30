@@ -4,7 +4,6 @@ gitleaks      = "8.30.1"
 actionlint    = "1.7.12"
 shellcheck    = "0.11.0"
 zizmor        = "1.30.0"
-pinact        = "4.1.1"
 golangci-lint = "2.13.2"
 node          = "26.8.1"
 "npm:pnpm"    = "12.3.4"
@@ -20,3 +19,7 @@ DATABASE_URL = "postgres://{{env.DB_USER}}:{{env.DB_PASSWORD}}@{{env.DB_HOST}}:{
 [tasks.git-clean]
 run = "bash scripts/git-clean-branches.sh"
 description = "Delete local branches whose remote is gone"
+
+[tasks.actions-lock-setup]
+run = "gh extension list | grep -q github/gh-actions-lock || gh extension install github/gh-actions-lock"
+description = "Install the gh-actions-lock extension if missing"
