@@ -123,6 +123,15 @@ func TestNewLoginPassword_tooLong(t *testing.T) {
 	}
 }
 
+func TestNewLoginPassword_maxLength(t *testing.T) {
+	// 72-char password that satisfies all complexity requirements
+	p72 := "SecurePass1!" + strings.Repeat("a", 60)
+	_, err := user.NewLoginPassword(p72)
+	if err != nil {
+		t.Errorf("NewLoginPassword() unexpected error for 72-char password: %v", err)
+	}
+}
+
 func TestNewLoginPassword_nonASCII(t *testing.T) {
 	cases := []string{
 		"Pass1!あいう",
