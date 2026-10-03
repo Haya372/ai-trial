@@ -52,6 +52,10 @@ type UpdateEventExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in eventuc.UpdateEventInput) (domainevent.Event, error)
 }
 
+// DeleteEventExecutor is a port deliberately kept separate from
+// DeleteSubscriptionExecutor: different usecase, coincidentally same shape.
+//
+//nolint:iface
 type DeleteEventExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
 }

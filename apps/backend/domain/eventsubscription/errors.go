@@ -6,6 +6,7 @@ const (
 	CodeEventSubscriptionNotFound      = "EVENT_SUBSCRIPTION_NOT_FOUND"
 	CodeEventSubscriptionAlreadyExists = "EVENT_SUBSCRIPTION_ALREADY_EXISTS"
 	CodeCannotSubscribeToOwnEvent      = "EVENT_SUBSCRIPTION_OWN_EVENT"
+	CodeNotSubscriptionOwner           = "EVENT_SUBSCRIPTION_NOT_OWNER"
 )
 
 var (
@@ -20,5 +21,11 @@ var (
 	// calendar" button isn't shown to the event's owner).
 	ErrCannotSubscribeToOwnEvent = domain.NewDomainError(
 		CodeCannotSubscribeToOwnEvent, "cannot subscribe to your own event",
+	)
+	// ErrNotSubscriptionOwner is returned when a user tries to delete another
+	// user's EventSubscription (Issue #212: 403, distinct from the 404 used
+	// when the subscription doesn't exist at all).
+	ErrNotSubscriptionOwner = domain.NewDomainError(
+		CodeNotSubscriptionOwner, "subscription does not belong to the requesting user",
 	)
 )

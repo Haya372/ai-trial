@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
@@ -27,13 +28,25 @@ type SubscribeToShareExecutor interface {
 	) (eventsubscriptionuc.SubscribeToShareOutput, error)
 }
 
-type EventSubscriptionHandler struct {
-	subscribeToShare SubscribeToShareExecutor
-	logger           *slog.Logger
+// DeleteSubscriptionExecutor is satisfied by eventsubscriptionuc.DeleteSubscriptionCommand.
+// Deliberately separate port from DeleteEventExecutor: different usecase,
+// coincidentally same shape.
+//
+//nolint:iface
+type DeleteSubscriptionExecutor interface {
+	Execute(ctx context.Context, userID, id uuid.UUID) error
 }
 
-func NewEventSubscriptionHandler(s SubscribeToShareExecutor, logger *slog.Logger) *EventSubscriptionHandler {
-	return &EventSubscriptionHandler{subscribeToShare: s, logger: logger}
+type EventSubscriptionHandler struct {
+	subscribeToShare   SubscribeToShareExecutor
+	deleteSubscription DeleteSubscriptionExecutor
+	logger             *slog.Logger
+}
+
+func NewEventSubscriptionHandler(
+	s SubscribeToShareExecutor, d DeleteSubscriptionExecutor, logger *slog.Logger,
+) *EventSubscriptionHandler {
+	return &EventSubscriptionHandler{subscribeToShare: s, deleteSubscription: d, logger: logger}
 }
 
 type eventSubscriptionResponseBody struct {
@@ -81,6 +94,46 @@ func (h *EventSubscriptionHandler) SubscribeToShare(w http.ResponseWriter, r *ht
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write(b)
+}
+
+// DeleteSubscription handles DELETE /subscriptions/{id}: removing a shared
+// event from the authenticated user's own calendar (SPEC-004 "追加の取り消し").
+// It only ever deletes the subscription row; the source event and its share
+// links are untouched.
+func (h *EventSubscriptionHandler) DeleteSubscription(w http.ResponseWriter, r *http.Request) {
+	u, ok := r.Context().Value(ctxkey.User).(user.User)
+	if !ok || u == nil {
+		h.logger.Warn("unauthorized access to DELETE /subscriptions/{id}", "path", r.URL.Path)
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid subscription id")
+		return
+	}
+
+	if err := h.deleteSubscription.Execute(r.Context(), u.ID(), id); err != nil {
+		h.writeDeleteSubscriptionError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// writeDeleteSubscriptionError maps EVENT_SUBSCRIPTION_NOT_OWNER to 403,
+// distinct from the 404 used when the subscription doesn't exist at all
+// (Issue #212's acceptance criteria call for the two to be distinguished).
+func (h *EventSubscriptionHandler) writeDeleteSubscriptionError(w http.ResponseWriter, r *http.Request, err error) {
+	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
+		domaineventsubscription.CodeEventSubscriptionNotFound: {
+			status: http.StatusNotFound, code: errCodeNotFound, message: msgResourceNotFound,
+		},
+		domaineventsubscription.CodeNotSubscriptionOwner: {
+			status: http.StatusForbidden, code: errCodeForbidden, message: "You cannot delete another user's subscription",
+		},
+	})
 }
 
 // writeSubscribeError maps the same not-found/expired codes as

@@ -52,6 +52,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newShareTokenLoader,
 		newGetShareByTokenExecutor,
 		newSubscribeToShareExecutor,
+		newDeleteSubscriptionExecutor,
 		newSignupExecutor,
 		newLoginExecutor,
 		newLogoutExecutor,
@@ -166,6 +167,12 @@ func newSubscribeToShareExecutor(
 	return eventsubscriptionuc.NewSubscribeToShareCommand(l, s)
 }
 
+func newDeleteSubscriptionExecutor(
+	s eventsubscription.Repository, logger *slog.Logger,
+) handler.DeleteSubscriptionExecutor {
+	return eventsubscriptionuc.NewDeleteSubscriptionCommand(s, logger)
+}
+
 func newRouter(
 	health *handler.HealthHandler,
 	auth *handler.AuthHandler,
@@ -197,5 +204,6 @@ func newRouter(
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events/{id}/shares", es.CreateShare)
 	r.With(mw.OptionalAuth(sessRepo, userRepo, logger)).Get("/shares/{token}", share.GetShareByToken)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/shares/{token}/subscriptions", sub.SubscribeToShare)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/subscriptions/{id}", sub.DeleteSubscription)
 	return r
 }

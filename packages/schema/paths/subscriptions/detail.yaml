@@ -1,0 +1,39 @@
+delete:
+  operationId: deleteSubscription
+  summary: Remove a shared event from the authenticated user's calendar
+  tags:
+    - subscriptions
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    "204":
+      description: Subscription removed
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "403":
+      description: Subscription belongs to another user
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ForbiddenErrorResponse.yaml"
+    "404":
+      description: Subscription not found
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"

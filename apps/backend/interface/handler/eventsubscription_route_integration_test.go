@@ -41,16 +41,18 @@ func buildEventSubscriptionTestRouter() eventSubscriptionTestDeps {
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
 	loader := eventshareuc.NewShareTokenLoader(eventShareRepo, eventQueryRepo)
 	subscribeToShare := eventsubscriptionuc.NewSubscribeToShareCommand(loader, subsRepo)
+	deleteSubscription := eventsubscriptionuc.NewDeleteSubscriptionCommand(subsRepo, logger)
 
 	auth := handler.NewAuthHandler(
 		signup, authuc.NewLoginCommand(userRepo, sessRepo), authuc.NewLogoutCommand(sessRepo), logger,
 	)
-	sub := handler.NewEventSubscriptionHandler(subscribeToShare, logger)
+	sub := handler.NewEventSubscriptionHandler(subscribeToShare, deleteSubscription, logger)
 
 	r := chi.NewRouter()
 	r.Post("/auth/signup", auth.Signup)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/auth/me", auth.GetMe)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/shares/{token}/subscriptions", sub.SubscribeToShare)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/subscriptions/{id}", sub.DeleteSubscription)
 	return eventSubscriptionTestDeps{router: r, eventShareRepo: eventShareRepo}
 }
 
@@ -226,5 +228,112 @@ func TestRoute_SubscribeToShare_alreadySubscribed_returns200Idempotent(t *testin
 	}
 	if count := assertEventSubscriptionCountInDB(t, eventID, viewerID); count != 1 {
 		t.Errorf("expected 1 event_subscriptions row after duplicate add, got %d", count)
+	}
+}
+
+func deleteSubscriptionReq(id string, cookie *http.Cookie) *http.Request {
+	req := httptest.NewRequest(http.MethodDelete, "/subscriptions/"+id, nil)
+	req.AddCookie(cookie)
+	return req
+}
+
+// subscribeAndGetID runs the subscribe flow via the real router and returns
+// the created subscription's id, so DELETE tests exercise a row created
+// through the same HTTP path rather than inserted directly.
+func subscribeAndGetID(t *testing.T, router http.Handler, token string, cookie *http.Cookie) string {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, subscribeReq(token, cookie))
+	if rec.Code != http.StatusCreated && rec.Code != http.StatusOK {
+		t.Fatalf("subscribe setup failed: %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode subscribe response: %v", err)
+	}
+	return body.ID
+}
+
+func TestRoute_DeleteSubscription_withoutSession_returns401(t *testing.T) {
+	setupRouteTest(t)
+	deps := buildEventSubscriptionTestRouter()
+
+	req := httptest.NewRequest(http.MethodDelete, "/subscriptions/"+uuid.New().String(), nil)
+	if code := responseCode(t, deps.router, req); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", code)
+	}
+}
+
+func TestRoute_DeleteSubscription_notFound_returns404(t *testing.T) {
+	setupRouteTest(t)
+	deps := buildEventSubscriptionTestRouter()
+	cookie := signupAndGetCookie(t, deps.router, "unsub-notfound@ex.com")
+
+	rec := httptest.NewRecorder()
+	deps.router.ServeHTTP(rec, deleteSubscriptionReq(uuid.New().String(), cookie))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRoute_DeleteSubscription_notOwner_returns403(t *testing.T) {
+	setupRouteTest(t)
+	deps := buildEventSubscriptionTestRouter()
+	ownerCookie := signupAndGetCookie(t, deps.router, "unsub-owner@ex.com")
+	ownerID := getUserIDFromCookie(t, deps.router, ownerCookie)
+	viewerCookie := signupAndGetCookie(t, deps.router, "unsub-viewer@ex.com")
+	otherCookie := signupAndGetCookie(t, deps.router, "unsub-other@ex.com")
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, ownerID, "Shared meeting", now, now.Add(time.Hour))
+	token := insertRouteTestShare(t, deps.eventShareRepo, uuid.MustParse(eventID), now.Add(time.Hour))
+	subID := subscribeAndGetID(t, deps.router, token, viewerCookie)
+
+	rec := httptest.NewRecorder()
+	deps.router.ServeHTTP(rec, deleteSubscriptionReq(subID, otherCookie))
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if count := assertEventSubscriptionCountInDB(t, eventID, getUserIDFromCookie(t, deps.router, viewerCookie)); count != 1 {
+		t.Errorf("expected subscription to remain after another user's forbidden delete, got count %d", count)
+	}
+}
+
+func TestRoute_DeleteSubscription_owner_returns204AndRemovesRow(t *testing.T) {
+	setupRouteTest(t)
+	deps := buildEventSubscriptionTestRouter()
+	ownerCookie := signupAndGetCookie(t, deps.router, "unsub-owner2@ex.com")
+	ownerID := getUserIDFromCookie(t, deps.router, ownerCookie)
+	viewerCookie := signupAndGetCookie(t, deps.router, "unsub-viewer2@ex.com")
+	viewerID := getUserIDFromCookie(t, deps.router, viewerCookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, ownerID, "Shared meeting", now, now.Add(time.Hour))
+	token := insertRouteTestShare(t, deps.eventShareRepo, uuid.MustParse(eventID), now.Add(time.Hour))
+	subID := subscribeAndGetID(t, deps.router, token, viewerCookie)
+
+	rec := httptest.NewRecorder()
+	deps.router.ServeHTTP(rec, deleteSubscriptionReq(subID, viewerCookie))
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if count := assertEventSubscriptionCountInDB(t, eventID, viewerID); count != 0 {
+		t.Errorf("expected 0 event_subscriptions rows after delete, got %d", count)
+	}
+
+	// The source event itself must be untouched by removing the subscription.
+	var eventCount int
+	if err := routeTestPool.QueryRow(
+		context.Background(), "SELECT COUNT(*) FROM events WHERE id = $1", eventID,
+	).Scan(&eventCount); err != nil {
+		t.Fatalf("query events: %v", err)
+	}
+	if eventCount != 1 {
+		t.Errorf("expected source event to remain, got count %d", eventCount)
 	}
 }

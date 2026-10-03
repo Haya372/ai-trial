@@ -31,6 +31,25 @@ func (s *stubSubscribeToShareExec) Execute(
 	return s.fn(ctx, in)
 }
 
+// noopDeleteSubscriptionExec is passed to SubscribeToShare-only tests, which
+// never exercise the delete path.
+var noopDeleteSubscriptionExec = &stubDeleteSubscriptionExec{}
+
+// noopSubscribeToShareExec is passed to DeleteSubscription-only tests, which
+// never exercise the subscribe path.
+var noopSubscribeToShareExec = &stubSubscribeToShareExec{}
+
+type stubDeleteSubscriptionExec struct {
+	fn func(ctx context.Context, userID, id uuid.UUID) error
+}
+
+func (s *stubDeleteSubscriptionExec) Execute(ctx context.Context, userID, id uuid.UUID) error {
+	if s.fn == nil {
+		return nil
+	}
+	return s.fn(ctx, userID, id)
+}
+
 func subscribeRequest(t *testing.T, token string) *http.Request {
 	t.Helper()
 	req, err := http.NewRequestWithContext(
@@ -53,7 +72,7 @@ func subscribeRequestAsUser(t *testing.T, token string, userID uuid.UUID) *http.
 
 func TestEventSubscriptionHandler_SubscribeToShare_unauthenticated_401(t *testing.T) {
 	stub := &stubSubscribeToShareExec{}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequest(t, "tok")
 	w := httptest.NewRecorder()
@@ -82,7 +101,7 @@ func TestEventSubscriptionHandler_SubscribeToShare_created_201(t *testing.T) {
 			}, nil
 		},
 	}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequestAsUser(t, "tok", userID)
 	w := httptest.NewRecorder()
@@ -114,7 +133,7 @@ func TestEventSubscriptionHandler_SubscribeToShare_alreadySubscribed_200(t *test
 			}, nil
 		},
 	}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequestAsUser(t, "tok", userID)
 	w := httptest.NewRecorder()
@@ -133,7 +152,7 @@ func TestEventSubscriptionHandler_SubscribeToShare_tokenNotFound_404(t *testing.
 			return eventsubscriptionuc.SubscribeToShareOutput{}, domaineventshare.ErrEventShareNotFound
 		},
 	}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequestAsUser(t, "unknown", uuid.New())
 	w := httptest.NewRecorder()
@@ -152,7 +171,7 @@ func TestEventSubscriptionHandler_SubscribeToShare_tokenExpired_410(t *testing.T
 			return eventsubscriptionuc.SubscribeToShareOutput{}, domaineventshare.ErrEventShareExpired
 		},
 	}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequestAsUser(t, "expired", uuid.New())
 	w := httptest.NewRecorder()
@@ -171,7 +190,7 @@ func TestEventSubscriptionHandler_SubscribeToShare_ownEvent_403(t *testing.T) {
 			return eventsubscriptionuc.SubscribeToShareOutput{}, domaineventsubscription.ErrCannotSubscribeToOwnEvent
 		},
 	}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequestAsUser(t, "tok", uuid.New())
 	w := httptest.NewRecorder()
@@ -190,11 +209,131 @@ func TestEventSubscriptionHandler_SubscribeToShare_internalError_500(t *testing.
 			return eventsubscriptionuc.SubscribeToShareOutput{}, errInternal
 		},
 	}
-	h := handler.NewEventSubscriptionHandler(stub, testLogger)
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, testLogger)
 
 	req := subscribeRequestAsUser(t, "tok", uuid.New())
 	w := httptest.NewRecorder()
 	h.SubscribeToShare(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func deleteSubscriptionRequest(t *testing.T, id string) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(
+		context.Background(), http.MethodDelete, "/subscriptions/"+id, nil,
+	)
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	return req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+}
+
+func deleteSubscriptionRequestAsUser(t *testing.T, id string, userID uuid.UUID) *http.Request {
+	t.Helper()
+	req := deleteSubscriptionRequest(t, id)
+	u := newStubUser(userID, "user@example.com", "User")
+	return req.WithContext(context.WithValue(req.Context(), ctxkey.User, u))
+}
+
+func TestEventSubscriptionHandler_DeleteSubscription_unauthenticated_401(t *testing.T) {
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, noopDeleteSubscriptionExec, testLogger)
+
+	req := deleteSubscriptionRequest(t, uuid.New().String())
+	w := httptest.NewRecorder()
+	h.DeleteSubscription(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventSubscriptionHandler_DeleteSubscription_invalidID_400(t *testing.T) {
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, noopDeleteSubscriptionExec, testLogger)
+
+	req := deleteSubscriptionRequestAsUser(t, "not-a-uuid", uuid.New())
+	w := httptest.NewRecorder()
+	h.DeleteSubscription(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventSubscriptionHandler_DeleteSubscription_success_204(t *testing.T) {
+	userID := uuid.New()
+	subID := uuid.New()
+	stub := &stubDeleteSubscriptionExec{
+		fn: func(_ context.Context, gotUserID, gotID uuid.UUID) error {
+			if gotUserID != userID {
+				t.Errorf("expected userID %v, got %v", userID, gotUserID)
+			}
+			if gotID != subID {
+				t.Errorf("expected id %v, got %v", subID, gotID)
+			}
+			return nil
+		},
+	}
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, stub, testLogger)
+
+	req := deleteSubscriptionRequestAsUser(t, subID.String(), userID)
+	w := httptest.NewRecorder()
+	h.DeleteSubscription(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventSubscriptionHandler_DeleteSubscription_notFound_404(t *testing.T) {
+	stub := &stubDeleteSubscriptionExec{
+		fn: func(context.Context, uuid.UUID, uuid.UUID) error {
+			return domaineventsubscription.ErrEventSubscriptionNotFound
+		},
+	}
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, stub, testLogger)
+
+	req := deleteSubscriptionRequestAsUser(t, uuid.New().String(), uuid.New())
+	w := httptest.NewRecorder()
+	h.DeleteSubscription(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventSubscriptionHandler_DeleteSubscription_notOwner_403(t *testing.T) {
+	stub := &stubDeleteSubscriptionExec{
+		fn: func(context.Context, uuid.UUID, uuid.UUID) error {
+			return domaineventsubscription.ErrNotSubscriptionOwner
+		},
+	}
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, stub, testLogger)
+
+	req := deleteSubscriptionRequestAsUser(t, uuid.New().String(), uuid.New())
+	w := httptest.NewRecorder()
+	h.DeleteSubscription(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestEventSubscriptionHandler_DeleteSubscription_internalError_500(t *testing.T) {
+	stub := &stubDeleteSubscriptionExec{
+		fn: func(context.Context, uuid.UUID, uuid.UUID) error {
+			return errInternal
+		},
+	}
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, stub, testLogger)
+
+	req := deleteSubscriptionRequestAsUser(t, uuid.New().String(), uuid.New())
+	w := httptest.NewRecorder()
+	h.DeleteSubscription(w, req)
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
