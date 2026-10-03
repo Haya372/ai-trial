@@ -65,7 +65,7 @@ func (h *EventShareHandler) CreateShare(w http.ResponseWriter, r *http.Request) 
 	}
 
 	body, err := json.Marshal(api.CreateEventShareResponse{
-		Url:       "/share/" + result.Token,
+		Url:       "/share/" + result.Token.String(),
 		ExpiresAt: result.Share.ExpiresAt(),
 	})
 	if err != nil {

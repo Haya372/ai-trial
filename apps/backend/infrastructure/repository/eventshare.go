@@ -42,7 +42,7 @@ func (r *eventShareRepository) Create(ctx context.Context, s eventshare.EventSha
 	row, err := r.querier(spanCtx).InsertEventShare(spanCtx, query.InsertEventShareParams{
 		ID:        pgtype.UUID{Bytes: s.ID(), Valid: true},
 		EventID:   pgtype.UUID{Bytes: s.EventID(), Valid: true},
-		TokenHash: s.TokenHash(),
+		TokenHash: s.TokenHash().String(),
 		ExpiresAt: pgtype.Timestamptz{Time: s.ExpiresAt(), Valid: true},
 	})
 	endDBSpan(span, err)
@@ -54,7 +54,7 @@ func (r *eventShareRepository) Create(ctx context.Context, s eventshare.EventSha
 	}
 
 	saved, err := eventshare.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), row.TokenHash, row.ExpiresAt.Time,
+		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), eventshare.NewTokenHash(row.TokenHash), row.ExpiresAt.Time,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("reconstruct saved event share: %w", err)
@@ -64,9 +64,9 @@ func (r *eventShareRepository) Create(ctx context.Context, s eventshare.EventSha
 
 // FindByToken hashes the given plain token and looks up the share whose
 // stored hash matches (eventshare.Repository's contract).
-func (r *eventShareRepository) FindByToken(ctx context.Context, token string) (eventshare.EventShare, error) {
+func (r *eventShareRepository) FindByToken(ctx context.Context, token eventshare.Token) (eventshare.EventShare, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventSharesTable)
-	row, err := r.querier(spanCtx).FindEventShareByTokenHash(spanCtx, eventshare.HashToken(token))
+	row, err := r.querier(spanCtx).FindEventShareByTokenHash(spanCtx, token.Hash().String())
 	endDBSpanNotFound(span, err)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, eventshare.ErrEventShareNotFound
@@ -76,6 +76,6 @@ func (r *eventShareRepository) FindByToken(ctx context.Context, token string) (e
 	}
 
 	return eventshare.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), row.TokenHash, row.ExpiresAt.Time,
+		uuid.UUID(row.ID.Bytes), uuid.UUID(row.EventID.Bytes), eventshare.NewTokenHash(row.TokenHash), row.ExpiresAt.Time,
 	)
 }

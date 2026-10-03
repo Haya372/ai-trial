@@ -17,7 +17,7 @@ import (
 
 func newTestEventShare(t *testing.T, eventID uuid.UUID, token string, expiresAt time.Time) eventshare.EventShare {
 	t.Helper()
-	s, err := eventshare.New(uuid.New(), eventID, eventshare.HashToken(token), expiresAt)
+	s, err := eventshare.New(uuid.New(), eventID, eventshare.NewToken(token).Hash(), expiresAt)
 	if err != nil {
 		t.Fatalf("build domain eventshare: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestEventShareRepository_Create_PersistsAndReturnsEventShare(t *testing.T) 
 
 	id := uuid.New()
 	expiresAt := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
-	tokenHash := eventshare.HashToken("plain-token-create")
+	tokenHash := eventshare.NewToken("plain-token-create").Hash()
 	s, err := eventshare.New(id, eventID, tokenHash, expiresAt)
 	if err != nil {
 		t.Fatalf("build domain eventshare: %v", err)
@@ -50,7 +50,7 @@ func TestEventShareRepository_Create_PersistsAndReturnsEventShare(t *testing.T) 
 	if saved.EventID() != eventID {
 		t.Errorf("EventID mismatch: got %v, want %v", saved.EventID(), eventID)
 	}
-	if saved.TokenHash() != tokenHash {
+	if saved.TokenHash().String() != tokenHash.String() {
 		t.Errorf("TokenHash mismatch: got %q, want %q", saved.TokenHash(), tokenHash)
 	}
 	if !saved.ExpiresAt().Equal(expiresAt) {
@@ -82,7 +82,7 @@ func TestEventShareRepository_FindByToken_ReturnsMatchingShare(t *testing.T) {
 	id := uuid.New()
 	expiresAt := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	const plainToken = "plain-token-findable"
-	s, err := eventshare.New(id, eventID, eventshare.HashToken(plainToken), expiresAt)
+	s, err := eventshare.New(id, eventID, eventshare.NewToken(plainToken).Hash(), expiresAt)
 	if err != nil {
 		t.Fatalf("build domain eventshare: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestEventShareRepository_FindByToken_ReturnsMatchingShare(t *testing.T) {
 		t.Fatalf("create eventshare: %v", err)
 	}
 
-	found, err := repo.FindByToken(context.Background(), plainToken)
+	found, err := repo.FindByToken(context.Background(), eventshare.NewToken(plainToken))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestEventShareRepository_FindByToken_UnknownToken_ReturnsErrEventShareNotFo
 
 	repo := repository.NewEventShareRepository(testPool, testTracerProvider)
 
-	_, err := repo.FindByToken(context.Background(), "token-that-was-never-issued")
+	_, err := repo.FindByToken(context.Background(), eventshare.NewToken("token-that-was-never-issued"))
 	if !errors.Is(err, eventshare.ErrEventShareNotFound) {
 		t.Errorf("expected ErrEventShareNotFound, got %v", err)
 	}
@@ -128,7 +128,7 @@ func TestEventShareRepository_FindByToken_ExpiredShare_ReturnsShareWithIsExpired
 		t.Fatalf("create eventshare: %v", err)
 	}
 
-	found, err := repo.FindByToken(context.Background(), plainToken)
+	found, err := repo.FindByToken(context.Background(), eventshare.NewToken(plainToken))
 	if err != nil {
 		t.Fatalf("expected an expired share to be returned without error, got: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestEventShareRepository_FindByToken_MultipleSharesForSameEvent_ReturnsMatc
 		t.Fatalf("create shareB: %v", err)
 	}
 
-	found, err := repo.FindByToken(context.Background(), "plain-token-b")
+	found, err := repo.FindByToken(context.Background(), eventshare.NewToken("plain-token-b"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestEventSharesTable_TokenHash_HasUniqueConstraint(t *testing.T) {
 	eventID := insertEvent(t, u.ID(), "Share target event", now, now.Add(time.Hour))
 
 	expiresAt := time.Now().UTC().Add(time.Hour)
-	duplicateHash := eventshare.HashToken("duplicate-source-token")
+	duplicateHash := eventshare.NewToken("duplicate-source-token").Hash().String()
 
 	_, err := testPool.Exec(context.Background(),
 		`INSERT INTO event_shares (event_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
@@ -199,7 +199,7 @@ func TestEventSharesTable_EventIDForeignKey_CascadesOnEventDelete(t *testing.T) 
 	var shareID uuid.UUID
 	err := testPool.QueryRow(context.Background(),
 		`INSERT INTO event_shares (event_id, token_hash, expires_at) VALUES ($1, $2, $3) RETURNING id`,
-		eventID, eventshare.HashToken("plain-token-cascade"), time.Now().UTC().Add(time.Hour),
+		eventID, eventshare.NewToken("plain-token-cascade").Hash().String(), time.Now().UTC().Add(time.Hour),
 	).Scan(&shareID)
 	if err != nil {
 		t.Fatalf("insert event_share: %v", err)

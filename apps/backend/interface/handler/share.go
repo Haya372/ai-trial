@@ -44,7 +44,7 @@ type shareResponseBody struct {
 }
 
 func (h *ShareHandler) GetShareByToken(w http.ResponseWriter, r *http.Request) {
-	token := chi.URLParam(r, "token")
+	token := domaineventshare.NewToken(chi.URLParam(r, "token"))
 
 	var viewer user.User
 	if u, ok := r.Context().Value(ctxkey.User).(user.User); ok && u != nil {

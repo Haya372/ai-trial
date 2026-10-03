@@ -24,7 +24,7 @@ func TestErrEventShareExpired_isDomainError(t *testing.T) {
 func TestNew_ValidEventShare(t *testing.T) {
 	id := uuid.New()
 	eventID := uuid.New()
-	tokenHash := "hash-value"
+	tokenHash := eventshare.NewTokenHash("hash-value")
 	expiresAt := time.Now().Add(24 * time.Hour)
 
 	s, err := eventshare.New(id, eventID, tokenHash, expiresAt)
@@ -38,7 +38,7 @@ func TestNew_ValidEventShare(t *testing.T) {
 	if s.EventID() != eventID {
 		t.Errorf("EventID() = %v, want %v", s.EventID(), eventID)
 	}
-	if s.TokenHash() != tokenHash {
+	if s.TokenHash().String() != tokenHash.String() {
 		t.Errorf("TokenHash() = %v, want %v", s.TokenHash(), tokenHash)
 	}
 	if !s.ExpiresAt().Equal(expiresAt) {
@@ -47,7 +47,7 @@ func TestNew_ValidEventShare(t *testing.T) {
 }
 
 func TestNew_EmptyTokenHash(t *testing.T) {
-	_, err := eventshare.New(uuid.New(), uuid.New(), "", time.Now().Add(time.Hour))
+	_, err := eventshare.New(uuid.New(), uuid.New(), eventshare.TokenHash{}, time.Now().Add(time.Hour))
 
 	var ve *domain.ValidationError
 	if !errors.As(err, &ve) {
@@ -56,7 +56,7 @@ func TestNew_EmptyTokenHash(t *testing.T) {
 }
 
 func TestNew_ZeroExpiresAt(t *testing.T) {
-	_, err := eventshare.New(uuid.New(), uuid.New(), "hash-value", time.Time{})
+	_, err := eventshare.New(uuid.New(), uuid.New(), eventshare.NewTokenHash("hash-value"), time.Time{})
 
 	var ve *domain.ValidationError
 	if !errors.As(err, &ve) {
@@ -65,7 +65,7 @@ func TestNew_ZeroExpiresAt(t *testing.T) {
 }
 
 func TestIsExpired_notExpired(t *testing.T) {
-	s, err := eventshare.New(uuid.New(), uuid.New(), "hash-value", time.Now().Add(time.Hour))
+	s, err := eventshare.New(uuid.New(), uuid.New(), eventshare.NewTokenHash("hash-value"), time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestIsExpired_notExpired(t *testing.T) {
 }
 
 func TestIsExpired_expired(t *testing.T) {
-	s, err := eventshare.New(uuid.New(), uuid.New(), "hash-value", time.Now().Add(-time.Second))
+	s, err := eventshare.New(uuid.New(), uuid.New(), eventshare.NewTokenHash("hash-value"), time.Now().Add(-time.Second))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

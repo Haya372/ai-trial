@@ -22,7 +22,7 @@ func NewShareTokenLoader(
 
 func (l *ShareTokenLoader) Load(
 	ctx context.Context,
-	token string,
+	token domaineventshare.Token,
 ) (domaineventshare.EventShare, eventuc.EventReadModel, error) {
 	share, err := l.shareRepo.FindByToken(ctx, token)
 	if err != nil {

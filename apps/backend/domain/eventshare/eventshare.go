@@ -11,7 +11,7 @@ import (
 type EventShare interface {
 	ID() uuid.UUID
 	EventID() uuid.UUID
-	TokenHash() string
+	TokenHash() TokenHash
 	ExpiresAt() time.Time
 	IsExpired() bool
 }
@@ -19,12 +19,12 @@ type EventShare interface {
 type eventShareEntity struct {
 	id        uuid.UUID
 	eventID   uuid.UUID
-	tokenHash string
+	tokenHash TokenHash
 	expiresAt time.Time
 }
 
-func New(id, eventID uuid.UUID, tokenHash string, expiresAt time.Time) (EventShare, error) {
-	if tokenHash == "" {
+func New(id, eventID uuid.UUID, tokenHash TokenHash, expiresAt time.Time) (EventShare, error) {
+	if tokenHash.IsZero() {
 		return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
 			{Field: "tokenHash", Code: "REQUIRED", Message: "tokenHash is required"},
 		}}
@@ -44,7 +44,7 @@ func New(id, eventID uuid.UUID, tokenHash string, expiresAt time.Time) (EventSha
 
 func (s *eventShareEntity) ID() uuid.UUID        { return s.id }
 func (s *eventShareEntity) EventID() uuid.UUID   { return s.eventID }
-func (s *eventShareEntity) TokenHash() string    { return s.tokenHash }
+func (s *eventShareEntity) TokenHash() TokenHash { return s.tokenHash }
 func (s *eventShareEntity) ExpiresAt() time.Time { return s.expiresAt }
 
 func (s *eventShareEntity) IsExpired() bool { return isExpired(time.Now(), s.expiresAt) }

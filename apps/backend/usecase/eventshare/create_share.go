@@ -23,7 +23,7 @@ type CreateShareInput struct {
 // since the plaintext is only ever available at creation time (ADR-028).
 type CreateShareResult struct {
 	Share domaineventshare.EventShare
-	Token string
+	Token domaineventshare.Token
 }
 
 type CreateShareCommand struct {
@@ -84,7 +84,7 @@ func (c *CreateShareCommand) Execute(
 		if err != nil {
 			return fmt.Errorf("generate token: %w", err)
 		}
-		share, err := domaineventshare.New(uuid.New(), in.EventID, domaineventshare.HashToken(token), expiresAt)
+		share, err := domaineventshare.New(uuid.New(), in.EventID, token.Hash(), expiresAt)
 		if err != nil {
 			return err
 		}

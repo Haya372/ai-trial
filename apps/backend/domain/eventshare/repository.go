@@ -8,9 +8,9 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, s EventShare) (EventShare, error)
-	// FindByToken hashes the given plain token (via HashToken) and looks up the
-	// share whose stored hash matches. It returns the share even if expired so
-	// callers can decide via IsExpired(); it returns ErrEventShareNotFound only
-	// when no share matches the hash at all.
-	FindByToken(ctx context.Context, token string) (EventShare, error)
+	// FindByToken hashes the given plain token (via Token.Hash) and looks up
+	// the share whose stored hash matches. It returns the share even if
+	// expired so callers can decide via IsExpired(); it returns
+	// ErrEventShareNotFound only when no share matches the hash at all.
+	FindByToken(ctx context.Context, token Token) (EventShare, error)
 }
