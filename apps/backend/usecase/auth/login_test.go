@@ -104,6 +104,26 @@ func TestLoginCommand_Execute_UnknownEmail_ReturnsUserNotFound(t *testing.T) {
 	}
 }
 
+func TestLoginCommand_Execute_UnknownEmail_InvalidPasswordFormat_ReturnsPasswordValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	email, _ := user.NewEmail("no@ex.com")
+	mockUserRepo := usermock.NewMockRepository(ctrl)
+
+	mockUserRepo.EXPECT().
+		FindByEmail(gomock.Any(), email).
+		Return(nil, user.ErrUserNotFound)
+
+	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl))
+	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
+		Email:    "no@ex.com",
+		Password: "short",
+	})
+	if !errors.Is(err, user.ErrPasswordTooShort) {
+		t.Errorf("expected ErrPasswordTooShort, got %v", err)
+	}
+}
+
 func TestLoginCommand_Execute_InvalidEmailFormat_ReturnsEmailValidationError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	cmd := authuc.NewLoginCommand(
