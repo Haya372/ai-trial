@@ -1,6 +1,6 @@
 # コンポーネント実装ガイドライン
 
-ADR-015でBase UI + Tailwind CSS（自前ラッパー）を採用した。このドキュメントはUIコンポーネントを実装・利用するときの規約を定義する。
+ADR-031でBase UI + Tailwind CSS（自前ラッパー）を採用した。このドキュメントはUIコンポーネントを実装・利用するときの規約を定義する。
 
 ## 基本原則
 
@@ -194,5 +194,5 @@ const buttonVariants = cva("...", {
 
 ## 参照
 
-- [ADR-015: フロントエンドコンポーネントライブラリ](../adr/ADR-015-frontend-component-library.md)
+- [ADR-031: フロントエンドコンポーネントライブラリ（Base UI への変更）](../adr/ADR-031-frontend-component-library-base-ui.md)
 - [設計ガイドライン](design-guidelines.md)
