@@ -23,6 +23,8 @@ paths:
     $ref: "./paths/shares/detail.yaml"
   /shares/{token}/subscriptions:
     $ref: "./paths/shares/subscriptions.yaml"
+  /subscriptions/{id}:
+    $ref: "./paths/subscriptions/detail.yaml"
 components:
   schemas:
     HealthResponse:
