@@ -16,6 +16,8 @@ import (
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
 
+const loginTestEmail = "u@ex.com"
+
 // stubUser implements user.User with controlled ComparePassword behavior.
 type stubUser struct {
 	id          uuid.UUID
@@ -34,7 +36,7 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 
 	fixedUserID := uuid.New()
 	fixedSessID := uuid.New()
-	email, _ := user.NewEmail("u@ex.com")
+	email, _ := user.NewEmail(loginTestEmail)
 
 	stub := &stubUser{id: fixedUserID, email: email, displayName: "U", compareErr: nil}
 
@@ -50,7 +52,7 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 
 	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo)
 	out, err := cmd.Execute(context.Background(), authuc.LoginInput{
-		Email:    "u@ex.com",
+		Email:    loginTestEmail,
 		Password: testPassword,
 	})
 	if err != nil {
@@ -64,7 +66,7 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 func TestLoginCommand_Execute_WrongPassword_ReturnsPasswordMismatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	email, _ := user.NewEmail("u@ex.com")
+	email, _ := user.NewEmail(loginTestEmail)
 	stub := &stubUser{id: uuid.New(), email: email, compareErr: user.ErrPasswordMismatch}
 
 	mockUserRepo := usermock.NewMockRepository(ctrl)
@@ -76,7 +78,7 @@ func TestLoginCommand_Execute_WrongPassword_ReturnsPasswordMismatch(t *testing.T
 
 	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo)
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
-		Email:    "u@ex.com",
+		Email:    loginTestEmail,
 		Password: "WrongPass1!",
 	})
 	if !errors.Is(err, user.ErrPasswordMismatch) {
@@ -104,7 +106,7 @@ func TestLoginCommand_Execute_UnknownEmail_ReturnsUserNotFound(t *testing.T) {
 	}
 }
 
-func TestLoginCommand_Execute_UnknownEmail_InvalidPasswordFormat_ReturnsPasswordValidationError(t *testing.T) {
+func TestLoginCommand_Execute_UnknownEmail_MalformedPassword_ReturnsPasswordMismatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	email, _ := user.NewEmail("no@ex.com")
@@ -119,8 +121,29 @@ func TestLoginCommand_Execute_UnknownEmail_InvalidPasswordFormat_ReturnsPassword
 		Email:    "no@ex.com",
 		Password: "short",
 	})
-	if !errors.Is(err, user.ErrPasswordTooShort) {
-		t.Errorf("expected ErrPasswordTooShort, got %v", err)
+	if !errors.Is(err, user.ErrPasswordMismatch) {
+		t.Errorf("expected ErrPasswordMismatch, got %v", err)
+	}
+}
+
+func TestLoginCommand_Execute_KnownEmail_MalformedPassword_ReturnsPasswordMismatch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	email, _ := user.NewEmail(loginTestEmail)
+	stub := &stubUser{id: uuid.New(), email: email}
+	mockUserRepo := usermock.NewMockRepository(ctrl)
+
+	mockUserRepo.EXPECT().
+		FindByEmail(gomock.Any(), email).
+		Return(stub, nil)
+
+	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl))
+	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
+		Email:    loginTestEmail,
+		Password: "short",
+	})
+	if !errors.Is(err, user.ErrPasswordMismatch) {
+		t.Errorf("expected ErrPasswordMismatch, got %v", err)
 	}
 }
 

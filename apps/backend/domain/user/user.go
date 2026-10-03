@@ -1,10 +1,7 @@
 package user
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type User interface {
@@ -30,8 +27,5 @@ func (u *userEntity) Email() Email        { return u.email }
 func (u *userEntity) DisplayName() string { return u.displayName }
 
 func (u *userEntity) ComparePassword(password Password) error {
-	if err := bcrypt.CompareHashAndPassword([]byte(u.passwordHash), []byte(password.plain)); err != nil {
-		return fmt.Errorf("%w", ErrPasswordMismatch)
-	}
-	return nil
+	return compareHash(u.passwordHash, password)
 }

@@ -70,7 +70,14 @@ const dummyHash = "$2a$10$XaYWruBb.69NKCrUGOuBUeUpT1vrwFB0cgaNV7itdx3hiBkPeaCBa"
 // unknown email matches the time for a wrong password and cannot be used to
 // enumerate registered emails.
 func CompareDummyPassword(password Password) error {
-	if err := bcrypt.CompareHashAndPassword([]byte(dummyHash), []byte(password.plain)); err != nil {
+	return compareHash(dummyHash, password)
+}
+
+// compareHash runs the bcrypt comparison shared by ComparePassword and
+// CompareDummyPassword, so the real and dummy paths always pay the same cost
+// and fail the same way.
+func compareHash(hash string, password Password) error {
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password.plain)); err != nil {
 		return fmt.Errorf("%w", ErrPasswordMismatch)
 	}
 	return nil
