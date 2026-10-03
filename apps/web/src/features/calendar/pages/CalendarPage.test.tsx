@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { EventResponse } from '../../../api/generated'
-import type { CalendarState } from '../../../store/calendarStore'
+import type { CalendarState } from '../../../stores/calendarStore'
 
 // MonthCalendar/WeekCalendar はFullCalendarラッパーなのでモック
 vi.mock('@repo/ui', async (importOriginal) => {
@@ -21,7 +21,7 @@ vi.mock('../../../hooks/useEventsQuery', () => ({
 }))
 
 // calendarStore をモック（初期値: month ビュー）
-vi.mock('../../../store/calendarStore', () => ({
+vi.mock('../../../stores/calendarStore', () => ({
   useCalendarStore: vi.fn((selector: (state: CalendarState) => unknown) => {
     const state: CalendarState = {
       view: 'month',
@@ -168,7 +168,7 @@ describe('CalendarPage', () => {
 
   describe('週ビュー表示', () => {
     it('view が "week" のとき WeekCalendar を表示する', async () => {
-      const { useCalendarStore } = await import('../../../store/calendarStore')
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
       vi.mocked(useCalendarStore).mockImplementation(
         (selector: (state: CalendarState) => unknown) => {
           const state: CalendarState = {
@@ -218,7 +218,7 @@ describe('CalendarPage', () => {
 
   describe('カレンダーセルのクリックによる新規作成', () => {
     it('MonthCalendarのonDateClickでクリックした日時をinitialStartに渡してcreateモードで開く', async () => {
-      const { useCalendarStore } = await import('../../../store/calendarStore')
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
       vi.mocked(useCalendarStore).mockImplementation(
         (selector: (state: CalendarState) => unknown) => {
           const state: CalendarState = {
@@ -261,7 +261,7 @@ describe('CalendarPage', () => {
     function setupWeekView() {
       return async () => {
         const { useCalendarStore } = await import(
-          '../../../store/calendarStore'
+          '../../../stores/calendarStore'
         )
         vi.mocked(useCalendarStore).mockImplementation(
           (selector: (state: CalendarState) => unknown) => {
@@ -342,7 +342,7 @@ describe('CalendarPage', () => {
 
   describe('予定の詳細表示・編集', () => {
     it('カレンダー上のイベントクリックで対応するEventResponseを詳細モーダルに渡す', async () => {
-      const { useCalendarStore } = await import('../../../store/calendarStore')
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
       vi.mocked(useCalendarStore).mockImplementation(
         (selector: (state: CalendarState) => unknown) => {
           const state: CalendarState = {
@@ -380,7 +380,7 @@ describe('CalendarPage', () => {
     })
 
     it('詳細モーダルの編集操作でフォームモーダルをeditモード・該当イベントで開く', async () => {
-      const { useCalendarStore } = await import('../../../store/calendarStore')
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
       vi.mocked(useCalendarStore).mockImplementation(
         (selector: (state: CalendarState) => unknown) => {
           const state: CalendarState = {
@@ -425,7 +425,7 @@ describe('CalendarPage', () => {
 
   describe('共有リンク生成', () => {
     it('詳細モーダルの共有操作で ShareLinkDialog を該当イベントで開く', async () => {
-      const { useCalendarStore } = await import('../../../store/calendarStore')
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
       vi.mocked(useCalendarStore).mockImplementation(
         (selector: (state: CalendarState) => unknown) => {
           const state: CalendarState = {
