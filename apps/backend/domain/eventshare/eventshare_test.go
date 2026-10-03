@@ -11,6 +11,16 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/eventshare"
 )
 
+func TestErrEventShareExpired_isDomainError(t *testing.T) {
+	var de *domain.DomainError
+	if !errors.As(eventshare.ErrEventShareExpired, &de) {
+		t.Fatalf("ErrEventShareExpired must be a *domain.DomainError, got %T", eventshare.ErrEventShareExpired)
+	}
+	if de.Code() != eventshare.CodeEventShareExpired {
+		t.Errorf("Code() = %q, want %q", de.Code(), eventshare.CodeEventShareExpired)
+	}
+}
+
 func TestNew_ValidEventShare(t *testing.T) {
 	id := uuid.New()
 	eventID := uuid.New()

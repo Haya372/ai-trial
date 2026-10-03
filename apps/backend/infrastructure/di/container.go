@@ -15,6 +15,7 @@ import (
 
 	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/eventshare"
+	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
@@ -46,6 +47,9 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		repository.NewEventQueryRepository,
 		repository.NewEventRepository,
 		repository.NewEventShareRepository,
+		repository.NewEventSubscriptionRepository,
+		newShareTokenLoader,
+		newGetShareByTokenExecutor,
 		newSignupExecutor,
 		newLoginExecutor,
 		newLogoutExecutor,
@@ -58,6 +62,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		handler.NewAuthHandler,
 		handler.NewEventHandler,
 		handler.NewEventShareHandler,
+		handler.NewShareHandler,
 		newRouter,
 	} {
 		if err := c.Provide(p); err != nil {
@@ -140,11 +145,23 @@ func newCreateShareExecutor(
 	return eventshareuc.NewCreateShareCommand(er, sr, tx, logger)
 }
 
+func newShareTokenLoader(sr eventshare.Repository, qs eventuc.QueryService) *eventshareuc.ShareTokenLoader {
+	return eventshareuc.NewShareTokenLoader(sr, qs)
+}
+
+func newGetShareByTokenExecutor(
+	l *eventshareuc.ShareTokenLoader,
+	s eventsubscription.Repository,
+) handler.GetShareByTokenExecutor {
+	return eventshareuc.NewGetShareByTokenQuery(l, s)
+}
+
 func newRouter(
 	health *handler.HealthHandler,
 	auth *handler.AuthHandler,
 	ev *handler.EventHandler,
 	es *handler.EventShareHandler,
+	share *handler.ShareHandler,
 	sessRepo session.Repository,
 	userRepo user.Repository,
 	logger *slog.Logger,
@@ -167,5 +184,6 @@ func newRouter(
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/events/{id}", ev.UpdateEvent)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/events/{id}", ev.DeleteEvent)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/events/{id}/shares", es.CreateShare)
+	r.With(mw.OptionalAuth(sessRepo, userRepo, logger)).Get("/shares/{token}", share.GetShareByToken)
 	return r
 }

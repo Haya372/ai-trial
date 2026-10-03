@@ -31,6 +31,7 @@
 | 403 Forbidden | `FORBIDDEN` | 認証済みだがリソースへのアクセス権限なし |
 | 404 Not Found | `NOT_FOUND` | リソースが存在しない |
 | 409 Conflict | `CONFLICT` | 一意制約違反など競合状態 |
+| 410 Gone | `GONE` | 期限切れなど、以前は存在したが現在はアクセスできないリソース |
 | 500 Internal Server Error | `INTERNAL_ERROR` | サーバー内部エラー（詳細はログに記録） |
 
 新しいエラー種別が必要になった場合はこの表を更新する。

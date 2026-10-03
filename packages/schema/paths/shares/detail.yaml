@@ -1,0 +1,36 @@
+get:
+  operationId: getShareByToken
+  summary: Get event details by share token
+  tags:
+    - shares
+  parameters:
+    - name: token
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    "200":
+      description: Event details for the share token
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ShareResponse.yaml"
+    "404":
+      description: Share token not found
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
+    "410":
+      description: Share link has expired
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/GoneErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"

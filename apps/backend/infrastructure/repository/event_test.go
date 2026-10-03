@@ -222,6 +222,37 @@ func TestEventRepository_FindByID_NotFound_ReturnsErrEventNotFound(t *testing.T)
 	}
 }
 
+func TestEventQueryRepository_FindByID_ReturnsReadModel(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	id := insertEvent(t, u.ID(), "Findable event", now, now.Add(time.Hour))
+
+	e, err := eventRepo.FindByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if e.Title != "Findable event" {
+		t.Errorf("title mismatch: got %q", e.Title)
+	}
+	if e.UserID != u.ID() {
+		t.Errorf("userID mismatch: got %v, want %v", e.UserID, u.ID())
+	}
+}
+
+func TestEventQueryRepository_FindByID_NotFound_ReturnsErrEventNotFound(t *testing.T) {
+	setupTest(t)
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
+
+	_, err := eventRepo.FindByID(context.Background(), uuid.New())
+	if !errors.Is(err, event.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound, got %v", err)
+	}
+}
+
 func TestEventRepository_Update_PersistsChanges(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)

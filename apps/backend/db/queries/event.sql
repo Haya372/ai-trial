@@ -26,6 +26,14 @@ FROM events
 WHERE id = $1
 LIMIT 1;
 
+-- name: FindEventReadModelByID :one
+-- Read-side counterpart of FindEventByID (ADR-022 logical CQRS): same table,
+-- kept as its own query so the read path can diverge independently later.
+SELECT id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at
+FROM events
+WHERE id = $1
+LIMIT 1;
+
 -- name: UpdateEvent :one
 UPDATE events
 SET title = $2,

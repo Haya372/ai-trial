@@ -290,6 +290,6 @@ func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventI
 
 func (h *EventHandler) writeEventError(w http.ResponseWriter, r *http.Request, err error) {
 	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
-		domainevent.CodeEventNotFound: {status: http.StatusNotFound, code: errCodeNotFound, message: "Resource not found"},
+		domainevent.CodeEventNotFound: {status: http.StatusNotFound, code: errCodeNotFound, message: msgResourceNotFound},
 	})
 }
