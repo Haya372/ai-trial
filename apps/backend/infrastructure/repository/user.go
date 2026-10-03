@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 
@@ -50,10 +48,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (use
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", usersTable)
 	row, err := r.querier(spanCtx).FindUserByEmail(spanCtx, string(email))
 	endDBSpanNotFound(span, err)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, user.ErrUserNotFound
-	}
-	if err != nil {
+	if notFound, err := checkNotFound(err, user.ErrUserNotFound); notFound {
 		return nil, err
 	}
 	return user.New(uuid.UUID(row.ID.Bytes), email, row.DisplayName, row.PasswordHash), nil
@@ -61,12 +56,9 @@ func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (use
 
 func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (user.User, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", usersTable)
-	row, err := r.querier(spanCtx).FindUserByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	row, err := r.querier(spanCtx).FindUserByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, user.ErrUserNotFound
-	}
-	if err != nil {
+	if notFound, err := checkNotFound(err, user.ErrUserNotFound); notFound {
 		return nil, err
 	}
 	email, err := user.NewEmail(row.Email)
