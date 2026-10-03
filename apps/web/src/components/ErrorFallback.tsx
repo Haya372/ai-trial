@@ -2,15 +2,11 @@ import { Button, Text } from '@repo/ui'
 import { useTranslation } from 'react-i18next'
 
 interface ErrorFallbackProps {
-  error: unknown
   reset: () => void
 }
 
-export default function ErrorFallback({ error, reset }: ErrorFallbackProps) {
+export default function ErrorFallback({ reset }: ErrorFallbackProps) {
   const { t } = useTranslation()
-
-  // 画面には出さないが、原因調査のためにコンソールへ残す
-  console.error(error)
 
   return (
     <div
