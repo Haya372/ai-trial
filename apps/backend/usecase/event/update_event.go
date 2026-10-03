@@ -33,14 +33,8 @@ func NewUpdateEventCommand(r domainevent.Repository, logger *slog.Logger) *Updat
 func (c *UpdateEventCommand) Execute(
 	ctx context.Context, userID uuid.UUID, in UpdateEventInput,
 ) (domainevent.Event, error) {
-	existing, err := c.repo.FindByID(ctx, in.ID)
-	if err != nil {
-		return nil, fmt.Errorf("find event: %w", err)
-	}
-	if existing.UserID() != userID {
-		c.logger.Warn("attempted to update event owned by another user",
-			"event_id", in.ID, "user_id", userID, "owner_id", existing.UserID())
-		return nil, domainevent.ErrEventNotFound
+	if _, err := domainevent.FindOwned(ctx, c.repo, c.logger, in.ID, userID); err != nil {
+		return nil, err
 	}
 
 	updated, err := domainevent.New(in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL)

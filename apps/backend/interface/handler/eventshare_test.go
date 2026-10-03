@@ -223,23 +223,6 @@ func TestEventShareHandler_CreateShare_EventNotFound_Returns404(t *testing.T) {
 	}
 }
 
-func TestEventShareHandler_CreateShare_Forbidden_Returns403(t *testing.T) {
-	stub := &stubCreateShareExec{
-		fn: func(context.Context, uuid.UUID, eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error) {
-			return nil, domainevent.ErrEventForbidden
-		},
-	}
-	h := handler.NewEventShareHandler(stub, slog.New(slog.DiscardHandler))
-
-	req := createShareRequestAsUser(t, uuid.New().String(), "")
-	w := httptest.NewRecorder()
-	h.CreateShare(w, req)
-
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
 func TestEventShareHandler_CreateShare_ValidationError_Returns400(t *testing.T) {
 	stub := &stubCreateShareExec{
 		fn: func(context.Context, uuid.UUID, eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error) {

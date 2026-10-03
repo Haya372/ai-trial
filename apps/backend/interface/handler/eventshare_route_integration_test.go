@@ -87,7 +87,7 @@ func TestRoute_CreateEventShare_ownEvent_returns201WithShareURL(t *testing.T) {
 	}
 }
 
-func TestRoute_CreateEventShare_otherUsersEvent_returns403(t *testing.T) {
+func TestRoute_CreateEventShare_otherUsersEvent_returns404(t *testing.T) {
 	setupRouteTest(t)
 	router := buildEventShareTestRouter()
 
@@ -103,8 +103,8 @@ func TestRoute_CreateEventShare_otherUsersEvent_returns403(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

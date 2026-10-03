@@ -52,14 +52,9 @@ func (c *CreateShareCommand) Execute(
 ) (*CreateShareResult, error) {
 	var result *CreateShareResult
 	err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
-		ev, err := c.eventRepo.FindByID(ctx, in.EventID)
+		ev, err := domainevent.FindOwned(ctx, c.eventRepo, c.logger, in.EventID, userID)
 		if err != nil {
-			return fmt.Errorf("find event: %w", err)
-		}
-		if ev.UserID() != userID {
-			c.logger.Warn("attempted to share event owned by another user",
-				"event_id", in.EventID, "user_id", userID, "owner_id", ev.UserID())
-			return domainevent.ErrEventForbidden
+			return err
 		}
 
 		expiresAt := ev.EndAt()
