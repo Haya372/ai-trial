@@ -59,7 +59,7 @@ func (c *CreateShareCommand) Execute(
 		if ev.UserID() != userID {
 			c.logger.Warn("attempted to share event owned by another user",
 				"event_id", in.EventID, "user_id", userID, "owner_id", ev.UserID())
-			return domainevent.ErrEventForbidden
+			return domainevent.ErrEventNotFound
 		}
 
 		expiresAt := ev.EndAt()
