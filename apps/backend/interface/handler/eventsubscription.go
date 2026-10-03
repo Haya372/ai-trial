@@ -18,6 +18,8 @@ import (
 	eventsubscriptionuc "github.com/Haya372/ai-trial/backend/usecase/eventsubscription"
 )
 
+const errCodeForbidden = "FORBIDDEN"
+
 // SubscribeToShareExecutor is satisfied by eventsubscriptionuc.SubscribeToShareCommand.
 type SubscribeToShareExecutor interface {
 	Execute(
