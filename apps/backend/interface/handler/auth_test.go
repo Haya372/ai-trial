@@ -60,10 +60,10 @@ type stubUser struct {
 	displayName string
 }
 
-func (u *stubUser) ID() uuid.UUID                         { return u.id }
-func (u *stubUser) Email() user.Email                     { return u.email }
-func (u *stubUser) DisplayName() string                   { return u.displayName }
-func (u *stubUser) ComparePassword(_ user.Password) error { return nil }
+func (u *stubUser) ID() uuid.UUID                              { return u.id }
+func (u *stubUser) Email() user.Email                          { return u.email }
+func (u *stubUser) DisplayName() string                        { return u.displayName }
+func (u *stubUser) ComparePassword(_ user.LoginPassword) error { return nil }
 
 func newStubUser(id uuid.UUID, email, displayName string) user.User {
 	return &stubUser{id: id, email: user.Email(email), displayName: displayName}

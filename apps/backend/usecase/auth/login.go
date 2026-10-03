@@ -71,7 +71,7 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 // u. A successful dummy-hash match is cryptographically infeasible for any
 // attacker-supplied input, but u is nil on the not-found path, so this guards
 // explicitly against touching it instead of relying on that infeasibility alone.
-func authenticate(notFound bool, u user.User, password user.Password, findErr error) (user.User, error) {
+func authenticate(notFound bool, u user.User, password user.LoginPassword, findErr error) (user.User, error) {
 	compare := user.CompareDummyPassword
 	if !notFound {
 		compare = u.ComparePassword

@@ -26,10 +26,10 @@ type stubUser struct {
 	compareErr  error
 }
 
-func (u *stubUser) ID() uuid.UUID                         { return u.id }
-func (u *stubUser) Email() user.Email                     { return u.email }
-func (u *stubUser) DisplayName() string                   { return u.displayName }
-func (u *stubUser) ComparePassword(_ user.Password) error { return u.compareErr }
+func (u *stubUser) ID() uuid.UUID                              { return u.id }
+func (u *stubUser) Email() user.Email                          { return u.email }
+func (u *stubUser) DisplayName() string                        { return u.displayName }
+func (u *stubUser) ComparePassword(_ user.LoginPassword) error { return u.compareErr }
 
 func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 	ctrl := gomock.NewController(t)

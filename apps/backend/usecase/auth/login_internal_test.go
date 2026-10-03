@@ -16,12 +16,12 @@ type fakeUser struct {
 	compareErr error
 }
 
-func (f *fakeUser) ID() uuid.UUID                         { return f.id }
-func (f *fakeUser) Email() user.Email                     { return "" }
-func (f *fakeUser) DisplayName() string                   { return "" }
-func (f *fakeUser) ComparePassword(_ user.Password) error { return f.compareErr }
+func (f *fakeUser) ID() uuid.UUID                              { return f.id }
+func (f *fakeUser) Email() user.Email                          { return "" }
+func (f *fakeUser) DisplayName() string                        { return "" }
+func (f *fakeUser) ComparePassword(_ user.LoginPassword) error { return f.compareErr }
 
-func validLoginPassword(t *testing.T) user.Password {
+func validLoginPassword(t *testing.T) user.LoginPassword {
 	t.Helper()
 	p, err := user.NewLoginPassword("SecurePass1!")
 	if err != nil {

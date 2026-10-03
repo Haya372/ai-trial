@@ -82,31 +82,24 @@ func TestNewPasswordFromHash_returnsHash(t *testing.T) {
 }
 
 func TestCompareDummyPassword_returnsMismatchForArbitraryPassword(t *testing.T) {
-	p, err := user.NewPassword("SecurePass1!")
+	p, err := user.NewLoginPassword("SecurePass1!")
 	if err != nil {
-		t.Fatalf("NewPassword() unexpected error: %v", err)
+		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
 	}
 	if err := user.CompareDummyPassword(p); !errors.Is(err, user.ErrPasswordMismatch) {
 		t.Errorf("CompareDummyPassword() error = %v, want ErrPasswordMismatch", err)
 	}
 }
 
-// NewLoginPassword tests
+// NewLoginPassword returns a distinct LoginPassword type with no Hash()
+// method, so a login-only password can never be passed to Repository.Create
+// (which requires a Password) — misuse is a compile error, not a runtime
+// panic or a silently persisted empty hash.
 
-func TestNewLoginPassword_valid_hashPanics(t *testing.T) {
-	p, err := user.NewLoginPassword("SecurePass1!")
-	if err != nil {
+func TestNewLoginPassword_valid(t *testing.T) {
+	if _, err := user.NewLoginPassword("SecurePass1!"); err != nil {
 		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
 	}
-	// A login-only Password must never be persisted. Hash() panics instead of
-	// returning an empty string, so misuse (e.g. passing it to Repository.Create)
-	// fails loudly instead of silently locking the account out.
-	defer func() {
-		if recover() == nil {
-			t.Error("Hash() did not panic for a password built via NewLoginPassword")
-		}
-	}()
-	p.Hash()
 }
 
 func TestNewLoginPassword_tooShort(t *testing.T) {
@@ -159,15 +152,5 @@ func TestNewLoginPassword_insufficientComplexity(t *testing.T) {
 		if !errors.Is(err, user.ErrPasswordInsufficientComplexity) {
 			t.Errorf("NewLoginPassword(%q) error = %v, want ErrPasswordInsufficientComplexity", tc, err)
 		}
-	}
-}
-
-func TestCompareDummyPassword_withLoginPassword(t *testing.T) {
-	p, err := user.NewLoginPassword("SecurePass1!")
-	if err != nil {
-		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
-	}
-	if err := user.CompareDummyPassword(p); !errors.Is(err, user.ErrPasswordMismatch) {
-		t.Errorf("CompareDummyPassword() error = %v, want ErrPasswordMismatch", err)
 	}
 }

@@ -9,9 +9,17 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain"
 )
 
+// Password holds a bcrypt hash for persistence (signup, password change).
 type Password struct {
+	hash string
+}
+
+// LoginPassword holds a validated plaintext password for comparison only. It
+// has no Hash() method, so it can never be passed to Repository.Create (which
+// requires a Password) — misuse is a compile error rather than a runtime
+// failure.
+type LoginPassword struct {
 	plain string
-	hash  string
 }
 
 const (
@@ -40,7 +48,7 @@ func NewPassword(plain string) (Password, error) {
 	if err != nil {
 		return Password{}, fmt.Errorf("failed to hash password: %w", err)
 	}
-	return Password{plain: plain, hash: string(hashed)}, nil
+	return Password{hash: string(hashed)}, nil
 }
 
 func NewPasswordFromHash(hash string) Password {
@@ -48,13 +56,13 @@ func NewPasswordFromHash(hash string) Password {
 }
 
 // NewLoginPassword validates plain against the same rules as NewPassword but
-// skips bcrypt hash generation. Use this on the login path where only the plain
-// text is needed for comparison; the caller must never store the returned value.
-func NewLoginPassword(plain string) (Password, error) {
+// skips bcrypt hash generation, so the login path pays bcrypt cost only once
+// (the comparison, not also a generation).
+func NewLoginPassword(plain string) (LoginPassword, error) {
 	if err := validatePlain(plain); err != nil {
-		return Password{}, err
+		return LoginPassword{}, err
 	}
-	return Password{plain: plain}, nil
+	return LoginPassword{plain: plain}, nil
 }
 
 // validatePlain checks the format rules shared by NewPassword and NewLoginPassword.
@@ -84,27 +92,21 @@ const dummyHash = "$2a$10$XaYWruBb.69NKCrUGOuBUeUpT1vrwFB0cgaNV7itdx3hiBkPeaCBa"
 // Call it when no matching user was found, so that the response time for an
 // unknown email matches the time for a wrong password and cannot be used to
 // enumerate registered emails.
-func CompareDummyPassword(password Password) error {
-	return compareHash(dummyHash, password)
+func CompareDummyPassword(password LoginPassword) error {
+	return compareHash(dummyHash, password.plain)
 }
 
 // compareHash runs the bcrypt comparison shared by ComparePassword and
 // CompareDummyPassword, so the real and dummy paths always pay the same cost
 // and fail the same way.
-func compareHash(hash string, password Password) error {
-	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password.plain)); err != nil {
+func compareHash(hash, plain string) error {
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)); err != nil {
 		return fmt.Errorf("%w", ErrPasswordMismatch)
 	}
 	return nil
 }
 
-// Hash returns the bcrypt hash. It panics if p was built via NewLoginPassword
-// (no hash generated), so that accidentally persisting a login-only Password
-// fails loudly instead of silently locking the account out with an empty hash.
 func (p Password) Hash() string {
-	if p.hash == "" {
-		panic("user: Hash() called on a Password with no hash (built via NewLoginPassword?)")
-	}
 	return p.hash
 }
 
