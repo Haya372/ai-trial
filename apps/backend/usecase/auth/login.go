@@ -36,14 +36,12 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 		return nil, fmt.Errorf("find user: %w", findErr)
 	}
 
-	// NOTE: NewPassword calls bcrypt.GenerateFromPassword, which is expensive.
-	// The generated hash is discarded; only the plain field is used for ComparePassword.
-	// Consider a lightweight validator when this becomes a bottleneck.
-	//
-	// This runs even when the user was not found above, so the bcrypt cost paid
-	// here (plus the comparison below) matches the found-user path and a
-	// nonexistent email cannot be distinguished from a wrong password by timing.
-	password, pwErr := user.NewPassword(in.Password)
+	// NewLoginPassword validates the password format without generating a bcrypt
+	// hash, so only one bcrypt operation (inside authenticate below) runs per
+	// login. This runs even when the user was not found above, so that a
+	// malformed password is rejected the same way regardless of whether the
+	// email exists.
+	password, pwErr := user.NewLoginPassword(in.Password)
 	if pwErr != nil {
 		// A malformed password can never match a real, policy-compliant hash,
 		// so treat it the same as a wrong password rather than exposing
@@ -51,9 +49,29 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 		return nil, fmt.Errorf("compare password: %w", user.ErrPasswordMismatch)
 	}
 
-	// Compare against the real user's hash when found, or a fixed dummy hash
-	// otherwise, through a single call site so both paths always pay the same
-	// bcrypt cost.
+	authenticated, err := authenticate(notFound, u, password, findErr)
+	if err != nil {
+		return nil, err
+	}
+
+	sess, err := c.sessionRepo.Create(ctx, authenticated.ID(), time.Now().Add(sessionExpiry))
+	if err != nil {
+		return nil, fmt.Errorf("create session: %w", err)
+	}
+
+	return &AuthOutput{User: authenticated, SessionID: sess.ID()}, nil
+}
+
+// authenticate is the single call site that runs the bcrypt comparison: the
+// real hash when the user was found, or a fixed dummy hash otherwise, so the
+// found and not-found paths always pay the same bcrypt cost and a
+// nonexistent email cannot be distinguished from a wrong password by timing.
+//
+// It also re-checks notFound after a successful comparison before returning
+// u. A successful dummy-hash match is cryptographically infeasible for any
+// attacker-supplied input, but u is nil on the not-found path, so this guards
+// explicitly against touching it instead of relying on that infeasibility alone.
+func authenticate(notFound bool, u user.User, password user.LoginPassword, findErr error) (user.User, error) {
 	compare := user.CompareDummyPassword
 	if !notFound {
 		compare = u.ComparePassword
@@ -64,11 +82,8 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 		}
 		return nil, fmt.Errorf("compare password: %w", err)
 	}
-
-	sess, err := c.sessionRepo.Create(ctx, u.ID(), time.Now().Add(sessionExpiry))
-	if err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
+	if notFound {
+		return nil, fmt.Errorf("find user: %w", findErr)
 	}
-
-	return &AuthOutput{User: u, SessionID: sess.ID()}, nil
+	return u, nil
 }

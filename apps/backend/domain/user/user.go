@@ -8,7 +8,7 @@ type User interface {
 	ID() uuid.UUID
 	Email() Email
 	DisplayName() string
-	ComparePassword(password Password) error
+	ComparePassword(password LoginPassword) error
 }
 
 type userEntity struct {
@@ -26,6 +26,6 @@ func (u *userEntity) ID() uuid.UUID       { return u.id }
 func (u *userEntity) Email() Email        { return u.email }
 func (u *userEntity) DisplayName() string { return u.displayName }
 
-func (u *userEntity) ComparePassword(password Password) error {
-	return compareHash(u.passwordHash, password)
+func (u *userEntity) ComparePassword(password LoginPassword) error {
+	return compareHash(u.passwordHash, password.plain)
 }

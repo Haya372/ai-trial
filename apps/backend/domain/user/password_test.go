@@ -82,11 +82,75 @@ func TestNewPasswordFromHash_returnsHash(t *testing.T) {
 }
 
 func TestCompareDummyPassword_returnsMismatchForArbitraryPassword(t *testing.T) {
-	p, err := user.NewPassword("SecurePass1!")
+	p, err := user.NewLoginPassword("SecurePass1!")
 	if err != nil {
-		t.Fatalf("NewPassword() unexpected error: %v", err)
+		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
 	}
 	if err := user.CompareDummyPassword(p); !errors.Is(err, user.ErrPasswordMismatch) {
 		t.Errorf("CompareDummyPassword() error = %v, want ErrPasswordMismatch", err)
+	}
+}
+
+// NewLoginPassword returns a distinct LoginPassword type with no Hash()
+// method, so a login-only password can never be passed to Repository.Create
+// (which requires a Password) — misuse is a compile error, not a runtime
+// panic or a silently persisted empty hash.
+
+func TestNewLoginPassword_valid(t *testing.T) {
+	if _, err := user.NewLoginPassword("SecurePass1!"); err != nil {
+		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
+	}
+}
+
+func TestNewLoginPassword_tooShort(t *testing.T) {
+	_, err := user.NewLoginPassword("short")
+	if !errors.Is(err, user.ErrPasswordTooShort) {
+		t.Errorf("NewLoginPassword() error = %v, want ErrPasswordTooShort", err)
+	}
+}
+
+func TestNewLoginPassword_tooLong(t *testing.T) {
+	_, err := user.NewLoginPassword(strings.Repeat("a", 73))
+	if !errors.Is(err, user.ErrPasswordTooLong) {
+		t.Errorf("NewLoginPassword() error = %v, want ErrPasswordTooLong", err)
+	}
+}
+
+func TestNewLoginPassword_maxLength(t *testing.T) {
+	// 72-char password that satisfies all complexity requirements
+	p72 := "SecurePass1!" + strings.Repeat("a", 60)
+	_, err := user.NewLoginPassword(p72)
+	if err != nil {
+		t.Errorf("NewLoginPassword() unexpected error for 72-char password: %v", err)
+	}
+}
+
+func TestNewLoginPassword_nonASCII(t *testing.T) {
+	cases := []string{
+		"Pass1!あいう",
+		"Pass1!\x00hidden",
+		"Pass1!\x7fdelete",
+		"パスワード1!ABC",
+	}
+	for _, tc := range cases {
+		_, err := user.NewLoginPassword(tc)
+		if !errors.Is(err, user.ErrPasswordNotASCII) {
+			t.Errorf("NewLoginPassword(%q) error = %v, want ErrPasswordNotASCII", tc, err)
+		}
+	}
+}
+
+func TestNewLoginPassword_insufficientComplexity(t *testing.T) {
+	cases := []string{
+		"alllowercase1!", // no uppercase
+		"ALLUPPERCASE1!", // no lowercase
+		"NoDigitsHere!!", // no digit
+		"NoSymbols1234A", // no symbol
+	}
+	for _, tc := range cases {
+		_, err := user.NewLoginPassword(tc)
+		if !errors.Is(err, user.ErrPasswordInsufficientComplexity) {
+			t.Errorf("NewLoginPassword(%q) error = %v, want ErrPasswordInsufficientComplexity", tc, err)
+		}
 	}
 }

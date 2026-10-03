@@ -31,17 +31,21 @@ func TestUser_ComparePassword_correct(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPassword() unexpected error: %v", err)
 	}
+	loginPw, err := user.NewLoginPassword(plain)
+	if err != nil {
+		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
+	}
 	email, _ := user.NewEmail("test@example.com")
 	u := user.New(uuid.New(), email, "Test User", pw.Hash())
 
-	if err := u.ComparePassword(pw); err != nil {
+	if err := u.ComparePassword(loginPw); err != nil {
 		t.Errorf("ComparePassword() with matching password returned error: %v", err)
 	}
 }
 
 func TestUser_ComparePassword_wrong(t *testing.T) {
 	pw, _ := user.NewPassword("SecurePass1!")
-	wrongPw, _ := user.NewPassword("WrongPass1!")
+	wrongPw, _ := user.NewLoginPassword("WrongPass1!")
 	email, _ := user.NewEmail("test@example.com")
 	u := user.New(uuid.New(), email, "Test User", pw.Hash())
 
@@ -52,7 +56,7 @@ func TestUser_ComparePassword_wrong(t *testing.T) {
 
 func TestUser_ComparePassword_wrong_returnsErrPasswordMismatch(t *testing.T) {
 	pw, _ := user.NewPassword("SecurePass1!")
-	wrongPw, _ := user.NewPassword("WrongPass1!")
+	wrongPw, _ := user.NewLoginPassword("WrongPass1!")
 	email, _ := user.NewEmail("test@example.com")
 	u := user.New(uuid.New(), email, "Test User", pw.Hash())
 
