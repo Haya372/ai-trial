@@ -3,6 +3,9 @@
   "appName": "AI Trial",
   "errors": {
     "validationError": "Please check your input",
-    "internalError": "A server error occurred. Please try again later"
+    "internalError": "A server error occurred. Please try again later",
+    "unexpectedTitle": "An unexpected error occurred",
+    "unexpectedDescription": "Something went wrong. Please try again.",
+    "retry": "Retry"
   }
 }
