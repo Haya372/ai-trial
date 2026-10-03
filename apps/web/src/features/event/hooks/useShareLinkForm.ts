@@ -23,23 +23,22 @@ export type ShareLinkResult = {
   expiresAt: string
 }
 
-function hasExpiresAtDetail(data: unknown): data is ValidationErrorResponse & {
-  details: [{ field: 'expiresAt'; code: string }]
-} {
+function findExpiresAtDetail(
+  data: unknown,
+): { field: 'expiresAt'; code: string } | null {
   if (
     typeof data !== 'object' ||
     data === null ||
     !('details' in data) ||
     !Array.isArray((data as { details: unknown }).details)
   ) {
-    return false
+    return null
   }
   const details = (data as ValidationErrorResponse).details
-  return (
-    details.length > 0 &&
-    details[0].field === 'expiresAt' &&
-    typeof details[0].code === 'string'
+  const detail = details.find(
+    (d) => d.field === 'expiresAt' && typeof d.code === 'string',
   )
+  return detail ? { field: 'expiresAt', code: detail.code } : null
 }
 
 function defaultFormValues(event: EventResponse | null): ShareLinkFormValues {
@@ -116,8 +115,10 @@ export function useShareLinkForm(
         return
       }
 
-      if (res.status === 400 && hasExpiresAtDetail(res.data)) {
-        const code = res.data.details[0].code
+      const expiresAtDetail =
+        res.status === 400 ? findExpiresAtDetail(res.data) : null
+      if (expiresAtDetail) {
+        const code = expiresAtDetail.code
         const keyMap: Record<string, string> = {
           BEFORE_EVENT_START: t('eventshare:validation.expiresAtAfterStart'),
           NOT_IN_FUTURE: t('eventshare:validation.expiresAtInFuture'),

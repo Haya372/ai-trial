@@ -265,6 +265,39 @@ describe('ShareLinkDialog', () => {
       })
     })
 
+    it('400 VALIDATION_ERROR: expiresAt の detail が配列の先頭以外にあってもフィールドエラーが表示される', async () => {
+      const { createEventShare } = await import('../../../api/generated')
+      vi.mocked(createEventShare).mockResolvedValueOnce({
+        data: {
+          code: 'VALIDATION_ERROR',
+          message: 'validation failed',
+          details: [
+            {
+              field: 'other',
+              code: 'SOME_OTHER_ERROR',
+              message: 'unrelated field error',
+            },
+            {
+              field: 'expiresAt',
+              code: 'NOT_IN_FUTURE',
+              message: 'expiresAt must be in the future',
+            },
+          ],
+        },
+        status: 400,
+        headers: new Headers(),
+      } as never)
+
+      renderDialog()
+      fireEvent.click(screen.getByRole('button', { name: '生成' }))
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('有効期限は未来の日時を指定してください'),
+        ).toBeInTheDocument()
+      })
+    })
+
     it('401: モーダル内 Alert にエラーメッセージが表示され toast.error が呼ばれる', async () => {
       const { createEventShare } = await import('../../../api/generated')
       vi.mocked(createEventShare).mockResolvedValueOnce({
