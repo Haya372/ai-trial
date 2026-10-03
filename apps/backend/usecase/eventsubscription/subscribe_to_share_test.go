@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 
-	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
 	eventsharemock "github.com/Haya372/ai-trial/backend/domain/eventshare/generated"
 	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
@@ -162,8 +161,8 @@ func TestSubscribeToShareCommand_Execute_ownEvent_returns403error(t *testing.T) 
 
 	_, err := c.Execute(context.Background(), eventsubscriptionuc.SubscribeToShareInput{Token: testToken, UserID: ownerID})
 
-	if !errors.Is(err, domainevent.ErrEventForbidden) {
-		t.Errorf("expected ErrEventForbidden, got %v", err)
+	if !errors.Is(err, eventsubscription.ErrCannotSubscribeToOwnEvent) {
+		t.Errorf("expected ErrCannotSubscribeToOwnEvent, got %v", err)
 	}
 }
 

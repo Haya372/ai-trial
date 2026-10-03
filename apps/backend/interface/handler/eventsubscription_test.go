@@ -11,8 +11,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
-	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
+	domaineventsubscription "github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 	eventsubscriptionuc "github.com/Haya372/ai-trial/backend/usecase/eventsubscription"
@@ -168,7 +168,7 @@ func TestEventSubscriptionHandler_SubscribeToShare_ownEvent_403(t *testing.T) {
 		fn: func(_ context.Context, _ eventsubscriptionuc.SubscribeToShareInput) (
 			eventsubscriptionuc.SubscribeToShareOutput, error,
 		) {
-			return eventsubscriptionuc.SubscribeToShareOutput{}, domainevent.ErrEventForbidden
+			return eventsubscriptionuc.SubscribeToShareOutput{}, domaineventsubscription.ErrCannotSubscribeToOwnEvent
 		},
 	}
 	h := handler.NewEventSubscriptionHandler(stub, testLogger)

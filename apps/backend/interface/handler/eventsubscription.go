@@ -11,6 +11,7 @@ import (
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
+	domaineventsubscription "github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
@@ -82,7 +83,7 @@ func (h *EventSubscriptionHandler) SubscribeToShare(w http.ResponseWriter, r *ht
 
 // writeSubscribeError maps the same not-found/expired codes as
 // ShareHandler.writeShareError (the share token is resolved the same way),
-// plus EVENT_FORBIDDEN for the "can't add your own event" case.
+// plus EVENT_SUBSCRIPTION_OWN_EVENT for the "can't add your own event" case.
 func (h *EventSubscriptionHandler) writeSubscribeError(w http.ResponseWriter, r *http.Request, err error) {
 	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
 		domaineventshare.CodeEventShareNotFound: {
@@ -94,8 +95,8 @@ func (h *EventSubscriptionHandler) writeSubscribeError(w http.ResponseWriter, r 
 		domainevent.CodeEventNotFound: {
 			status: http.StatusNotFound, code: errCodeNotFound, message: msgResourceNotFound,
 		},
-		domainevent.CodeEventForbidden: {
-			status: http.StatusForbidden, code: errCodeForbidden, message: "You do not have access to this resource",
+		domaineventsubscription.CodeCannotSubscribeToOwnEvent: {
+			status: http.StatusForbidden, code: errCodeForbidden, message: "You cannot add your own event to your calendar",
 		},
 	})
 }

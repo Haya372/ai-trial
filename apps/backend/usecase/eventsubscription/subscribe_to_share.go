@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
 	domaineventsubscription "github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
@@ -48,7 +47,7 @@ func (c *SubscribeToShareCommand) Execute(
 	}
 
 	if ev.UserID == in.UserID {
-		return SubscribeToShareOutput{}, domainevent.ErrEventForbidden
+		return SubscribeToShareOutput{}, domaineventsubscription.ErrCannotSubscribeToOwnEvent
 	}
 
 	existing, err := c.subsRepo.FindByEventAndUserID(ctx, ev.ID, in.UserID)
