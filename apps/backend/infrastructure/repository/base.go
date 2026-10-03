@@ -5,14 +5,40 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/google/uuid"
+
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
+
+// toPgUUID wraps id as a valid pgtype.UUID for generated query parameters.
+func toPgUUID(id uuid.UUID) pgtype.UUID {
+	return pgtype.UUID{Bytes: id, Valid: true}
+}
+
+// checkNotFound inspects err from a single-row lookup. If err is nil, it
+// reports (false, nil) so the caller proceeds to use the row. If err is
+// pgx.ErrNoRows, it reports (true, notFoundErr) — notFoundErr may be nil,
+// matching repositories that report "not found" as (zero value, nil)
+// rather than a dedicated sentinel error. Any other error is reported as
+// (true, err) unchanged, so the caller can still apply its own
+// logging/wrapping before returning.
+func checkNotFound(err error, notFoundErr error) (bool, error) {
+	switch {
+	case err == nil:
+		return false, nil
+	case errors.Is(err, pgx.ErrNoRows):
+		return true, notFoundErr
+	default:
+		return true, err
+	}
+}
 
 const tracerName = "github.com/Haya372/ai-trial/backend/infrastructure/repository"
 
