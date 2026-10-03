@@ -93,15 +93,20 @@ func TestCompareDummyPassword_returnsMismatchForArbitraryPassword(t *testing.T) 
 
 // NewLoginPassword tests
 
-func TestNewLoginPassword_valid_hashIsEmpty(t *testing.T) {
+func TestNewLoginPassword_valid_hashPanics(t *testing.T) {
 	p, err := user.NewLoginPassword("SecurePass1!")
 	if err != nil {
 		t.Fatalf("NewLoginPassword() unexpected error: %v", err)
 	}
-	// Login path must not generate a bcrypt hash; Hash() should be empty.
-	if p.Hash() != "" {
-		t.Errorf("Hash() = %q, want empty string (no bcrypt hash generated on login path)", p.Hash())
-	}
+	// A login-only Password must never be persisted. Hash() panics instead of
+	// returning an empty string, so misuse (e.g. passing it to Repository.Create)
+	// fails loudly instead of silently locking the account out.
+	defer func() {
+		if recover() == nil {
+			t.Error("Hash() did not panic for a password built via NewLoginPassword")
+		}
+	}()
+	p.Hash()
 }
 
 func TestNewLoginPassword_tooShort(t *testing.T) {

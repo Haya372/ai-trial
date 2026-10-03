@@ -98,7 +98,13 @@ func compareHash(hash string, password Password) error {
 	return nil
 }
 
+// Hash returns the bcrypt hash. It panics if p was built via NewLoginPassword
+// (no hash generated), so that accidentally persisting a login-only Password
+// fails loudly instead of silently locking the account out with an empty hash.
 func (p Password) Hash() string {
+	if p.hash == "" {
+		panic("user: Hash() called on a Password with no hash (built via NewLoginPassword?)")
+	}
 	return p.hash
 }
 
