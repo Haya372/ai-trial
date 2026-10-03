@@ -5,7 +5,7 @@ version: 'v0.0.2'
 workflows:
     '.github/workflows/action-lint.yml':
         - 'actions/checkout@v7.0.1'
-        - 'reviewdog/action-actionlint@v1.76.0'
+        - 'reviewdog/action-actionlint@v1.77.0'
         - 'zizmorcore/zizmor-action@v0.6.4'
     '.github/workflows/backend-ci.yml':
         - 'actions/cache@v6.1.0'
@@ -13,7 +13,7 @@ workflows:
         - 'actions/setup-go@v7.0.0'
         - 'actions/setup-node@v7.0.0'
         - 'actions/upload-artifact@v7.0.1'
-        - 'fgrosse/go-coverage-report@v1.3.1'
+        - 'fgrosse/go-coverage-report@v1.4.0'
         - 'golangci/golangci-lint-action@v9.3.0'
         - 'jdx/mise-action@v4.3.0'
         - 'pnpm/action-setup@v6.1.0'
@@ -59,9 +59,9 @@ dependencies:
         commit: 'sha1-043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
         owner_id: 44036562
         repo_id: 192625955
-    'fgrosse/go-coverage-report@v1.3.1':
-        ref: 'v1.3.1'
-        commit: 'sha1-e432de98ee94a276e8f666d25bfd76347665f75b'
+    'fgrosse/go-coverage-report@v1.4.0':
+        ref: 'v1.4.0'
+        commit: 'sha1-2eb52af4e808426e2d4edd850ff8c9ca14fce029'
         owner_id: 733004
         repo_id: 770420968
         uses:
@@ -86,9 +86,9 @@ dependencies:
         commit: 'sha1-ea17c68df8912ef543352723c149a84f56e3d413'
         owner_id: 21320719
         repo_id: 262289747
-    'reviewdog/action-actionlint@v1.76.0':
-        ref: 'v1.76.0'
-        commit: 'sha1-320fcdd9c860767cf17fab3b20e22e739d5d02b8'
+    'reviewdog/action-actionlint@v1.77.0':
+        ref: 'v1.77.0'
+        commit: 'sha1-2085657ab2c7f48c58edcc767fba576f63bea76b'
         owner_id: 48765237
         repo_id: 385059686
     'tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96':
