@@ -40,8 +40,8 @@ func NewEventShareRepository(pool *pgxpool.Pool, tp trace.TracerProvider) events
 func (r *eventShareRepository) Create(ctx context.Context, s eventshare.EventShare) (eventshare.EventShare, error) {
 	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventSharesTable)
 	row, err := r.querier(spanCtx).InsertEventShare(spanCtx, query.InsertEventShareParams{
-		ID:        pgtype.UUID{Bytes: s.ID(), Valid: true},
-		EventID:   pgtype.UUID{Bytes: s.EventID(), Valid: true},
+		ID:        toPgUUID(s.ID()),
+		EventID:   toPgUUID(s.EventID()),
 		TokenHash: s.TokenHash().String(),
 		ExpiresAt: pgtype.Timestamptz{Time: s.ExpiresAt(), Valid: true},
 	})
@@ -68,11 +68,11 @@ func (r *eventShareRepository) FindByToken(ctx context.Context, token eventshare
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventSharesTable)
 	row, err := r.querier(spanCtx).FindEventShareByTokenHash(spanCtx, token.Hash().String())
 	endDBSpanNotFound(span, err)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, eventshare.ErrEventShareNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("find event share by token: %w", err)
+	if notFound, mappedErr := checkNotFound(err, eventshare.ErrEventShareNotFound); notFound {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, mappedErr
+		}
+		return nil, fmt.Errorf("find event share by token: %w", mappedErr)
 	}
 
 	return eventshare.New(
