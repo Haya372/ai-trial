@@ -175,7 +175,7 @@ jobs:
           name: go-coverage
           path: apps/backend/coverage.out
       - name: Coverage report
-        uses: fgrosse/go-coverage-report@v1.3.1
+        uses: fgrosse/go-coverage-report@v1.4.0
         continue-on-error: true
         with:
           coverage-artifact-name: go-coverage
