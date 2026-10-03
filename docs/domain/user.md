@@ -33,5 +33,5 @@
 
 - [PRD-001: ユーザー認証](../prd/PRD-001-auth.md)
 - [SPEC-001: ユーザー認証仕様](../spec/SPEC-001-auth.md)
-- [ADR-001: クリーンアーキテクチャ採用](../adr/ADR-001.md)
+- [ADR-001: クリーンアーキテクチャ採用](../adr/ADR-001-clean-architecture.md)
 - [Session ドメイン](./session.md)
