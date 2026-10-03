@@ -80,3 +80,13 @@ func TestNewPasswordFromHash_returnsHash(t *testing.T) {
 		t.Errorf("Hash() = %q, want %q", p.Hash(), "$2a$10$somehashvalue")
 	}
 }
+
+func TestCompareDummyPassword_returnsMismatchForArbitraryPassword(t *testing.T) {
+	p, err := user.NewPassword("SecurePass1!")
+	if err != nil {
+		t.Fatalf("NewPassword() unexpected error: %v", err)
+	}
+	if err := user.CompareDummyPassword(p); !errors.Is(err, user.ErrPasswordMismatch) {
+		t.Errorf("CompareDummyPassword() error = %v, want ErrPasswordMismatch", err)
+	}
+}

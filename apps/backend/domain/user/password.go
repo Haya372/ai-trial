@@ -60,6 +60,29 @@ func NewPasswordFromHash(hash string) Password {
 	return Password{hash: hash}
 }
 
+// dummyHash is a bcrypt hash of a fixed, unpublished secret. It is never the
+// hash of any real user's password and exists only so CompareDummyPassword
+// can spend the same bcrypt cost as a real comparison.
+const dummyHash = "$2a$10$XaYWruBb.69NKCrUGOuBUeUpT1vrwFB0cgaNV7itdx3hiBkPeaCBa"
+
+// CompareDummyPassword runs a bcrypt comparison against a fixed dummy hash.
+// Call it when no matching user was found, so that the response time for an
+// unknown email matches the time for a wrong password and cannot be used to
+// enumerate registered emails.
+func CompareDummyPassword(password Password) error {
+	return compareHash(dummyHash, password)
+}
+
+// compareHash runs the bcrypt comparison shared by ComparePassword and
+// CompareDummyPassword, so the real and dummy paths always pay the same cost
+// and fail the same way.
+func compareHash(hash string, password Password) error {
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password.plain)); err != nil {
+		return fmt.Errorf("%w", ErrPasswordMismatch)
+	}
+	return nil
+}
+
 func (p Password) Hash() string {
 	return p.hash
 }

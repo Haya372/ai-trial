@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -29,20 +30,38 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 		return nil, fmt.Errorf("validate email: %w", err)
 	}
 
-	u, err := c.userRepo.FindByEmail(ctx, email)
-	if err != nil {
-		return nil, fmt.Errorf("find user: %w", err)
+	u, findErr := c.userRepo.FindByEmail(ctx, email)
+	notFound := errors.Is(findErr, user.ErrUserNotFound)
+	if findErr != nil && !notFound {
+		return nil, fmt.Errorf("find user: %w", findErr)
 	}
 
 	// NOTE: NewPassword calls bcrypt.GenerateFromPassword, which is expensive.
 	// The generated hash is discarded; only the plain field is used for ComparePassword.
 	// Consider a lightweight validator when this becomes a bottleneck.
-	password, err := user.NewPassword(in.Password)
-	if err != nil {
-		return nil, fmt.Errorf("validate password: %w", err)
+	//
+	// This runs even when the user was not found above, so the bcrypt cost paid
+	// here (plus the comparison below) matches the found-user path and a
+	// nonexistent email cannot be distinguished from a wrong password by timing.
+	password, pwErr := user.NewPassword(in.Password)
+	if pwErr != nil {
+		// A malformed password can never match a real, policy-compliant hash,
+		// so treat it the same as a wrong password rather than exposing
+		// password-policy details to an unauthenticated caller.
+		return nil, fmt.Errorf("compare password: %w", user.ErrPasswordMismatch)
 	}
 
-	if err := u.ComparePassword(password); err != nil {
+	// Compare against the real user's hash when found, or a fixed dummy hash
+	// otherwise, through a single call site so both paths always pay the same
+	// bcrypt cost.
+	compare := user.CompareDummyPassword
+	if !notFound {
+		compare = u.ComparePassword
+	}
+	if err := compare(password); err != nil {
+		if notFound {
+			return nil, fmt.Errorf("find user: %w", findErr)
+		}
 		return nil, fmt.Errorf("compare password: %w", err)
 	}
 
