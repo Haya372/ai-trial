@@ -4,6 +4,45 @@ import { pad } from '../../lib/dateFormat'
 import { mapErrorToMessage } from '../../lib/errorMessage'
 import type { EventFormMode, EventFormValues } from './types'
 
+export function defaultExpiresAtValue(event: EventResponse): string {
+  // SPEC-004 では「予定終了日時」をデフォルトとする。
+  // endAt が過去の場合、クライアント側 zod の「未来チェック」に引っかかるため
+  // ユーザーが明示的に変更して送信することで吸収する設計（design doc の判断を踏襲）。
+  return toDateTimeLocalValue(event.endAt)
+}
+
+export function toFullShareUrl(path: string): string {
+  // バックエンドは "/share/{token}" のパスを返す。コピー用途では完全 URL が必要なため
+  // SSR 想定外の本アプリでは window.location.origin を直参照する（KISS）。
+  return `${window.location.origin}${path}`
+}
+
+type ShareTFunction = TFunction<['eventshare', 'common', 'event']>
+
+const shareCodeToKey: Record<
+  string,
+  ParseKeys<['eventshare', 'common', 'event']>
+> = {
+  FORBIDDEN: 'eventshare:errors.forbidden',
+  // 予定が見つからない・未ログインの文言は event 名前空間の既存キーを再利用する
+  // （eventshare 用に同じ文言を複製しない）
+  NOT_FOUND: 'event:errors.notFound',
+  UNAUTHORIZED: 'event:errors.unauthorized',
+  INTERNAL_ERROR: 'common:errors.internalError',
+}
+
+export function getShareErrorMessage(
+  error: unknown,
+  t: ShareTFunction,
+): string {
+  return mapErrorToMessage(
+    error,
+    t,
+    shareCodeToKey,
+    'eventshare:errors.createFallback',
+  )
+}
+
 export function toDateTimeLocalValue(iso: string): string {
   const date = new Date(iso)
   const y = date.getFullYear()

@@ -26,6 +26,7 @@ interface EventDetailModalProps {
   event: EventResponse | null
   onClose: () => void
   onEdit: (event: EventResponse) => void
+  onShare: (event: EventResponse) => void
 }
 
 function formatTime(date: Date): string {
@@ -48,6 +49,7 @@ export default function EventDetailModal({
   event,
   onClose,
   onEdit,
+  onShare,
 }: EventDetailModalProps) {
   const { t } = useTranslation('calendar')
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -106,6 +108,9 @@ export default function EventDetailModal({
             </Button>
             <Button variant="secondary" onClick={() => onEdit(event)}>
               {t('eventDetail.edit')}
+            </Button>
+            <Button variant="secondary" onClick={() => onShare(event)}>
+              {t('eventDetail.share')}
             </Button>
           </DialogFooter>
         </DialogContent>

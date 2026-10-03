@@ -11,7 +11,7 @@ void i18next
     fallbackLng: 'ja',
     supportedLngs: ['ja', 'en'],
     defaultNS: 'common',
-    ns: ['common', 'auth', 'calendar', 'event'],
+    ns: ['common', 'auth', 'calendar', 'event', 'eventshare'],
     interpolation: {
       escapeValue: false,
     },

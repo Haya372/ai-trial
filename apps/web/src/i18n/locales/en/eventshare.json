@@ -1,0 +1,31 @@
+{
+  "dialog": {
+    "title": "共有リンクを生成",
+    "descriptionWarning": "メモ欄の内容もリンクで共有されます。機密情報が含まれていないか確認してください。",
+    "expiresAtLabel": "有効期限",
+    "generate": "生成",
+    "generating": "生成中…",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "regenerate": "もう一度生成",
+    "shareUrlLabel": "共有 URL",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "expiresAtInfo": "有効期限: {{dateTime}}"
+  },
+  "toast": {
+    "createSuccess": "共有リンクを生成しました",
+    "copySuccess": "共有リンクをコピーしました",
+    "copyFailure": "共有リンクのコピーに失敗しました"
+  },
+  "validation": {
+    "expiresAtRequired": "有効期限を入力してください",
+    "expiresAtInFuture": "有効期限は未来の日時を指定してください",
+    "expiresAtAfterStart": "有効期限は予定の開始日時以降を指定してください"
+  },
+  "errors": {
+    "forbidden": "この予定を共有する権限がありません",
+    "createFallback": "共有リンクの生成に失敗しました",
+    "validationFallback": "入力内容を確認してください"
+  }
+}
