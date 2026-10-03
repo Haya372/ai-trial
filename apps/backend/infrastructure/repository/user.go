@@ -48,7 +48,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email user.Email) (use
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", usersTable)
 	row, err := r.querier(spanCtx).FindUserByEmail(spanCtx, string(email))
 	endDBSpanNotFound(span, err)
-	if notFound, err := checkNotFound(err, user.ErrUserNotFound); notFound {
+	if notFound, _, err := checkNotFound(err, user.ErrUserNotFound); notFound {
 		return nil, err
 	}
 	return user.New(uuid.UUID(row.ID.Bytes), email, row.DisplayName, row.PasswordHash), nil
@@ -58,7 +58,7 @@ func (r *userRepository) FindByID(ctx context.Context, id uuid.UUID) (user.User,
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", usersTable)
 	row, err := r.querier(spanCtx).FindUserByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if notFound, err := checkNotFound(err, user.ErrUserNotFound); notFound {
+	if notFound, _, err := checkNotFound(err, user.ErrUserNotFound); notFound {
 		return nil, err
 	}
 	email, err := user.NewEmail(row.Email)

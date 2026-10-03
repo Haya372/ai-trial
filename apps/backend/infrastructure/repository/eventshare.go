@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -68,8 +67,8 @@ func (r *eventShareRepository) FindByToken(ctx context.Context, token eventshare
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventSharesTable)
 	row, err := r.querier(spanCtx).FindEventShareByTokenHash(spanCtx, token.Hash().String())
 	endDBSpanNotFound(span, err)
-	if notFound, mappedErr := checkNotFound(err, eventshare.ErrEventShareNotFound); notFound {
-		if errors.Is(err, pgx.ErrNoRows) {
+	if notFound, wasNoRows, mappedErr := checkNotFound(err, eventshare.ErrEventShareNotFound); notFound {
+		if wasNoRows {
 			return nil, mappedErr
 		}
 		return nil, fmt.Errorf("find event share by token: %w", mappedErr)

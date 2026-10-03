@@ -43,7 +43,7 @@ func (r *sessionRepository) FindByID(ctx context.Context, id uuid.UUID) (session
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", sessionsTable)
 	row, err := r.querier(spanCtx).FindSessionByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if notFound, err := checkNotFound(err, nil); notFound {
+	if notFound, _, err := checkNotFound(err, nil); notFound {
 		return nil, err
 	}
 	return session.New(uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes), row.ExpiresAt.Time), nil
@@ -53,7 +53,7 @@ func (r *sessionRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (s
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", sessionsTable)
 	row, err := r.querier(spanCtx).FindActiveSessionByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if notFound, err := checkNotFound(err, nil); notFound {
+	if notFound, _, err := checkNotFound(err, nil); notFound {
 		return nil, err
 	}
 	return session.New(uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes), row.ExpiresAt.Time), nil

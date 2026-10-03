@@ -32,10 +32,13 @@ func TestToPgUUID_wrapsIDAsValid(t *testing.T) {
 }
 
 func TestCheckNotFound_reportsNotNotFound_whenErrNil(t *testing.T) {
-	notFound, err := checkNotFound(nil, errBoom)
+	notFound, wasNoRows, err := checkNotFound(nil, errBoom)
 
 	if notFound {
 		t.Error("expected notFound=false for a nil error")
+	}
+	if wasNoRows {
+		t.Error("expected wasNoRows=false for a nil error")
 	}
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
@@ -43,10 +46,13 @@ func TestCheckNotFound_reportsNotNotFound_whenErrNil(t *testing.T) {
 }
 
 func TestCheckNotFound_mapsToNotFoundErr_whenErrNoRows(t *testing.T) {
-	notFound, err := checkNotFound(pgx.ErrNoRows, errBoom)
+	notFound, wasNoRows, err := checkNotFound(pgx.ErrNoRows, errBoom)
 
 	if !notFound {
 		t.Error("expected notFound=true for pgx.ErrNoRows")
+	}
+	if !wasNoRows {
+		t.Error("expected wasNoRows=true for pgx.ErrNoRows")
 	}
 	if !errors.Is(err, errBoom) {
 		t.Errorf("expected mapped error %v, got %v", errBoom, err)
@@ -54,10 +60,13 @@ func TestCheckNotFound_mapsToNotFoundErr_whenErrNoRows(t *testing.T) {
 }
 
 func TestCheckNotFound_allowsNilNotFoundErr(t *testing.T) {
-	notFound, err := checkNotFound(pgx.ErrNoRows, nil)
+	notFound, wasNoRows, err := checkNotFound(pgx.ErrNoRows, nil)
 
 	if !notFound {
 		t.Error("expected notFound=true for pgx.ErrNoRows")
+	}
+	if !wasNoRows {
+		t.Error("expected wasNoRows=true for pgx.ErrNoRows")
 	}
 	if err != nil {
 		t.Errorf("expected nil mapped error, got %v", err)
@@ -65,10 +74,13 @@ func TestCheckNotFound_allowsNilNotFoundErr(t *testing.T) {
 }
 
 func TestCheckNotFound_passesThroughOtherErrors_unchanged(t *testing.T) {
-	notFound, err := checkNotFound(errBoom, errNotFoundTester)
+	notFound, wasNoRows, err := checkNotFound(errBoom, errNotFoundTester)
 
 	if !notFound {
 		t.Error("expected notFound=true for a non-NoRows error")
+	}
+	if wasNoRows {
+		t.Error("expected wasNoRows=false for a non-NoRows error")
 	}
 	if !errors.Is(err, errBoom) {
 		t.Errorf("expected the original error %v unchanged, got %v", errBoom, err)

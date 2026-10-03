@@ -22,21 +22,26 @@ func toPgUUID(id uuid.UUID) pgtype.UUID {
 	return pgtype.UUID{Bytes: id, Valid: true}
 }
 
-// checkNotFound inspects err from a single-row lookup. If err is nil, it
-// reports (false, nil) so the caller proceeds to use the row. If err is
-// pgx.ErrNoRows, it reports (true, notFoundErr) — notFoundErr may be nil,
-// matching repositories that report "not found" as (zero value, nil)
-// rather than a dedicated sentinel error. Any other error is reported as
-// (true, err) unchanged, so the caller can still apply its own
-// logging/wrapping before returning.
-func checkNotFound(err error, notFoundErr error) (bool, error) {
+// checkNotFound inspects err from a single-row lookup and reports
+// (isNotFound, wasNoRows, mappedErr):
+//   - err == nil: (false, false, nil) — the caller proceeds to use the row.
+//   - err is pgx.ErrNoRows: (true, true, notFoundErr) — notFoundErr may be
+//     nil, matching repositories that report "not found" as (zero value,
+//     nil) rather than a dedicated sentinel error.
+//   - any other error: (true, false, err) unchanged, so the caller can
+//     still apply its own logging/wrapping before returning.
+//
+// wasNoRows lets a caller that needs different handling for a genuine
+// failure (e.g. logging) branch on it directly, without re-inspecting err
+// with its own errors.Is(err, pgx.ErrNoRows) check.
+func checkNotFound(err error, notFoundErr error) (bool, bool, error) {
 	switch {
 	case err == nil:
-		return false, nil
+		return false, false, nil
 	case errors.Is(err, pgx.ErrNoRows):
-		return true, notFoundErr
+		return true, true, notFoundErr
 	default:
-		return true, err
+		return true, false, err
 	}
 }
 

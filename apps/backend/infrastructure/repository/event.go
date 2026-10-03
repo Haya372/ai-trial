@@ -2,11 +2,9 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
@@ -75,8 +73,8 @@ func (r *eventQueryRepository) FindByID(ctx context.Context, id uuid.UUID) (even
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
 	row, err := r.querier(spanCtx).FindEventReadModelByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if notFound, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
-		if errors.Is(err, pgx.ErrNoRows) {
+	if notFound, wasNoRows, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
+		if wasNoRows {
 			return eventuc.EventReadModel{}, mappedErr
 		}
 		r.logger.Error("find event read model by id query failed", "error", mappedErr)
@@ -167,8 +165,8 @@ func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domaineve
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
 	row, err := r.querier(spanCtx).FindEventByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if notFound, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
-		if errors.Is(err, pgx.ErrNoRows) {
+	if notFound, wasNoRows, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
+		if wasNoRows {
 			return nil, mappedErr
 		}
 		r.logger.Error("find event by id query failed", "error", mappedErr)
