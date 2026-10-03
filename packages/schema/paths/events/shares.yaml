@@ -35,12 +35,6 @@ post:
         application/json:
           schema:
             $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
-    "403":
-      description: Event belongs to another user
-      content:
-        application/json:
-          schema:
-            $ref: "../../components/schemas/ForbiddenErrorResponse.yaml"
     "404":
       description: Event not found
       content:

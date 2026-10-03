@@ -154,7 +154,7 @@ func TestCreateShareCommand_Execute_EventNotFound_ReturnsEventNotFoundError(t *t
 	}
 }
 
-func TestCreateShareCommand_Execute_NotOwner_ReturnsForbiddenError(t *testing.T) {
+func TestCreateShareCommand_Execute_NotOwner_ReturnsEventNotFoundError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	eventRepo := eventmock.NewMockRepository(ctrl)
 	shareRepo := eventsharemock.NewMockRepository(ctrl)
@@ -170,8 +170,8 @@ func TestCreateShareCommand_Execute_NotOwner_ReturnsForbiddenError(t *testing.T)
 
 	cmd := eventshareuc.NewCreateShareCommand(eventRepo, shareRepo, &testutil.StubTxManager{}, testLogger)
 	_, err := cmd.Execute(context.Background(), otherUserID, eventshareuc.CreateShareInput{EventID: eventID})
-	if !errors.Is(err, domainevent.ErrEventForbidden) {
-		t.Errorf("expected ErrEventForbidden, got %v", err)
+	if !errors.Is(err, domainevent.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound, got %v", err)
 	}
 }
 

@@ -19,8 +19,6 @@ import (
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
-const errCodeForbidden = "FORBIDDEN"
-
 // CreateShareExecutor is satisfied by eventshareuc.CreateShareCommand.
 type CreateShareExecutor interface {
 	Execute(
@@ -95,8 +93,5 @@ func decodeCreateShareInput(r *http.Request, eventID uuid.UUID) (eventshareuc.Cr
 func (h *EventShareHandler) writeEventShareError(w http.ResponseWriter, r *http.Request, err error) {
 	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
 		domainevent.CodeEventNotFound: {status: http.StatusNotFound, code: errCodeNotFound, message: msgResourceNotFound},
-		domainevent.CodeEventForbidden: {
-			status: http.StatusForbidden, code: errCodeForbidden, message: "You do not have access to this resource",
-		},
 	})
 }
