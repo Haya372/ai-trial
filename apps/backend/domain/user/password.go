@@ -33,20 +33,7 @@ var (
 )
 
 func NewPassword(plain string) (Password, error) {
-	for _, b := range []byte(plain) {
-		if b < 0x20 || b > 0x7E {
-			return Password{}, fmt.Errorf("%w", ErrPasswordNotASCII)
-		}
-	}
-	if len(plain) < 8 {
-		return Password{}, fmt.Errorf("%w", ErrPasswordTooShort)
-	}
-	// bcrypt silently truncates input beyond 72 bytes; we reject to avoid
-	// two different passwords producing the same hash.
-	if len(plain) > 72 {
-		return Password{}, fmt.Errorf("%w", ErrPasswordTooLong)
-	}
-	if err := checkComplexity(plain); err != nil {
+	if err := validatePlain(plain); err != nil {
 		return Password{}, err
 	}
 	hashed, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
@@ -58,6 +45,34 @@ func NewPassword(plain string) (Password, error) {
 
 func NewPasswordFromHash(hash string) Password {
 	return Password{hash: hash}
+}
+
+// NewLoginPassword validates plain against the same rules as NewPassword but
+// skips bcrypt hash generation. Use this on the login path where only the plain
+// text is needed for comparison; the caller must never store the returned value.
+func NewLoginPassword(plain string) (Password, error) {
+	if err := validatePlain(plain); err != nil {
+		return Password{}, err
+	}
+	return Password{plain: plain}, nil
+}
+
+// validatePlain checks the format rules shared by NewPassword and NewLoginPassword.
+func validatePlain(plain string) error {
+	for _, b := range []byte(plain) {
+		if b < 0x20 || b > 0x7E {
+			return fmt.Errorf("%w", ErrPasswordNotASCII)
+		}
+	}
+	if len(plain) < 8 {
+		return fmt.Errorf("%w", ErrPasswordTooShort)
+	}
+	// bcrypt silently truncates input beyond 72 bytes; we reject to avoid
+	// two different passwords producing the same hash.
+	if len(plain) > 72 {
+		return fmt.Errorf("%w", ErrPasswordTooLong)
+	}
+	return checkComplexity(plain)
 }
 
 // dummyHash is a bcrypt hash of a fixed, unpublished secret. It is never the
