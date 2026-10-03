@@ -14,7 +14,7 @@ packages/ui にUIコンポーネントを集約するMonorepo構成（ADR-002）
 
 - ADR-005: React 19 + TypeScript
 - ADR-006: Vite（apps/web、packages/ui ともにViteベース）
-- ADR-031: @base-ui/react + class-variance-authority（shadcn/uiではなくBase UIプリミティブを直接採用）
+- ADR-015: @base-ui/react + class-variance-authority（shadcn/uiではなくBase UIプリミティブを直接採用）
 - ADR-017: Biome + Oxlint（コード品質ツール）
 
 ## スコープ外
