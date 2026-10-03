@@ -17,12 +17,17 @@ export function toFullShareUrl(path: string): string {
   return `${window.location.origin}${path}`
 }
 
-type ShareTFunction = TFunction<['eventshare', 'common']>
+type ShareTFunction = TFunction<['eventshare', 'common', 'event']>
 
-const shareCodeToKey: Record<string, ParseKeys<['eventshare', 'common']>> = {
+const shareCodeToKey: Record<
+  string,
+  ParseKeys<['eventshare', 'common', 'event']>
+> = {
   FORBIDDEN: 'eventshare:errors.forbidden',
-  NOT_FOUND: 'eventshare:errors.eventNotFound',
-  UNAUTHORIZED: 'common:errors.unauthorized',
+  // 予定が見つからない・未ログインの文言は event 名前空間の既存キーを再利用する
+  // （eventshare 用に同じ文言を複製しない）
+  NOT_FOUND: 'event:errors.notFound',
+  UNAUTHORIZED: 'event:errors.unauthorized',
   INTERNAL_ERROR: 'common:errors.internalError',
 }
 

@@ -25,7 +25,6 @@
   },
   "errors": {
     "forbidden": "この予定を共有する権限がありません",
-    "eventNotFound": "予定が見つかりませんでした（削除された可能性があります）",
     "createFallback": "共有リンクの生成に失敗しました",
     "validationFallback": "入力内容を確認してください"
   }

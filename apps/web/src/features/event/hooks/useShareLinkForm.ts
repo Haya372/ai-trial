@@ -60,7 +60,7 @@ export function useShareLinkForm(
   resetAll: () => void
   resetResult: () => void
 } {
-  const { t } = useTranslation(['eventshare', 'common'])
+  const { t } = useTranslation(['eventshare', 'common', 'event'])
   const schema = useMemo(() => createShareLinkFormSchema(t, event), [t, event])
   const form = useForm<ShareLinkFormValues>({
     resolver: zodResolver(schema),
