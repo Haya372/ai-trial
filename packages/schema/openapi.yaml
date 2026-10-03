@@ -21,6 +21,8 @@ paths:
     $ref: "./paths/events/shares.yaml"
   /shares/{token}:
     $ref: "./paths/shares/detail.yaml"
+  /shares/{token}/subscriptions:
+    $ref: "./paths/shares/subscriptions.yaml"
 components:
   schemas:
     HealthResponse:
@@ -59,3 +61,7 @@ components:
       $ref: "./components/schemas/ShareResponse.yaml"
     GoneErrorResponse:
       $ref: "./components/schemas/GoneErrorResponse.yaml"
+    EventSubscriptionResponse:
+      $ref: "./components/schemas/EventSubscriptionResponse.yaml"
+    ForbiddenErrorResponse:
+      $ref: "./components/schemas/ForbiddenErrorResponse.yaml"
