@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from '@repo/ui'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SubmitHandler, UseFormReturn } from 'react-hook-form'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -71,6 +71,12 @@ export function useShareLinkForm(
   const [result, setResult] = useState<ShareLinkResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
+  // onSubmit は呼び出し時点の event をクロージャで保持するため、生成中に
+  // ダイアログが別の予定に切り替わった後も古いレスポンスで状態更新してしまう。
+  // 現在表示中の予定IDをレンダーごとに追跡し、レスポンス到達時に不一致なら無視する。
+  const currentEventIdRef = useRef<string | null>(null)
+  currentEventIdRef.current = event?.id ?? null
+
   useEffect(() => {
     if (open) {
       form.reset(defaultFormValues(event))
@@ -91,11 +97,15 @@ export function useShareLinkForm(
 
   const onSubmit: SubmitHandler<ShareLinkFormValues> = async (data) => {
     if (!event) return
+    const requestedEventId = event.id
 
     try {
       const res = await createEventShare(event.id, {
         expiresAt: toIsoString(data.expiresAt),
       })
+
+      // ダイアログが別の予定に切り替わった後に届いた古いレスポンスは無視する
+      if (currentEventIdRef.current !== requestedEventId) return
 
       if (res.status === 201) {
         setResult({
@@ -122,6 +132,7 @@ export function useShareLinkForm(
       setErrorMessage(message)
       toast.error(message)
     } catch {
+      if (currentEventIdRef.current !== requestedEventId) return
       const message = t('eventshare:errors.createFallback')
       setErrorMessage(message)
       toast.error(message)

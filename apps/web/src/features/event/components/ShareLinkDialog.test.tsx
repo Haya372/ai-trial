@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import i18n from 'i18next'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -425,6 +425,57 @@ describe('ShareLinkDialog', () => {
           '共有リンクのコピーに失敗しました',
         )
       })
+    })
+  })
+
+  describe('競合状態（stale response）', () => {
+    it('別の予定に切り替えた後に前の予定への生成リクエストが成功しても、結果が表示されない', async () => {
+      const { createEventShare } = await import('../../../api/generated')
+      let resolveRequest!: (value: {
+        data: { url: string; expiresAt: string }
+        status: 201
+        headers: Headers
+      }) => void
+      vi.mocked(createEventShare).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveRequest = resolve as never
+        }) as never,
+      )
+
+      const onClose = vi.fn()
+      const { rerender } = render(
+        <ShareLinkDialog open={true} event={mockEvent} onClose={onClose} />,
+        { wrapper: createWrapper() },
+      )
+      fireEvent.click(screen.getByRole('button', { name: '生成' }))
+
+      // 予定Aへのリクエストが送信される（バリデーションの非同期処理を flush する）まで待つ
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+
+      // 予定Aへのリクエストが未解決のまま、ダイアログを閉じて別の予定Bで開き直す
+      const eventB: EventResponse = { ...mockEvent, id: 'event-2' }
+      rerender(
+        <ShareLinkDialog open={false} event={mockEvent} onClose={onClose} />,
+      )
+      rerender(<ShareLinkDialog open={true} event={eventB} onClose={onClose} />)
+
+      // 予定Aへのリクエストがここで解決する。関連する非同期処理（状態更新）が
+      // 完全に片付くまで act 内でマイクロタスクを明示的に流し切る
+      await act(async () => {
+        resolveRequest({
+          data: { url: '/share/stale-a', expiresAt: futureEndAt },
+          status: 201,
+          headers: new Headers(),
+        })
+        await new Promise((resolve) => setTimeout(resolve, 0))
+      })
+
+      // 予定Aの結果が予定Bのダイアログに紛れ込んで表示されないこと
+      expect(screen.getByRole('button', { name: '生成' })).toBeInTheDocument()
+      expect(screen.queryByDisplayValue(/stale-a/)).not.toBeInTheDocument()
+      expect(mockToastSuccess).not.toHaveBeenCalled()
     })
   })
 })
