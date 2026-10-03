@@ -4,36 +4,36 @@ import (
 	"context"
 	"fmt"
 
-	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
+	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
 type ShareTokenLoader struct {
-	shareRepo domaineventshare.Repository
-	eventRepo domainevent.Repository
+	shareRepo  domaineventshare.Repository
+	eventQuery eventuc.QueryService
 }
 
 func NewShareTokenLoader(
 	sr domaineventshare.Repository,
-	er domainevent.Repository,
+	qs eventuc.QueryService,
 ) *ShareTokenLoader {
-	return &ShareTokenLoader{shareRepo: sr, eventRepo: er}
+	return &ShareTokenLoader{shareRepo: sr, eventQuery: qs}
 }
 
 func (l *ShareTokenLoader) Load(
 	ctx context.Context,
 	token string,
-) (domaineventshare.EventShare, domainevent.Event, error) {
+) (domaineventshare.EventShare, eventuc.EventReadModel, error) {
 	share, err := l.shareRepo.FindByToken(ctx, token)
 	if err != nil {
-		return nil, nil, err
+		return nil, eventuc.EventReadModel{}, err
 	}
 	if share.IsExpired() {
-		return nil, nil, domaineventshare.ErrEventShareExpired
+		return nil, eventuc.EventReadModel{}, domaineventshare.ErrEventShareExpired
 	}
-	ev, err := l.eventRepo.FindByID(ctx, share.EventID())
+	ev, err := l.eventQuery.FindByID(ctx, share.EventID())
 	if err != nil {
-		return nil, nil, fmt.Errorf("load event for share: %w", err)
+		return nil, eventuc.EventReadModel{}, fmt.Errorf("load event for share: %w", err)
 	}
 	return share, ev, nil
 }

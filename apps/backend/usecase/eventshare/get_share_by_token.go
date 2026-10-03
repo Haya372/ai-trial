@@ -47,21 +47,21 @@ func (q *GetShareByTokenQuery) Execute(
 	}
 
 	out := GetShareByTokenOutput{
-		Title:       ev.Title(),
-		Description: ev.Description(),
-		StartAt:     ev.StartAt(),
-		EndAt:       ev.EndAt(),
-		Location:    ev.Location(),
-		URL:         ev.URL(),
+		Title:       ev.Title,
+		Description: ev.Description,
+		StartAt:     ev.StartAt,
+		EndAt:       ev.EndAt,
+		Location:    ev.Location,
+		URL:         ev.URL,
 	}
 
 	if in.Viewer == nil {
 		return out, nil
 	}
 
-	out.IsOwnEvent = ev.UserID() == in.Viewer.ID()
+	out.IsOwnEvent = ev.UserID == in.Viewer.ID()
 
-	_, err = q.subsRepo.FindByEventAndUserID(ctx, ev.ID(), in.Viewer.ID())
+	_, err = q.subsRepo.FindByEventAndUserID(ctx, ev.ID, in.Viewer.ID())
 	if err == nil {
 		out.IsSubscribed = true
 		return out, nil

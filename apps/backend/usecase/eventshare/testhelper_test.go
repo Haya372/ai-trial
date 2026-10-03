@@ -8,9 +8,9 @@ import (
 
 	"github.com/google/uuid"
 
-	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/domain/user"
+	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
 var (
@@ -40,14 +40,34 @@ func newTestShare(eventID uuid.UUID, expired bool) domaineventshare.EventShare {
 	return s
 }
 
-func newTestEvent(ownerID uuid.UUID) domainevent.Event {
-	ev, err := domainevent.New(
-		uuid.New(), ownerID, "Test Event", "", time.Now(), time.Now().Add(time.Hour), "", "",
-	)
-	if err != nil {
-		panic(err)
+func newTestEvent(ownerID uuid.UUID) eventuc.EventReadModel {
+	now := time.Now()
+	return eventuc.EventReadModel{
+		ID:      uuid.New(),
+		UserID:  ownerID,
+		Title:   "Test Event",
+		StartAt: now,
+		EndAt:   now.Add(time.Hour),
 	}
-	return ev
+}
+
+// stubEventQueryService implements eventuc.QueryService with only the method
+// ShareTokenLoader needs (FindByID); List is unused by this package's tests.
+type stubEventQueryService struct {
+	findByIDFn func(context.Context, uuid.UUID) (eventuc.EventReadModel, error)
+}
+
+func (s *stubEventQueryService) List(
+	context.Context, eventuc.ListFilter,
+) ([]eventuc.EventReadModel, error) {
+	return nil, nil
+}
+
+func (s *stubEventQueryService) FindByID(ctx context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {
+	if s.findByIDFn == nil {
+		return eventuc.EventReadModel{}, nil
+	}
+	return s.findByIDFn(ctx, id)
 }
 
 func newTestUser(id uuid.UUID) user.User {

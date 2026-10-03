@@ -8,19 +8,19 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 
-	eventmock "github.com/Haya372/ai-trial/backend/domain/event/generated"
 	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
 	eventsharemock "github.com/Haya372/ai-trial/backend/domain/eventshare/generated"
+	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
 func TestShareTokenLoader_Load_notFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	shareRepo := eventsharemock.NewMockRepository(ctrl)
-	eventRepo := eventmock.NewMockRepository(ctrl)
+	eventQuery := &stubEventQueryService{}
 	shareRepo.EXPECT().FindByToken(gomock.Any(), "tok").Return(nil, domaineventshare.ErrEventShareNotFound)
 
-	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventRepo)
+	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventQuery)
 	_, _, err := loader.Load(context.Background(), "tok")
 
 	if !errors.Is(err, domaineventshare.ErrEventShareNotFound) {
@@ -31,13 +31,13 @@ func TestShareTokenLoader_Load_notFound(t *testing.T) {
 func TestShareTokenLoader_Load_expired(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	shareRepo := eventsharemock.NewMockRepository(ctrl)
-	eventRepo := eventmock.NewMockRepository(ctrl)
+	eventQuery := &stubEventQueryService{}
 
 	eventID := uuid.New()
 	expiredShare := newTestShare(eventID, true)
 	shareRepo.EXPECT().FindByToken(gomock.Any(), "tok").Return(expiredShare, nil)
 
-	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventRepo)
+	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventQuery)
 	_, _, err := loader.Load(context.Background(), "tok")
 
 	if !errors.Is(err, domaineventshare.ErrEventShareExpired) {
@@ -48,15 +48,22 @@ func TestShareTokenLoader_Load_expired(t *testing.T) {
 func TestShareTokenLoader_Load_success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	shareRepo := eventsharemock.NewMockRepository(ctrl)
-	eventRepo := eventmock.NewMockRepository(ctrl)
 
 	ownerID := uuid.New()
 	ev := newTestEvent(ownerID)
-	share := newTestShare(ev.ID(), false)
+	share := newTestShare(ev.ID, false)
 	shareRepo.EXPECT().FindByToken(gomock.Any(), "tok").Return(share, nil)
-	eventRepo.EXPECT().FindByID(gomock.Any(), ev.ID()).Return(ev, nil)
 
-	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventRepo)
+	eventQuery := &stubEventQueryService{
+		findByIDFn: func(_ context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {
+			if id != ev.ID {
+				t.Errorf("event id mismatch: got %v, want %v", id, ev.ID)
+			}
+			return ev, nil
+		},
+	}
+
+	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventQuery)
 	gotShare, gotEvent, err := loader.Load(context.Background(), "tok")
 
 	if err != nil {
@@ -65,7 +72,7 @@ func TestShareTokenLoader_Load_success(t *testing.T) {
 	if gotShare.ID() != share.ID() {
 		t.Errorf("share ID mismatch: got %v, want %v", gotShare.ID(), share.ID())
 	}
-	if gotEvent.ID() != ev.ID() {
-		t.Errorf("event ID mismatch: got %v, want %v", gotEvent.ID(), ev.ID())
+	if gotEvent.ID != ev.ID {
+		t.Errorf("event ID mismatch: got %v, want %v", gotEvent.ID, ev.ID)
 	}
 }

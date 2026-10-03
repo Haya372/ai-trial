@@ -145,8 +145,8 @@ func newCreateShareExecutor(
 	return eventshareuc.NewCreateShareCommand(er, sr, tx, logger)
 }
 
-func newShareTokenLoader(sr eventshare.Repository, er event.Repository) *eventshareuc.ShareTokenLoader {
-	return eventshareuc.NewShareTokenLoader(sr, er)
+func newShareTokenLoader(sr eventshare.Repository, qs eventuc.QueryService) *eventshareuc.ShareTokenLoader {
+	return eventshareuc.NewShareTokenLoader(sr, qs)
 }
 
 func newGetShareByTokenExecutor(
