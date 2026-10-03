@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { CalendarState } from '../../../store/calendarStore'
+import type { CalendarState } from '../../../stores/calendarStore'
 
 // このファイルはCalendarPage.test.tsxと異なりQuickRegistrationPanelを
 // モックしない。パネル自身の再マウント（内部状態のリセット）まで含めて
@@ -27,7 +27,7 @@ vi.mock('../../../hooks/useEventsQuery', () => ({
   useEventsQuery: vi.fn(),
 }))
 
-vi.mock('../../../store/calendarStore', () => ({
+vi.mock('../../../stores/calendarStore', () => ({
   useCalendarStore: vi.fn((selector: (state: CalendarState) => unknown) => {
     const state: CalendarState = {
       view: 'week',
