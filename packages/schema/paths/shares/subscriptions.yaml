@@ -1,0 +1,54 @@
+post:
+  operationId: subscribeToShare
+  summary: Add a shared event to the authenticated user's calendar
+  tags:
+    - shares
+  parameters:
+    - name: token
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    "200":
+      description: Already subscribed; existing subscription returned (idempotent)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/EventSubscriptionResponse.yaml"
+    "201":
+      description: Subscription created
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/EventSubscriptionResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "403":
+      description: Event belongs to the requesting user
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ForbiddenErrorResponse.yaml"
+    "404":
+      description: Share token not found
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
+    "410":
+      description: Share link has expired
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/GoneErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
