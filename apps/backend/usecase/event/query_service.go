@@ -15,4 +15,5 @@ type ListFilter struct {
 
 type QueryService interface {
 	List(ctx context.Context, filter ListFilter) ([]EventReadModel, error)
+	FindByID(ctx context.Context, id uuid.UUID) (EventReadModel, error)
 }

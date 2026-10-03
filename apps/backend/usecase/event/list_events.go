@@ -15,6 +15,7 @@ type ListEventsInput struct {
 
 type EventReadModel struct {
 	ID          uuid.UUID
+	UserID      uuid.UUID
 	Title       string
 	Description string
 	StartAt     time.Time

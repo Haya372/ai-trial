@@ -59,6 +59,7 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 		}
 		result = append(result, eventuc.EventReadModel{
 			ID:          uuid.UUID(row.ID.Bytes),
+			UserID:      uuid.UUID(row.UserID.Bytes),
 			Title:       row.Title,
 			Description: desc,
 			StartAt:     row.StartAt.Time,
@@ -68,6 +69,40 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 		})
 	}
 	return result, nil
+}
+
+func (r *eventQueryRepository) FindByID(ctx context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
+	row, err := r.querier(spanCtx).FindEventReadModelByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	endDBSpanNotFound(span, err)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return eventuc.EventReadModel{}, domainevent.ErrEventNotFound
+	}
+	if err != nil {
+		r.logger.Error("find event read model by id query failed", "error", err)
+		return eventuc.EventReadModel{}, fmt.Errorf("find event read model by id: %w", err)
+	}
+
+	var desc, location, url string
+	if row.Description.Valid {
+		desc = row.Description.String
+	}
+	if row.Location.Valid {
+		location = row.Location.String
+	}
+	if row.Url.Valid {
+		url = row.Url.String
+	}
+	return eventuc.EventReadModel{
+		ID:          uuid.UUID(row.ID.Bytes),
+		UserID:      uuid.UUID(row.UserID.Bytes),
+		Title:       row.Title,
+		Description: desc,
+		StartAt:     row.StartAt.Time,
+		EndAt:       row.EndAt.Time,
+		Location:    location,
+		URL:         url,
+	}, nil
 }
 
 // --- write side ---

@@ -11,7 +11,8 @@ import (
 )
 
 type stubQueryService struct {
-	fn func(context.Context, eventuc.ListFilter) ([]eventuc.EventReadModel, error)
+	fn         func(context.Context, eventuc.ListFilter) ([]eventuc.EventReadModel, error)
+	findByIDFn func(context.Context, uuid.UUID) (eventuc.EventReadModel, error)
 }
 
 func (s *stubQueryService) List(ctx context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
@@ -19,6 +20,13 @@ func (s *stubQueryService) List(ctx context.Context, filter eventuc.ListFilter) 
 		return nil, nil
 	}
 	return s.fn(ctx, filter)
+}
+
+func (s *stubQueryService) FindByID(ctx context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {
+	if s.findByIDFn == nil {
+		return eventuc.EventReadModel{}, nil
+	}
+	return s.findByIDFn(ctx, id)
 }
 
 func TestListEventsQuery_Execute_ReturnsEvents(t *testing.T) {
