@@ -22,7 +22,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run actionlint
-        uses: reviewdog/action-actionlint@v1.76.0
+        uses: reviewdog/action-actionlint@v1.77.0
       - name: Run zizmor 🌈
         uses: zizmorcore/zizmor-action@v0.6.4
         with:
