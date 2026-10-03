@@ -5,14 +5,45 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/google/uuid"
+
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 )
+
+// toPgUUID wraps id as a valid pgtype.UUID for generated query parameters.
+func toPgUUID(id uuid.UUID) pgtype.UUID {
+	return pgtype.UUID{Bytes: id, Valid: true}
+}
+
+// checkNotFound inspects err from a single-row lookup and reports
+// (isNotFound, wasNoRows, mappedErr):
+//   - err == nil: (false, false, nil) — the caller proceeds to use the row.
+//   - err is pgx.ErrNoRows: (true, true, notFoundErr) — notFoundErr may be
+//     nil, matching repositories that report "not found" as (zero value,
+//     nil) rather than a dedicated sentinel error.
+//   - any other error: (true, false, err) unchanged, so the caller can
+//     still apply its own logging/wrapping before returning.
+//
+// wasNoRows lets a caller that needs different handling for a genuine
+// failure (e.g. logging) branch on it directly, without re-inspecting err
+// with its own errors.Is(err, pgx.ErrNoRows) check.
+func checkNotFound(err error, notFoundErr error) (bool, bool, error) {
+	switch {
+	case err == nil:
+		return false, false, nil
+	case errors.Is(err, pgx.ErrNoRows):
+		return true, true, notFoundErr
+	default:
+		return true, false, err
+	}
+}
 
 const tracerName = "github.com/Haya372/ai-trial/backend/infrastructure/repository"
 

@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 
@@ -46,9 +44,9 @@ func (r *eventSubscriptionRepository) Create(
 ) (eventsubscription.EventSubscription, error) {
 	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventSubscriptionsTable)
 	row, err := r.querier(spanCtx).InsertEventSubscription(spanCtx, query.InsertEventSubscriptionParams{
-		ID:      pgtype.UUID{Bytes: s.ID(), Valid: true},
-		EventID: pgtype.UUID{Bytes: s.EventID(), Valid: true},
-		UserID:  pgtype.UUID{Bytes: s.UserID(), Valid: true},
+		ID:      toPgUUID(s.ID()),
+		EventID: toPgUUID(s.EventID()),
+		UserID:  toPgUUID(s.UserID()),
 	})
 	endDBSpan(span, err)
 	if err != nil {
@@ -65,13 +63,13 @@ func (r *eventSubscriptionRepository) FindByID(
 	ctx context.Context, id uuid.UUID,
 ) (eventsubscription.EventSubscription, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventSubscriptionsTable)
-	row, err := r.querier(spanCtx).FindEventSubscriptionByID(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	row, err := r.querier(spanCtx).FindEventSubscriptionByID(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, eventsubscription.ErrEventSubscriptionNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("find event subscription by id: %w", err)
+	if notFound, wasNoRows, mappedErr := checkNotFound(err, eventsubscription.ErrEventSubscriptionNotFound); notFound {
+		if wasNoRows {
+			return nil, mappedErr
+		}
+		return nil, fmt.Errorf("find event subscription by id: %w", mappedErr)
 	}
 
 	return eventSubscriptionFromRow(row), nil
@@ -82,16 +80,16 @@ func (r *eventSubscriptionRepository) FindByEventAndUserID(
 ) (eventsubscription.EventSubscription, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventSubscriptionsTable)
 	params := query.FindEventSubscriptionByEventAndUserIDParams{
-		EventID: pgtype.UUID{Bytes: eventID, Valid: true},
-		UserID:  pgtype.UUID{Bytes: userID, Valid: true},
+		EventID: toPgUUID(eventID),
+		UserID:  toPgUUID(userID),
 	}
 	row, err := r.querier(spanCtx).FindEventSubscriptionByEventAndUserID(spanCtx, params)
 	endDBSpanNotFound(span, err)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, eventsubscription.ErrEventSubscriptionNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("find event subscription by event and user id: %w", err)
+	if notFound, wasNoRows, mappedErr := checkNotFound(err, eventsubscription.ErrEventSubscriptionNotFound); notFound {
+		if wasNoRows {
+			return nil, mappedErr
+		}
+		return nil, fmt.Errorf("find event subscription by event and user id: %w", mappedErr)
 	}
 
 	return eventSubscriptionFromRow(row), nil
@@ -101,7 +99,7 @@ func (r *eventSubscriptionRepository) ListByUserID(
 	ctx context.Context, userID uuid.UUID,
 ) ([]eventsubscription.EventSubscription, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventSubscriptionsTable)
-	rows, err := r.querier(spanCtx).ListEventSubscriptionsByUserID(spanCtx, pgtype.UUID{Bytes: userID, Valid: true})
+	rows, err := r.querier(spanCtx).ListEventSubscriptionsByUserID(spanCtx, toPgUUID(userID))
 	endDBSpan(span, err)
 	if err != nil {
 		return nil, fmt.Errorf("list event subscriptions by user id: %w", err)
@@ -116,7 +114,7 @@ func (r *eventSubscriptionRepository) ListByUserID(
 
 func (r *eventSubscriptionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	spanCtx, span := r.startDBSpan(ctx, "DELETE", eventSubscriptionsTable)
-	err := r.querier(spanCtx).DeleteEventSubscription(spanCtx, pgtype.UUID{Bytes: id, Valid: true})
+	err := r.querier(spanCtx).DeleteEventSubscription(spanCtx, toPgUUID(id))
 	endDBSpan(span, err)
 	if err != nil {
 		return fmt.Errorf("delete event subscription: %w", err)
