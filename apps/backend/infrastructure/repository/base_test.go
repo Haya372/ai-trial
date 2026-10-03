@@ -14,9 +14,71 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+
+	"github.com/google/uuid"
 )
 
-var errBoom = errors.New("boom")
+func TestToPgUUID_wrapsIDAsValid(t *testing.T) {
+	id := uuid.New()
+
+	got := toPgUUID(id)
+
+	if !got.Valid {
+		t.Fatal("expected Valid=true")
+	}
+	if got.Bytes != id {
+		t.Errorf("expected Bytes=%v, got %v", id, got.Bytes)
+	}
+}
+
+func TestCheckNotFound_reportsNotNotFound_whenErrNil(t *testing.T) {
+	notFound, err := checkNotFound(nil, errBoom)
+
+	if notFound {
+		t.Error("expected notFound=false for a nil error")
+	}
+	if err != nil {
+		t.Errorf("expected nil error, got %v", err)
+	}
+}
+
+func TestCheckNotFound_mapsToNotFoundErr_whenErrNoRows(t *testing.T) {
+	notFound, err := checkNotFound(pgx.ErrNoRows, errBoom)
+
+	if !notFound {
+		t.Error("expected notFound=true for pgx.ErrNoRows")
+	}
+	if !errors.Is(err, errBoom) {
+		t.Errorf("expected mapped error %v, got %v", errBoom, err)
+	}
+}
+
+func TestCheckNotFound_allowsNilNotFoundErr(t *testing.T) {
+	notFound, err := checkNotFound(pgx.ErrNoRows, nil)
+
+	if !notFound {
+		t.Error("expected notFound=true for pgx.ErrNoRows")
+	}
+	if err != nil {
+		t.Errorf("expected nil mapped error, got %v", err)
+	}
+}
+
+func TestCheckNotFound_passesThroughOtherErrors_unchanged(t *testing.T) {
+	notFound, err := checkNotFound(errBoom, errNotFoundTester)
+
+	if !notFound {
+		t.Error("expected notFound=true for a non-NoRows error")
+	}
+	if !errors.Is(err, errBoom) {
+		t.Errorf("expected the original error %v unchanged, got %v", errBoom, err)
+	}
+}
+
+var (
+	errBoom           = errors.New("boom")
+	errNotFoundTester = errors.New("not found sentinel")
+)
 
 func newTracedRepository(t *testing.T) (*baseRepository, *tracetest.InMemoryExporter) {
 	t.Helper()
