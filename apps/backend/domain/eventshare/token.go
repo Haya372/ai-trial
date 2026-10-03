@@ -10,19 +10,46 @@ import (
 // tokenByteLength is 32 bytes (256 bits) of randomness per ADR-028.
 const tokenByteLength = 32
 
-// GenerateToken returns a new plaintext share token. Callers must not persist
-// the plaintext; only HashToken's output is stored (ADR-028).
-func GenerateToken() (string, error) {
-	b := make([]byte, tokenByteLength)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(b), nil
+// Token is a plaintext share token (ADR-028). Callers must not persist the
+// plaintext; only its Hash() is stored.
+type Token struct {
+	value string
 }
 
-// HashToken returns the SHA-256 hash of a plaintext token, hex-encoded, for
-// storage and lookup (ADR-028).
-func HashToken(token string) string {
-	sum := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(sum[:])
+// GenerateToken returns a new random plaintext share token.
+func GenerateToken() (Token, error) {
+	b := make([]byte, tokenByteLength)
+	if _, err := rand.Read(b); err != nil {
+		return Token{}, err
+	}
+	return Token{value: base64.RawURLEncoding.EncodeToString(b)}, nil
 }
+
+// NewToken wraps a plaintext token value supplied by a caller (e.g. one read
+// from an incoming HTTP request) so it can be hashed and looked up.
+func NewToken(value string) Token {
+	return Token{value: value}
+}
+
+func (t Token) String() string { return t.value }
+
+// Hash returns the SHA-256 hash of the token, hex-encoded, for storage and
+// lookup (ADR-028).
+func (t Token) Hash() TokenHash {
+	sum := sha256.Sum256([]byte(t.value))
+	return TokenHash{value: hex.EncodeToString(sum[:])}
+}
+
+// TokenHash is the stored hash of a plaintext Token (ADR-028).
+type TokenHash struct {
+	value string
+}
+
+// NewTokenHash wraps a hash value read from storage (e.g. a database column).
+func NewTokenHash(value string) TokenHash {
+	return TokenHash{value: value}
+}
+
+func (h TokenHash) String() string { return h.value }
+
+func (h TokenHash) IsZero() bool { return h.value == "" }

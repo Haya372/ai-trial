@@ -16,7 +16,7 @@ import (
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
-const testToken = "tok"
+var testToken = domaineventshare.NewToken("tok")
 
 func buildQuery(
 	ctrl *gomock.Controller,

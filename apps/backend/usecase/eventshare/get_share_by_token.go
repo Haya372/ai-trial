@@ -5,12 +5,13 @@ import (
 	"errors"
 	"time"
 
+	domaineventshare "github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 )
 
 type GetShareByTokenInput struct {
-	Token  string
+	Token  domaineventshare.Token
 	Viewer user.User
 }
 

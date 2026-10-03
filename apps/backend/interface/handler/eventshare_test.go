@@ -21,7 +21,7 @@ import (
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
-const testPlainToken = "plaintext-token"
+var testPlainToken = domaineventshare.NewToken("plaintext-token")
 
 type stubCreateShareExec struct {
 	fn func(context.Context, uuid.UUID, eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error)
@@ -67,7 +67,7 @@ func createShareRequestAsUser(t *testing.T, id, body string) *http.Request {
 
 func newTestShare(t *testing.T, eventID uuid.UUID, expiresAt time.Time) domaineventshare.EventShare {
 	t.Helper()
-	s, err := domaineventshare.New(uuid.New(), eventID, domaineventshare.HashToken(testPlainToken), expiresAt)
+	s, err := domaineventshare.New(uuid.New(), eventID, testPlainToken.Hash(), expiresAt)
 	if err != nil {
 		t.Fatalf("build test share: %v", err)
 	}

@@ -33,7 +33,7 @@ func newTestShare(eventID uuid.UUID, expired bool) domaineventshare.EventShare {
 	if expired {
 		expiresAt = time.Now().Add(-time.Hour)
 	}
-	s, err := domaineventshare.New(uuid.New(), eventID, "hash", expiresAt)
+	s, err := domaineventshare.New(uuid.New(), eventID, domaineventshare.NewTokenHash("hash"), expiresAt)
 	if err != nil {
 		panic(err)
 	}

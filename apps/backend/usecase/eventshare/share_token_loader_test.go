@@ -18,10 +18,10 @@ func TestShareTokenLoader_Load_notFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	shareRepo := eventsharemock.NewMockRepository(ctrl)
 	eventQuery := &stubEventQueryService{}
-	shareRepo.EXPECT().FindByToken(gomock.Any(), "tok").Return(nil, domaineventshare.ErrEventShareNotFound)
+	shareRepo.EXPECT().FindByToken(gomock.Any(), testToken).Return(nil, domaineventshare.ErrEventShareNotFound)
 
 	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventQuery)
-	_, _, err := loader.Load(context.Background(), "tok")
+	_, _, err := loader.Load(context.Background(), testToken)
 
 	if !errors.Is(err, domaineventshare.ErrEventShareNotFound) {
 		t.Errorf("expected ErrEventShareNotFound, got %v", err)
@@ -35,10 +35,10 @@ func TestShareTokenLoader_Load_expired(t *testing.T) {
 
 	eventID := uuid.New()
 	expiredShare := newTestShare(eventID, true)
-	shareRepo.EXPECT().FindByToken(gomock.Any(), "tok").Return(expiredShare, nil)
+	shareRepo.EXPECT().FindByToken(gomock.Any(), testToken).Return(expiredShare, nil)
 
 	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventQuery)
-	_, _, err := loader.Load(context.Background(), "tok")
+	_, _, err := loader.Load(context.Background(), testToken)
 
 	if !errors.Is(err, domaineventshare.ErrEventShareExpired) {
 		t.Errorf("expected ErrEventShareExpired, got %v", err)
@@ -52,7 +52,7 @@ func TestShareTokenLoader_Load_success(t *testing.T) {
 	ownerID := uuid.New()
 	ev := newTestEvent(ownerID)
 	share := newTestShare(ev.ID, false)
-	shareRepo.EXPECT().FindByToken(gomock.Any(), "tok").Return(share, nil)
+	shareRepo.EXPECT().FindByToken(gomock.Any(), testToken).Return(share, nil)
 
 	eventQuery := &stubEventQueryService{
 		findByIDFn: func(_ context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {
@@ -64,7 +64,7 @@ func TestShareTokenLoader_Load_success(t *testing.T) {
 	}
 
 	loader := eventshareuc.NewShareTokenLoader(shareRepo, eventQuery)
-	gotShare, gotEvent, err := loader.Load(context.Background(), "tok")
+	gotShare, gotEvent, err := loader.Load(context.Background(), testToken)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

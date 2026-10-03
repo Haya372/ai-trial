@@ -59,10 +59,10 @@ func TestCreateShareCommand_Execute_ValidInput_CreatesAndReturnsShareWithToken(t
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if out.Token == "" {
+	if out.Token.String() == "" {
 		t.Error("expected a non-empty plaintext token")
 	}
-	if out.Share.TokenHash() != domaineventshare.HashToken(out.Token) {
+	if out.Share.TokenHash().String() != out.Token.Hash().String() {
 		t.Error("stored token hash does not match the returned plaintext token")
 	}
 }
