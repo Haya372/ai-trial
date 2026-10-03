@@ -2,12 +2,12 @@ import commonJa from './locales/ja/common.json'
 import authJa from './locales/ja/auth.json'
 import calendarJa from './locales/ja/calendar.json'
 import eventJa from './locales/ja/event.json'
-import eventsharJa from './locales/ja/eventshare.json'
+import eventshareJa from './locales/ja/eventshare.json'
 import commonEn from './locales/en/common.json'
 import authEn from './locales/en/auth.json'
 import calendarEn from './locales/en/calendar.json'
 import eventEn from './locales/en/event.json'
-import eventsharEn from './locales/en/eventshare.json'
+import eventshareEn from './locales/en/eventshare.json'
 
 export const resources = {
   ja: {
@@ -15,13 +15,13 @@ export const resources = {
     auth: authJa,
     calendar: calendarJa,
     event: eventJa,
-    eventshare: eventsharJa,
+    eventshare: eventshareJa,
   },
   en: {
     common: commonEn,
     auth: authEn,
     calendar: calendarEn,
     event: eventEn,
-    eventshare: eventsharEn,
+    eventshare: eventshareEn,
   },
 } as const
