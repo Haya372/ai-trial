@@ -13,6 +13,7 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Text,
   toast,
 } from '@repo/ui'
 import { useTranslation } from 'react-i18next'
@@ -55,9 +56,7 @@ export default function ShareLinkDialog({
           <DialogTitle>{t('dialog.title')}</DialogTitle>
         </DialogHeader>
 
-        <p className="text-sm text-muted-foreground">
-          {t('dialog.descriptionWarning')}
-        </p>
+        <Text variant="caption">{t('dialog.descriptionWarning')}</Text>
 
         {errorMessage && (
           <Alert role="alert" variant="destructive">
@@ -83,11 +82,11 @@ export default function ShareLinkDialog({
                   {t('dialog.copy')}
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <Text variant="caption">
                 {t('dialog.expiresAtInfo', {
                   dateTime: new Date(result.expiresAt).toLocaleString(),
                 })}
-              </p>
+              </Text>
             </div>
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={resetResult}>
