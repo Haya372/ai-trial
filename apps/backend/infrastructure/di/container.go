@@ -167,8 +167,10 @@ func newSubscribeToShareExecutor(
 	return eventsubscriptionuc.NewSubscribeToShareCommand(l, s)
 }
 
-func newDeleteSubscriptionExecutor(s eventsubscription.Repository) handler.DeleteSubscriptionExecutor {
-	return eventsubscriptionuc.NewDeleteSubscriptionCommand(s)
+func newDeleteSubscriptionExecutor(
+	s eventsubscription.Repository, logger *slog.Logger,
+) handler.DeleteSubscriptionExecutor {
+	return eventsubscriptionuc.NewDeleteSubscriptionCommand(s, logger)
 }
 
 func newRouter(

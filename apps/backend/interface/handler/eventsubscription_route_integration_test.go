@@ -41,7 +41,7 @@ func buildEventSubscriptionTestRouter() eventSubscriptionTestDeps {
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
 	loader := eventshareuc.NewShareTokenLoader(eventShareRepo, eventQueryRepo)
 	subscribeToShare := eventsubscriptionuc.NewSubscribeToShareCommand(loader, subsRepo)
-	deleteSubscription := eventsubscriptionuc.NewDeleteSubscriptionCommand(subsRepo)
+	deleteSubscription := eventsubscriptionuc.NewDeleteSubscriptionCommand(subsRepo, logger)
 
 	auth := handler.NewAuthHandler(
 		signup, authuc.NewLoginCommand(userRepo, sessRepo), authuc.NewLogoutCommand(sessRepo), logger,

@@ -3,6 +3,7 @@ package eventsubscription_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 	eventsubscriptionuc "github.com/Haya372/ai-trial/backend/usecase/eventsubscription"
 )
 
+var testLogger = slog.New(slog.DiscardHandler)
+
 func TestDeleteSubscriptionCommand_Execute_notFound_propagatesNotFoundError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := subscriptionmock.NewMockRepository(ctrl)
@@ -21,7 +24,7 @@ func TestDeleteSubscriptionCommand_Execute_notFound_propagatesNotFoundError(t *t
 
 	repo.EXPECT().FindByID(gomock.Any(), subID).Return(nil, eventsubscription.ErrEventSubscriptionNotFound)
 
-	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo)
+	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo, testLogger)
 	err := c.Execute(context.Background(), uuid.New(), subID)
 
 	if !errors.Is(err, eventsubscription.ErrEventSubscriptionNotFound) {
@@ -36,7 +39,7 @@ func TestDeleteSubscriptionCommand_Execute_findByIDError_propagates(t *testing.T
 
 	repo.EXPECT().FindByID(gomock.Any(), subID).Return(nil, errDBFailure)
 
-	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo)
+	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo, testLogger)
 	err := c.Execute(context.Background(), uuid.New(), subID)
 
 	if !errors.Is(err, errDBFailure) {
@@ -54,7 +57,7 @@ func TestDeleteSubscriptionCommand_Execute_notOwner_returnsForbiddenError(t *tes
 
 	repo.EXPECT().FindByID(gomock.Any(), subID).Return(sub, nil)
 
-	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo)
+	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo, testLogger)
 	err := c.Execute(context.Background(), requesterID, subID)
 
 	if !errors.Is(err, eventsubscription.ErrNotSubscriptionOwner) {
@@ -72,7 +75,7 @@ func TestDeleteSubscriptionCommand_Execute_owner_deletesAndReturnsNoError(t *tes
 	repo.EXPECT().FindByID(gomock.Any(), subID).Return(sub, nil)
 	repo.EXPECT().Delete(gomock.Any(), subID).Return(nil)
 
-	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo)
+	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo, testLogger)
 	err := c.Execute(context.Background(), userID, subID)
 
 	if err != nil {
@@ -90,7 +93,7 @@ func TestDeleteSubscriptionCommand_Execute_deleteError_propagates(t *testing.T) 
 	repo.EXPECT().FindByID(gomock.Any(), subID).Return(sub, nil)
 	repo.EXPECT().Delete(gomock.Any(), subID).Return(errDBFailure)
 
-	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo)
+	c := eventsubscriptionuc.NewDeleteSubscriptionCommand(repo, testLogger)
 	err := c.Execute(context.Background(), userID, subID)
 
 	if !errors.Is(err, errDBFailure) {
