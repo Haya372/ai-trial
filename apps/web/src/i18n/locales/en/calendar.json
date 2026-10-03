@@ -22,6 +22,7 @@
     "delete": "Delete",
     "deleting": "Deleting…",
     "edit": "Edit",
+    "share": "共有リンクを生成",
     "cancel": "Cancel",
     "confirmDeleteTitle": "Delete this event?",
     "confirmDeleteDescription": "This action cannot be undone."

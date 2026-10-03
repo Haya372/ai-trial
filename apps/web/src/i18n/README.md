@@ -39,6 +39,7 @@ src/i18n/
 | `auth` | `features/auth/` | ログイン・サインアップ等 |
 | `calendar` | `features/calendar/` | カレンダー表示・操作 |
 | `event` | `features/event/` | イベント登録・編集 |
+| `eventshare` | `features/event/`（共有関連） | 共有リンク生成・バリデーション・エラー |
 
 新しいフィーチャーを追加する場合は、`features/` 配下のフィーチャー名と同名の名前空間を追加してください。
 

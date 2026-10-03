@@ -7,6 +7,7 @@ import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../store/calendarStore'
 import EventFormModal from '../../event/components/EventFormModal'
+import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
 import type { EventFormMode } from '../../event/types'
 import CalendarNavigation from '../components/CalendarNavigation'
@@ -43,6 +44,7 @@ export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<EventResponse | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [formModalOpen, setFormModalOpen] = useState(false)
+  const [shareModalOpen, setShareModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<EventFormMode>('create')
   const [initialStart, setInitialStart] = useState<Date | null>(null)
   const [quickPanel, setQuickPanel] = useState<{
@@ -95,6 +97,12 @@ export default function CalendarPage() {
     setFormMode('edit')
     setDetailModalOpen(false)
     setFormModalOpen(true)
+  }
+
+  function handleShareClick(event: EventResponse) {
+    setSelectedEvent(event)
+    setDetailModalOpen(false)
+    setShareModalOpen(true)
   }
 
   function handleQuickPanelEditDetail(event: EventResponse) {
@@ -171,6 +179,7 @@ export default function CalendarPage() {
         event={selectedEvent}
         onClose={() => setDetailModalOpen(false)}
         onEdit={handleEditClick}
+        onShare={handleShareClick}
       />
 
       <EventFormModal
@@ -179,6 +188,12 @@ export default function CalendarPage() {
         event={selectedEvent}
         initialStart={initialStart}
         onClose={() => setFormModalOpen(false)}
+      />
+
+      <ShareLinkDialog
+        open={shareModalOpen}
+        event={selectedEvent}
+        onClose={() => setShareModalOpen(false)}
       />
 
       {quickPanel && (
