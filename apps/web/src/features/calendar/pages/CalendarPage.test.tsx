@@ -36,11 +36,20 @@ vi.mock('../../../store/calendarStore', () => ({
 // EventDetailModal/EventFormModal はそれぞれ個別にテスト済みのためスタブ化し、
 // CalendarPage の状態管理（どのイベントをどのモードで開くか）だけを検証する
 vi.mock('../components/EventDetailModal', () => ({
-  default: vi.fn(({ open, event, onEdit }) =>
+  default: vi.fn(({ open, event, onEdit, onShare }) =>
     open && event ? (
       <div data-testid="event-detail-modal">
         <button onClick={() => onEdit(event)}>編集-{event.id}</button>
+        <button onClick={() => onShare(event)}>共有-{event.id}</button>
       </div>
+    ) : null,
+  ),
+}))
+
+vi.mock('../../event/components/ShareLinkDialog', () => ({
+  default: vi.fn(({ open, event }) =>
+    open && event ? (
+      <div data-testid="share-link-dialog">event:{event.id}</div>
     ) : null,
   ),
 }))
@@ -411,6 +420,50 @@ describe('CalendarPage', () => {
       const modal = screen.getByTestId('event-form-modal')
       expect(modal).toHaveTextContent('mode:edit')
       expect(modal).toHaveTextContent(`event:${fullEvent.id}`)
+    })
+  })
+
+  describe('共有リンク生成', () => {
+    it('詳細モーダルの共有操作で ShareLinkDialog を該当イベントで開く', async () => {
+      const { useCalendarStore } = await import('../../../store/calendarStore')
+      vi.mocked(useCalendarStore).mockImplementation(
+        (selector: (state: CalendarState) => unknown) => {
+          const state: CalendarState = {
+            view: 'month',
+            currentDate: new Date(2026, 8, 13),
+            setView: vi.fn(),
+            setCurrentDate: vi.fn(),
+          }
+          return selector ? selector(state) : state
+        },
+      )
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [fullEvent] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+      const { MonthCalendar } = await import('@repo/ui')
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(MonthCalendar)
+      act(() => {
+        props.onEventClick({
+          id: fullEvent.id,
+          title: fullEvent.title,
+          start: new Date(fullEvent.startAt),
+          end: new Date(fullEvent.endAt),
+        })
+      })
+      fireEvent.click(
+        screen.getByRole('button', { name: `共有-${fullEvent.id}` }),
+      )
+
+      const dialog = screen.getByTestId('share-link-dialog')
+      expect(dialog).toHaveTextContent(`event:${fullEvent.id}`)
     })
   })
 })

@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import { z } from 'zod'
+import type { EventResponse } from '../../api/generated'
 
 export function createEventFormSchema(t: TFunction<'event'>) {
   return z
@@ -28,4 +29,30 @@ export function createQuickRegistrationSchema(t: TFunction<'event'>) {
 
 export type QuickRegistrationValues = z.infer<
   ReturnType<typeof createQuickRegistrationSchema>
+>
+
+export function createShareLinkFormSchema(
+  t: TFunction<'eventshare'>,
+  event: EventResponse | null,
+) {
+  return z
+    .object({
+      expiresAt: z.string().min(1, t('validation.expiresAtRequired')),
+    })
+    .refine((data) => Number.isFinite(new Date(data.expiresAt).getTime()), {
+      message: t('validation.expiresAtRequired'),
+      path: ['expiresAt'],
+    })
+    .refine((data) => new Date(data.expiresAt).getTime() > Date.now(), {
+      message: t('validation.expiresAtInFuture'),
+      path: ['expiresAt'],
+    })
+    .refine(
+      (data) => !event || new Date(data.expiresAt) >= new Date(event.startAt),
+      { message: t('validation.expiresAtAfterStart'), path: ['expiresAt'] },
+    )
+}
+
+export type ShareLinkFormValues = z.infer<
+  ReturnType<typeof createShareLinkFormSchema>
 >

@@ -1,0 +1,137 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from '@repo/ui'
+import { useEffect, useMemo, useState } from 'react'
+import type { SubmitHandler, UseFormReturn } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import type {
+  EventResponse,
+  ValidationErrorResponse,
+} from '../../../api/generated'
+import { createEventShare } from '../../../api/generated'
+import { useRevalidateOnLanguageChange } from '../../../hooks/useRevalidateOnLanguageChange'
+import { createShareLinkFormSchema, type ShareLinkFormValues } from '../types'
+import {
+  defaultExpiresAtValue,
+  getShareErrorMessage,
+  toFullShareUrl,
+  toIsoString,
+} from '../utils'
+
+export type ShareLinkResult = {
+  shareUrl: string
+  expiresAt: string
+}
+
+function hasExpiresAtDetail(data: unknown): data is ValidationErrorResponse & {
+  details: [{ field: 'expiresAt'; code: string }]
+} {
+  if (
+    typeof data !== 'object' ||
+    data === null ||
+    !('details' in data) ||
+    !Array.isArray((data as { details: unknown }).details)
+  ) {
+    return false
+  }
+  const details = (data as ValidationErrorResponse).details
+  return (
+    details.length > 0 &&
+    details[0].field === 'expiresAt' &&
+    typeof details[0].code === 'string'
+  )
+}
+
+function defaultFormValues(event: EventResponse | null): ShareLinkFormValues {
+  return {
+    expiresAt: event ? defaultExpiresAtValue(event) : '',
+  }
+}
+
+export function useShareLinkForm(
+  open: boolean,
+  event: EventResponse | null,
+  onClose: () => void,
+): {
+  form: UseFormReturn<ShareLinkFormValues>
+  result: ShareLinkResult | null
+  errorMessage: string | null
+  onSubmit: SubmitHandler<ShareLinkFormValues>
+  resetAll: () => void
+  resetResult: () => void
+} {
+  const { t } = useTranslation(['eventshare', 'common'])
+  const schema = useMemo(() => createShareLinkFormSchema(t, event), [t, event])
+  const form = useForm<ShareLinkFormValues>({
+    resolver: zodResolver(schema),
+    mode: 'onTouched',
+    defaultValues: defaultFormValues(event),
+  })
+
+  const [result, setResult] = useState<ShareLinkResult | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      form.reset(defaultFormValues(event))
+      setResult(null)
+      setErrorMessage(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  useRevalidateOnLanguageChange(form)
+
+  function resetAll() {
+    form.reset(defaultFormValues(event))
+    setResult(null)
+    setErrorMessage(null)
+    onClose()
+  }
+
+  const onSubmit: SubmitHandler<ShareLinkFormValues> = async (data) => {
+    if (!event) return
+
+    try {
+      const res = await createEventShare(event.id, {
+        expiresAt: toIsoString(data.expiresAt),
+      })
+
+      if (res.status === 201) {
+        setResult({
+          shareUrl: toFullShareUrl(res.data.url),
+          expiresAt: res.data.expiresAt,
+        })
+        toast.success(t('eventshare:toast.createSuccess'))
+        return
+      }
+
+      if (res.status === 400 && hasExpiresAtDetail(res.data)) {
+        const code = res.data.details[0].code
+        const keyMap: Record<string, string> = {
+          BEFORE_EVENT_START: t('eventshare:validation.expiresAtAfterStart'),
+          NOT_IN_FUTURE: t('eventshare:validation.expiresAtInFuture'),
+        }
+        const message =
+          keyMap[code] ?? t('eventshare:errors.validationFallback')
+        form.setError('expiresAt', { message })
+        return
+      }
+
+      const message = getShareErrorMessage(res.data, t)
+      setErrorMessage(message)
+      toast.error(message)
+    } catch {
+      const message = t('eventshare:errors.createFallback')
+      setErrorMessage(message)
+      toast.error(message)
+    }
+  }
+
+  function resetResult() {
+    setResult(null)
+    setErrorMessage(null)
+  }
+
+  return { form, result, errorMessage, onSubmit, resetAll, resetResult }
+}

@@ -63,17 +63,19 @@ function renderModal(
 ) {
   const onClose = vi.fn()
   const onEdit = vi.fn()
+  const onShare = vi.fn()
   render(
     <EventDetailModal
       open={true}
       event={mockEvent}
       onClose={onClose}
       onEdit={onEdit}
+      onShare={onShare}
       {...props}
     />,
     { wrapper: createWrapper() },
   )
-  return { onClose, onEdit }
+  return { onClose, onEdit, onShare }
 }
 
 describe('EventDetailModal', () => {
@@ -131,6 +133,21 @@ describe('EventDetailModal', () => {
       const { onEdit } = renderModal()
       fireEvent.click(screen.getByRole('button', { name: '編集' }))
       expect(onEdit).toHaveBeenCalledWith(mockEvent)
+    })
+  })
+
+  describe('共有', () => {
+    it('「共有リンクを生成」ボタンが表示される', () => {
+      renderModal()
+      expect(
+        screen.getByRole('button', { name: '共有リンクを生成' }),
+      ).toBeInTheDocument()
+    })
+
+    it('「共有リンクを生成」ボタン押下でonShareをイベント付きで呼ぶ', () => {
+      const { onShare } = renderModal()
+      fireEvent.click(screen.getByRole('button', { name: '共有リンクを生成' }))
+      expect(onShare).toHaveBeenCalledWith(mockEvent)
     })
   })
 

@@ -3,6 +3,7 @@
   "appName": "AI Trial",
   "errors": {
     "validationError": "Please check your input",
+    "unauthorized": "ログインが必要です",
     "internalError": "A server error occurred. Please try again later",
     "unexpectedTitle": "An unexpected error occurred",
     "unexpectedDescription": "Something went wrong. Please try again.",
