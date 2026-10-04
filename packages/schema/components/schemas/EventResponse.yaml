@@ -4,6 +4,7 @@ required:
   - title
   - startAt
   - endAt
+  - isSubscribed
 properties:
   id:
     type: string
@@ -22,3 +23,9 @@ properties:
     type: ["string", "null"]
   url:
     type: ["string", "null"]
+  isSubscribed:
+    type: boolean
+    description: >-
+      True when this event was added to the calendar via a share link
+      (EventSubscription) rather than created by the caller. Subscribed
+      events are read-only (no edit/delete).

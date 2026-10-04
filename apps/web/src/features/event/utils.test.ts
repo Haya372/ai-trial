@@ -53,6 +53,7 @@ describe('toFormValues', () => {
       endAt: '2026-09-22T02:00:00.000Z',
       location: '会議室A',
       url: 'https://example.com',
+      isSubscribed: false,
     }
     const values = toFormValues(event)
     expect(values.title).toBe('デザインレビュー')
@@ -88,6 +89,7 @@ describe('toFormValues', () => {
       endAt: '2026-09-22T02:00:00.000Z',
       location: null,
       url: null,
+      isSubscribed: false,
     }
     const values = toFormValues(event, initialStart)
     expect(values.startAt).toBe(toDateTimeLocalValue(event.startAt))
@@ -102,6 +104,7 @@ describe('toFormValues', () => {
       endAt: '2026-09-22T02:00:00.000Z',
       location: null,
       url: null,
+      isSubscribed: false,
     }
     const values = toFormValues(event)
     expect(values.description).toBe('')

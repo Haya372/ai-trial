@@ -22,6 +22,11 @@ type EventReadModel struct {
 	EndAt       time.Time
 	Location    string
 	URL         string
+	// IsSubscribed is true when the event was added via EventSubscription
+	// (another user's event the caller subscribed to), not created by the
+	// caller. Such events are read-only. The query side's SQL (ADR-022
+	// logical CQRS) sets this directly, so this layer just passes it through.
+	IsSubscribed bool
 }
 
 type ListEventsQuery struct {

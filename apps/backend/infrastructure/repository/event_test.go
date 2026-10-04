@@ -115,6 +115,91 @@ func TestEventQueryRepository_List_OnlyReturnsUserEvents(t *testing.T) {
 	}
 }
 
+func TestEventQueryRepository_List_IncludesSubscribedEvents(t *testing.T) {
+	setupTest(t)
+	owner, subscriber, sharedEventID := setupSharedEvent(t)
+
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
+	subsRepo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	ownEventID := insertEvent(t, subscriber.ID(), "My own event", now, now.Add(time.Hour))
+
+	if _, err := subsRepo.Create(
+		context.Background(), newTestEventSubscription(t, sharedEventID, subscriber.ID()),
+	); err != nil {
+		t.Fatalf("create event subscription: %v", err)
+	}
+
+	filter := eventuc.ListFilter{
+		UserID:    subscriber.ID(),
+		StartDate: now.Add(-time.Hour),
+		EndDate:   now.Add(2 * time.Hour),
+	}
+	events, err := eventRepo.List(context.Background(), filter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d: %+v", len(events), events)
+	}
+
+	byID := map[uuid.UUID]eventuc.EventReadModel{}
+	for _, e := range events {
+		byID[e.ID] = e
+	}
+	own, ok := byID[ownEventID]
+	if !ok {
+		t.Fatalf("expected own event in result: %+v", events)
+	}
+	if own.IsSubscribed {
+		t.Errorf("expected own event IsSubscribed=false, got true")
+	}
+	shared, ok := byID[sharedEventID]
+	if !ok {
+		t.Fatalf("expected subscribed event in result: %+v", events)
+	}
+	if shared.UserID != owner.ID() {
+		t.Errorf("expected subscribed event's UserID to be the owner, got %v", shared.UserID)
+	}
+	if !shared.IsSubscribed {
+		t.Errorf("expected subscribed event IsSubscribed=true, got false")
+	}
+}
+
+func TestEventQueryRepository_List_ExcludesSubscriptionAfterSourceEventDeleted(t *testing.T) {
+	setupTest(t)
+	_, subscriber, sharedEventID := setupSharedEvent(t)
+
+	eventRepo := repository.NewEventQueryRepository(testPool, testLogger, testTracerProvider)
+	eventWriteRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+	subsRepo := repository.NewEventSubscriptionRepository(testPool, testTracerProvider)
+
+	if _, err := subsRepo.Create(
+		context.Background(), newTestEventSubscription(t, sharedEventID, subscriber.ID()),
+	); err != nil {
+		t.Fatalf("create event subscription: %v", err)
+	}
+
+	if err := eventWriteRepo.Delete(context.Background(), sharedEventID); err != nil {
+		t.Fatalf("delete source event: %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Second)
+	filter := eventuc.ListFilter{
+		UserID:    subscriber.ID(),
+		StartDate: now.Add(-time.Hour),
+		EndDate:   now.Add(2 * time.Hour),
+	}
+	events, err := eventRepo.List(context.Background(), filter)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(events) != 0 {
+		t.Errorf("expected deleted shared event to be excluded, got %d: %+v", len(events), events)
+	}
+}
+
 func insertEvent(t *testing.T, userID uuid.UUID, title string, start, end time.Time) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID

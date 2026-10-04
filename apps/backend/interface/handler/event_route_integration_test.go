@@ -68,6 +68,130 @@ func insertRouteTestEvent(t *testing.T, userID, title string, start, end time.Ti
 	return id
 }
 
+func insertRouteTestEventSubscription(t *testing.T, eventID, userID string) {
+	t.Helper()
+	_, err := routeTestPool.Exec(context.Background(),
+		"INSERT INTO event_subscriptions (event_id, user_id) VALUES ($1, $2)",
+		eventID, userID,
+	)
+	if err != nil {
+		t.Fatalf("insert event subscription: %v", err)
+	}
+}
+
+func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	ownerCookie := signupAndGetCookie(t, router, "events-sub-owner@ex.com")
+	ownerID := getUserIDFromCookie(t, router, ownerCookie)
+	viewerCookie := signupAndGetCookie(t, router, "events-sub-viewer@ex.com")
+	viewerID := getUserIDFromCookie(t, router, viewerCookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	ownEventID := insertRouteTestEvent(t, viewerID, "My own event", now, now.Add(time.Hour))
+	sharedEventID := insertRouteTestEvent(t, ownerID, "Owner's shared meeting", now.Add(2*time.Hour), now.Add(3*time.Hour))
+	insertRouteTestEventSubscription(t, sharedEventID, viewerID)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
+		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req.AddCookie(viewerCookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Events []struct {
+			ID           string `json:"id"`
+			Title        string `json:"title"`
+			IsSubscribed bool   `json:"isSubscribed"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Events) != 2 {
+		t.Fatalf("expected 2 events, got %d: %+v", len(body.Events), body.Events)
+	}
+
+	byID := map[string]struct {
+		Title        string
+		IsSubscribed bool
+	}{}
+	for _, e := range body.Events {
+		byID[e.ID] = struct {
+			Title        string
+			IsSubscribed bool
+		}{e.Title, e.IsSubscribed}
+	}
+	own, ok := byID[ownEventID]
+	if !ok {
+		t.Fatalf("expected own event %s in response: %+v", ownEventID, body.Events)
+	}
+	if own.IsSubscribed {
+		t.Errorf("expected own event isSubscribed=false, got true")
+	}
+	shared, ok := byID[sharedEventID]
+	if !ok {
+		t.Fatalf("expected subscribed event %s in response: %+v", sharedEventID, body.Events)
+	}
+	if shared.Title != "Owner's shared meeting" {
+		t.Errorf("title mismatch: got %q", shared.Title)
+	}
+	if !shared.IsSubscribed {
+		t.Errorf("expected subscribed event isSubscribed=true, got false")
+	}
+}
+
+func TestRoute_GetEvents_excludesSubscriptionAfterSourceEventDeleted(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	ownerCookie := signupAndGetCookie(t, router, "events-sub-del-owner@ex.com")
+	ownerID := getUserIDFromCookie(t, router, ownerCookie)
+	viewerCookie := signupAndGetCookie(t, router, "events-sub-del-viewer@ex.com")
+	viewerID := getUserIDFromCookie(t, router, viewerCookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	sharedEventID := insertRouteTestEvent(t, ownerID, "To be deleted", now, now.Add(time.Hour))
+	insertRouteTestEventSubscription(t, sharedEventID, viewerID)
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/events/"+sharedEventID, nil)
+	deleteReq.AddCookie(ownerCookie)
+	deleteRec := httptest.NewRecorder()
+	router.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusNoContent {
+		t.Fatalf("expected source event delete to return 204, got %d: %s", deleteRec.Code, deleteRec.Body.String())
+	}
+
+	if count := assertEventSubscriptionCountInDB(t, sharedEventID, viewerID); count != 0 {
+		t.Fatalf("expected event_subscriptions row to be cascade-deleted, got count %d", count)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
+		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req.AddCookie(viewerCookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Events []any `json:"events"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Events) != 0 {
+		t.Errorf("expected deleted shared event to be absent, got %d events", len(body.Events))
+	}
+}
+
 func TestRoute_GetEvents_withoutSession_returns401(t *testing.T) {
 	setupRouteTest(t)
 	router := buildEventTestRouter()

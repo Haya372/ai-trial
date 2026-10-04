@@ -56,14 +56,15 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 			url = row.Url.String
 		}
 		result = append(result, eventuc.EventReadModel{
-			ID:          uuid.UUID(row.ID.Bytes),
-			UserID:      uuid.UUID(row.UserID.Bytes),
-			Title:       row.Title,
-			Description: desc,
-			StartAt:     row.StartAt.Time,
-			EndAt:       row.EndAt.Time,
-			Location:    location,
-			URL:         url,
+			ID:           uuid.UUID(row.ID.Bytes),
+			UserID:       uuid.UUID(row.UserID.Bytes),
+			Title:        row.Title,
+			Description:  desc,
+			StartAt:      row.StartAt.Time,
+			EndAt:        row.EndAt.Time,
+			Location:     location,
+			URL:          url,
+			IsSubscribed: row.IsSubscribed,
 		})
 	}
 	return result, nil

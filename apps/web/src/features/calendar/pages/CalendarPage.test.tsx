@@ -114,6 +114,7 @@ const fullEvent: EventResponse = {
   endAt: new Date(2026, 8, 13, 11, 0).toISOString(),
   location: '会議室A',
   url: null,
+  isSubscribed: false,
 }
 
 describe('CalendarPage', () => {
