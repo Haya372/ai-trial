@@ -30,16 +30,18 @@ func TestSignupCommand_Execute_ValidInput_ReturnsAuthOutput(t *testing.T) {
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
 
 	u := user.New(fixedUserID, email, "test", "hash")
-	sess := session.New(fixedSessID, fixedUserID, time.Now().Add(30*24*time.Hour))
+	sess := session.New(fixedSessID, fixedUserID, fixedNow.Add(30*24*time.Hour))
 
 	mockUserRepo.EXPECT().
 		Create(gomock.Any(), email, "test", gomock.Any()).
 		Return(u, nil)
 	mockSessRepo.EXPECT().
-		Create(gomock.Any(), fixedUserID, gomock.Any()).
+		Create(gomock.Any(), fixedUserID, fixedNow.Add(30*24*time.Hour)).
 		Return(sess, nil)
 
-	cmd := authuc.NewSignupCommand(mockUserRepo, mockSessRepo, &testutil.StubTxManager{})
+	cmd := authuc.NewSignupCommand(
+		mockUserRepo, mockSessRepo, &testutil.StubTxManager{}, testutil.FixedClock{Time: fixedNow},
+	)
 	out, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:    testEmail,
 		Password: testPassword,
@@ -67,10 +69,12 @@ func TestSignupCommand_Execute_DisplayNameDefaultsToEmailLocalPart(t *testing.T)
 		Create(gomock.Any(), email, "hello", gomock.Any()).
 		Return(u, nil)
 	mockSessRepo.EXPECT().
-		Create(gomock.Any(), u.ID(), gomock.Any()).
-		Return(session.New(uuid.New(), u.ID(), time.Now().Add(30*24*time.Hour)), nil)
+		Create(gomock.Any(), u.ID(), fixedNow.Add(30*24*time.Hour)).
+		Return(session.New(uuid.New(), u.ID(), fixedNow.Add(30*24*time.Hour)), nil)
 
-	cmd := authuc.NewSignupCommand(mockUserRepo, mockSessRepo, &testutil.StubTxManager{})
+	cmd := authuc.NewSignupCommand(
+		mockUserRepo, mockSessRepo, &testutil.StubTxManager{}, testutil.FixedClock{Time: fixedNow},
+	)
 	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:    "hello@example.com",
 		Password: testPassword,
@@ -86,6 +90,7 @@ func TestSignupCommand_Execute_InvalidEmail_ReturnsValidationError(t *testing.T)
 		usermock.NewMockRepository(ctrl),
 		sessionmock.NewMockRepository(ctrl),
 		&testutil.StubTxManager{},
+		testutil.FixedClock{},
 	)
 	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:    "not-an-email",
@@ -106,6 +111,7 @@ func TestSignupCommand_Execute_ShortPassword_ReturnsValidationError(t *testing.T
 		usermock.NewMockRepository(ctrl),
 		sessionmock.NewMockRepository(ctrl),
 		&testutil.StubTxManager{},
+		testutil.FixedClock{},
 	)
 	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:    testEmail,
@@ -123,6 +129,7 @@ func TestSignupCommand_Execute_PasswordMissingComplexity_ReturnsValidationError(
 		usermock.NewMockRepository(ctrl),
 		sessionmock.NewMockRepository(ctrl),
 		&testutil.StubTxManager{},
+		testutil.FixedClock{},
 	)
 	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:    testEmail,
@@ -143,6 +150,7 @@ func TestSignupCommand_Execute_TooLongDisplayName_ReturnsValidationError(t *test
 		usermock.NewMockRepository(ctrl),
 		sessionmock.NewMockRepository(ctrl),
 		&testutil.StubTxManager{},
+		testutil.FixedClock{},
 	)
 	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:       testEmail,
@@ -169,7 +177,7 @@ func TestSignupCommand_Execute_EmailTaken_ReturnsEmailTakenError(t *testing.T) {
 		Create(gomock.Any(), email, gomock.Any(), gomock.Any()).
 		Return(nil, user.ErrEmailTaken)
 
-	cmd := authuc.NewSignupCommand(mockUserRepo, mockSessRepo, &testutil.StubTxManager{})
+	cmd := authuc.NewSignupCommand(mockUserRepo, mockSessRepo, &testutil.StubTxManager{}, testutil.FixedClock{})
 	_, err := cmd.Execute(context.Background(), authuc.SignupInput{
 		Email:    "dup@example.com",
 		Password: testPassword,

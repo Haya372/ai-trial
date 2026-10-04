@@ -43,6 +43,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newLogger,
 		newPool,
 		newTxManager,
+		newClock,
 		repository.NewUserRepository,
 		repository.NewSessionRepository,
 		repository.NewEventQueryRepository,
@@ -111,16 +112,21 @@ func newTxManager(pool *pgxpool.Pool) usecase.TransactionManager {
 	return db.NewPgxTxManager(pool)
 }
 
+func newClock() usecase.Clock {
+	return usecase.RealClock{}
+}
+
 func newSignupExecutor(
 	ur user.Repository,
 	sr session.Repository,
 	tx usecase.TransactionManager,
+	clock usecase.Clock,
 ) handler.SignupExecutor {
-	return authuc.NewSignupCommand(ur, sr, tx)
+	return authuc.NewSignupCommand(ur, sr, tx, clock)
 }
 
-func newLoginExecutor(ur user.Repository, sr session.Repository) handler.LoginExecutor {
-	return authuc.NewLoginCommand(ur, sr)
+func newLoginExecutor(ur user.Repository, sr session.Repository, clock usecase.Clock) handler.LoginExecutor {
+	return authuc.NewLoginCommand(ur, sr, clock)
 }
 
 func newLogoutExecutor(sr session.Repository) handler.LogoutExecutor {

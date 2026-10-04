@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
@@ -25,10 +24,13 @@ type SignupCommand struct {
 	userRepo    user.Repository
 	sessionRepo session.Repository
 	txManager   usecase.TransactionManager
+	clock       usecase.Clock
 }
 
-func NewSignupCommand(ur user.Repository, sr session.Repository, tx usecase.TransactionManager) *SignupCommand {
-	return &SignupCommand{userRepo: ur, sessionRepo: sr, txManager: tx}
+func NewSignupCommand(
+	ur user.Repository, sr session.Repository, tx usecase.TransactionManager, clock usecase.Clock,
+) *SignupCommand {
+	return &SignupCommand{userRepo: ur, sessionRepo: sr, txManager: tx, clock: clock}
 }
 
 func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutput, error) {
@@ -63,7 +65,7 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 		if err != nil {
 			return err
 		}
-		sess, err := c.sessionRepo.Create(ctx, u.ID(), time.Now().Add(sessionExpiry))
+		sess, err := c.sessionRepo.Create(ctx, u.ID(), c.clock.Now().Add(sessionExpiry))
 		if err != nil {
 			return fmt.Errorf("create session: %w", err)
 		}

@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
+	"github.com/Haya372/ai-trial/backend/usecase"
 )
 
 type LoginInput struct {
@@ -18,10 +18,11 @@ type LoginInput struct {
 type LoginCommand struct {
 	userRepo    user.Repository
 	sessionRepo session.Repository
+	clock       usecase.Clock
 }
 
-func NewLoginCommand(ur user.Repository, sr session.Repository) *LoginCommand {
-	return &LoginCommand{userRepo: ur, sessionRepo: sr}
+func NewLoginCommand(ur user.Repository, sr session.Repository, clock usecase.Clock) *LoginCommand {
+	return &LoginCommand{userRepo: ur, sessionRepo: sr, clock: clock}
 }
 
 func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput, error) {
@@ -54,7 +55,7 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 		return nil, err
 	}
 
-	sess, err := c.sessionRepo.Create(ctx, authenticated.ID(), time.Now().Add(sessionExpiry))
+	sess, err := c.sessionRepo.Create(ctx, authenticated.ID(), c.clock.Now().Add(sessionExpiry))
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
