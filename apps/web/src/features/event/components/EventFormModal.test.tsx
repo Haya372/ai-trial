@@ -44,6 +44,7 @@ const existingEvent: EventResponse = {
   endAt: '2026-09-22T02:00:00.000Z',
   location: '会議室A',
   url: 'https://example.com',
+  isSubscribed: false,
 }
 
 function renderModal(

@@ -49,6 +49,7 @@ const mockEvent: EventResponse = {
   endAt: new Date(2026, 8, 13, 11, 0).toISOString(), // 2026-09-13 11:00
   location: null,
   url: null,
+  isSubscribed: false,
 }
 
 const mockEventWithDetails: EventResponse = {
