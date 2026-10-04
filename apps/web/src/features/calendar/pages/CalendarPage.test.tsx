@@ -115,6 +115,7 @@ const fullEvent: EventResponse = {
   location: '会議室A',
   url: null,
   isSubscribed: false,
+  subscriptionId: null,
 }
 
 describe('CalendarPage', () => {

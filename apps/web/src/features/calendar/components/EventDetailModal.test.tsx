@@ -50,6 +50,7 @@ const mockEvent: EventResponse = {
   location: null,
   url: null,
   isSubscribed: false,
+  subscriptionId: null,
 }
 
 const mockEventWithDetails: EventResponse = {
@@ -62,6 +63,7 @@ const mockEventWithDetails: EventResponse = {
 const mockSubscribedEvent: EventResponse = {
   ...mockEvent,
   isSubscribed: true,
+  subscriptionId: 'subscription-1',
 }
 
 function renderModal(
