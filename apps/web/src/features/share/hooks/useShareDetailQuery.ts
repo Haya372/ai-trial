@@ -1,12 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { getShareByToken } from '../../../api/generated'
+import { sharesKeys } from '../../../lib/queryKeys'
 import { toShareDetailError } from '../utils'
 import type { ShareDetailError } from '../utils'
-
-const sharesKeys = {
-  all: ['shares'] as const,
-  detail: (token: string) => [...sharesKeys.all, token] as const,
-}
 
 export function useShareDetailQuery(token: string) {
   return useQuery({
