@@ -28,10 +28,10 @@ export default function ShareEventDetail({ event }: ShareEventDetailProps) {
       <h2 className="text-xl font-semibold">{event.title}</h2>
       <div className="flex flex-col gap-2 text-sm">
         <LabeledField label={t('fields.startLabel')}>
-          {formatShareDateTime(event.startAt)}
+          {formatShareDateTime(event.startAt, t)}
         </LabeledField>
         <LabeledField label={t('fields.endLabel')}>
-          {formatShareDateTime(event.endAt)}
+          {formatShareDateTime(event.endAt, t)}
         </LabeledField>
         {event.location != null && (
           <LabeledField label={t('fields.locationLabel')}>

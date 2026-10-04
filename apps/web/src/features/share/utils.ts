@@ -19,7 +19,10 @@ export function toShareDetailError(
 }
 
 // TFunction のブランド型を避けるため、mapErrorToMessage が実際に必要とする callable 型を使う
-type ShareTFunction = (key: ParseKeys<['share', 'common']>) => string
+type ShareTFunction = (
+  key: ParseKeys<['share', 'common']>,
+  options?: Record<string, unknown>,
+) => string
 
 const subscribeCodeToKey: Record<string, ParseKeys<['share', 'common']>> = {
   FORBIDDEN: 'share:errors.subscribeOwnEvent',
@@ -60,11 +63,14 @@ export function getUnsubscribeErrorMessage(
   )
 }
 
-export function formatShareDateTime(isoString: string): string {
+export function formatShareDateTime(
+  isoString: string,
+  t: ShareTFunction,
+): string {
   const d = new Date(isoString)
   const year = d.getFullYear()
   const month = d.getMonth() + 1
   const day = d.getDate()
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  return `${year}年${pad(month)}月${pad(day)}日 ${time}`
+  return t('share:fields.dateTimeFormat', { year, month, day, time })
 }

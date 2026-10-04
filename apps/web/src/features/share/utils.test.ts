@@ -1,5 +1,5 @@
 import i18next from 'i18next'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   toShareDetailError,
   getSubscribeErrorMessage,
@@ -90,13 +90,19 @@ describe('getUnsubscribeErrorMessage', () => {
 })
 
 describe('formatShareDateTime', () => {
-  it('ISO 文字列をローカルの年月日時分表示にフォーマットする', () => {
-    // 2026-10-08T10:00:00 ローカル時刻
+  it('share:fields.dateTimeFormat キーと年月日時分を渡して t を呼び出す', () => {
+    const tMock = vi.fn(
+      (_key: string, opts?: Record<string, unknown>) =>
+        `${opts?.year}/${opts?.month}/${opts?.day} ${opts?.time}`,
+    )
     const date = new Date(2026, 9, 8, 10, 0, 0)
-    const result = formatShareDateTime(date.toISOString())
-    expect(result).toContain('2026')
-    expect(result).toContain('10')
-    expect(result).toContain('8')
-    expect(result).toContain('10:00')
+    const result = formatShareDateTime(date.toISOString(), tMock as never)
+    expect(tMock).toHaveBeenCalledWith('share:fields.dateTimeFormat', {
+      year: 2026,
+      month: 10,
+      day: 8,
+      time: '10:00',
+    })
+    expect(result).toBe('2026/10/8 10:00')
   })
 })
