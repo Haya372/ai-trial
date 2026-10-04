@@ -1,0 +1,39 @@
+{
+  "page": {
+    "appName": "AI Trial",
+    "loading": "Loading…",
+    "expiredTitle": "This share link has expired",
+    "expiredDescription": "Please ask the creator for a new link.",
+    "notFoundTitle": "Share link not found",
+    "notFoundDescription": "Please check that the URL is correct.",
+    "serverErrorTitle": "An error occurred",
+    "serverErrorDescription": "Please try again later."
+  },
+  "fields": {
+    "startLabel": "Start",
+    "endLabel": "End",
+    "locationLabel": "Location",
+    "urlLabel": "URL",
+    "noteLabel": "Note",
+    "dateTimeFormat": "{{month}}/{{day}}/{{year}} {{time}}"
+  },
+  "subscription": {
+    "addButton": "Add to my calendar",
+    "adding": "Adding…",
+    "subscribedLabel": "Added",
+    "removeButton": "Remove from calendar",
+    "removing": "Removing…",
+    "addSuccessToast": "Added to calendar",
+    "removeSuccessToast": "Removed from calendar"
+  },
+  "errors": {
+    "notFound": "Share link not found",
+    "expired": "This share link has expired",
+    "unauthorized": "Login is required",
+    "subscribeOwnEvent": "You cannot add your own event",
+    "unsubscribeNotOwner": "This is another user's subscription",
+    "subscriptionGone": "Already removed",
+    "subscribeFallback": "Failed to add to calendar",
+    "unsubscribeFallback": "Failed to remove from calendar"
+  }
+}
