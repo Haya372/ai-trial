@@ -1,39 +1,39 @@
 {
   "page": {
     "appName": "AI Trial",
-    "loading": "読み込み中…",
-    "expiredTitle": "この共有リンクは期限切れです",
-    "expiredDescription": "作成者に新しいリンクを依頼してください。",
-    "notFoundTitle": "共有リンクが見つかりません",
-    "notFoundDescription": "URL が間違っていないか確認してください。",
-    "serverErrorTitle": "エラーが発生しました",
-    "serverErrorDescription": "しばらく経ってから再試行してください。"
+    "loading": "Loading…",
+    "expiredTitle": "This share link has expired",
+    "expiredDescription": "Please ask the creator for a new link.",
+    "notFoundTitle": "Share link not found",
+    "notFoundDescription": "Please check that the URL is correct.",
+    "serverErrorTitle": "An error occurred",
+    "serverErrorDescription": "Please try again later."
   },
   "fields": {
-    "startLabel": "開始",
-    "endLabel": "終了",
-    "locationLabel": "場所",
+    "startLabel": "Start",
+    "endLabel": "End",
+    "locationLabel": "Location",
     "urlLabel": "URL",
-    "noteLabel": "メモ",
-    "dateTimeFormat": "{{year}}年{{month}}月{{day}}日 {{time}}"
+    "noteLabel": "Note",
+    "dateTimeFormat": "{{month}}/{{day}}/{{year}} {{time}}"
   },
   "subscription": {
-    "addButton": "自分のカレンダーに追加",
-    "adding": "追加中…",
-    "subscribedLabel": "追加済み",
-    "removeButton": "カレンダーから削除",
-    "removing": "削除中…",
-    "addSuccessToast": "カレンダーに追加しました",
-    "removeSuccessToast": "カレンダーから削除しました"
+    "addButton": "Add to my calendar",
+    "adding": "Adding…",
+    "subscribedLabel": "Added",
+    "removeButton": "Remove from calendar",
+    "removing": "Removing…",
+    "addSuccessToast": "Added to calendar",
+    "removeSuccessToast": "Removed from calendar"
   },
   "errors": {
-    "notFound": "共有リンクが見つかりません",
-    "expired": "この共有リンクは期限切れです",
-    "unauthorized": "ログインが必要です",
-    "subscribeOwnEvent": "自分の予定は追加できません",
-    "unsubscribeNotOwner": "他のユーザーのサブスクリプションです",
-    "subscriptionGone": "既に削除されています",
-    "subscribeFallback": "カレンダーへの追加に失敗しました",
-    "unsubscribeFallback": "カレンダーからの削除に失敗しました"
+    "notFound": "Share link not found",
+    "expired": "This share link has expired",
+    "unauthorized": "Login is required",
+    "subscribeOwnEvent": "You cannot add your own event",
+    "unsubscribeNotOwner": "This is another user's subscription",
+    "subscriptionGone": "Already removed",
+    "subscribeFallback": "Failed to add to calendar",
+    "unsubscribeFallback": "Failed to remove from calendar"
   }
 }
