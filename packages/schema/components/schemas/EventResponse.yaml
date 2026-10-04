@@ -5,6 +5,7 @@ required:
   - startAt
   - endAt
   - isSubscribed
+  - subscriptionId
 properties:
   id:
     type: string
@@ -29,3 +30,10 @@ properties:
       True when this event was added to the calendar via a share link
       (EventSubscription) rather than created by the caller. Subscribed
       events are read-only (no edit/delete).
+  subscriptionId:
+    type: ["string", "null"]
+    format: uuid
+    description: >-
+      The EventSubscription's own ID, set only when isSubscribed is true.
+      Pass this to DELETE /subscriptions/{id} to remove the event from the
+      caller's calendar.

@@ -212,6 +212,58 @@ func TestEventHandler_GetEvents_IncludesIsSubscribed(t *testing.T) {
 	}
 }
 
+func TestEventHandler_GetEvents_IncludesSubscriptionID(t *testing.T) {
+	now := time.Now().UTC()
+	userID := uuid.New()
+	subscriptionID := uuid.New()
+
+	stub := &stubListEventsExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.ListEventsInput) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{
+				{ID: uuid.New(), Title: "My event", StartAt: now, EndAt: now.Add(time.Hour), IsSubscribed: false},
+				{
+					ID: uuid.New(), Title: "Shared event", StartAt: now, EndAt: now.Add(time.Hour),
+					IsSubscribed: true, SubscriptionID: &subscriptionID,
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	req := getEventsRequest(t, "2026-10-01", "2026-10-31")
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
+	w := httptest.NewRecorder()
+
+	h.GetEvents(w, req, api.GetEventsParams{
+		StartDate: mustParseDate(t, "2026-10-01"),
+		EndDate:   mustParseDate(t, "2026-10-31"),
+	})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Events []struct {
+			Title          string  `json:"title"`
+			SubscriptionID *string `json:"subscriptionId"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(resp.Events))
+	}
+	if resp.Events[0].SubscriptionID != nil {
+		t.Errorf("expected own event subscriptionId=null, got %v", *resp.Events[0].SubscriptionID)
+	}
+	if resp.Events[1].SubscriptionID == nil || *resp.Events[1].SubscriptionID != subscriptionID.String() {
+		t.Errorf("expected shared event subscriptionId=%v, got %v", subscriptionID, resp.Events[1].SubscriptionID)
+	}
+}
+
 func TestEventHandler_GetEvents_Unauthorized(t *testing.T) {
 	stub := &stubListEventsExec{}
 	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)

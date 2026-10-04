@@ -6,7 +6,7 @@
 -- because a user can never subscribe to their own event, so the two halves
 -- never overlap.
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
-       e.created_at, e.updated_at, FALSE AS is_subscribed
+       e.created_at, e.updated_at, FALSE AS is_subscribed, NULL::uuid AS subscription_id
 FROM events e
 WHERE e.user_id = sqlc.arg('user_id')
   AND e.end_at > sqlc.arg('start_date')
@@ -15,7 +15,7 @@ WHERE e.user_id = sqlc.arg('user_id')
 UNION ALL
 
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
-       e.created_at, e.updated_at, TRUE AS is_subscribed
+       e.created_at, e.updated_at, TRUE AS is_subscribed, es.id AS subscription_id
 FROM event_subscriptions es
 JOIN events e ON e.id = es.event_id
 WHERE es.user_id = sqlc.arg('user_id')

@@ -114,6 +114,39 @@ func TestListEventsQuery_Execute_PassesThroughIsSubscribed(t *testing.T) {
 	}
 }
 
+func TestListEventsQuery_Execute_PassesThroughSubscriptionID(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+	subscriptionID := uuid.New()
+
+	stub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{
+				{ID: uuid.New(), Title: "My event", StartAt: now, EndAt: now.Add(time.Hour), IsSubscribed: false},
+				{
+					ID: uuid.New(), Title: "Shared event", StartAt: now, EndAt: now.Add(time.Hour),
+					IsSubscribed: true, SubscriptionID: &subscriptionID,
+				},
+			}, nil
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(stub)
+	result, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result[0].SubscriptionID != nil {
+		t.Errorf("expected own event SubscriptionID to be nil, got %v", result[0].SubscriptionID)
+	}
+	if result[1].SubscriptionID == nil || *result[1].SubscriptionID != subscriptionID {
+		t.Errorf("expected subscribed event SubscriptionID to be %v, got %v", subscriptionID, result[1].SubscriptionID)
+	}
+}
+
 func TestListEventsQuery_Execute_RepoError(t *testing.T) {
 	userID := uuid.New()
 	now := time.Now()

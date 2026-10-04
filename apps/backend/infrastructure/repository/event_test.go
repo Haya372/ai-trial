@@ -125,9 +125,10 @@ func TestEventQueryRepository_List_IncludesSubscribedEvents(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	ownEventID := insertEvent(t, subscriber.ID(), "My own event", now, now.Add(time.Hour))
 
-	if _, err := subsRepo.Create(
+	savedSub, err := subsRepo.Create(
 		context.Background(), newTestEventSubscription(t, sharedEventID, subscriber.ID()),
-	); err != nil {
+	)
+	if err != nil {
 		t.Fatalf("create event subscription: %v", err)
 	}
 
@@ -155,6 +156,9 @@ func TestEventQueryRepository_List_IncludesSubscribedEvents(t *testing.T) {
 	if own.IsSubscribed {
 		t.Errorf("expected own event IsSubscribed=false, got true")
 	}
+	if own.SubscriptionID != nil {
+		t.Errorf("expected own event SubscriptionID to be nil, got %v", own.SubscriptionID)
+	}
 	shared, ok := byID[sharedEventID]
 	if !ok {
 		t.Fatalf("expected subscribed event in result: %+v", events)
@@ -164,6 +168,9 @@ func TestEventQueryRepository_List_IncludesSubscribedEvents(t *testing.T) {
 	}
 	if !shared.IsSubscribed {
 		t.Errorf("expected subscribed event IsSubscribed=true, got false")
+	}
+	if shared.SubscriptionID == nil || *shared.SubscriptionID != savedSub.ID() {
+		t.Errorf("expected subscribed event SubscriptionID to be %v, got %v", savedSub.ID(), shared.SubscriptionID)
 	}
 }
 
