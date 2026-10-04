@@ -108,13 +108,14 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 			desc := "Team sync"
 			return []eventuc.EventReadModel{
 				{
-					ID:          uuid.New(),
-					Title:       testEventTitle,
-					Description: desc,
-					StartAt:     now,
-					EndAt:       now.Add(time.Hour),
-					Location:    testEventLocation,
-					URL:         testEventURL,
+					ID:           uuid.New(),
+					Title:        testEventTitle,
+					Description:  desc,
+					StartAt:      now,
+					EndAt:        now.Add(time.Hour),
+					Location:     testEventLocation,
+					URL:          testEventURL,
+					IsSubscribed: false,
 				},
 			}, nil
 		},
@@ -137,9 +138,10 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 
 	var resp struct {
 		Events []struct {
-			Title    string  `json:"title"`
-			Location *string `json:"location"`
-			URL      *string `json:"url"`
+			Title        string  `json:"title"`
+			Location     *string `json:"location"`
+			URL          *string `json:"url"`
+			IsSubscribed bool    `json:"isSubscribed"`
 		} `json:"events"`
 	}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -156,6 +158,9 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 	}
 	if resp.Events[0].URL == nil || *resp.Events[0].URL != testEventURL {
 		t.Errorf("url mismatch: got %v", resp.Events[0].URL)
+	}
+	if resp.Events[0].IsSubscribed {
+		t.Errorf("expected isSubscribed=false for own event, got true")
 	}
 }
 
