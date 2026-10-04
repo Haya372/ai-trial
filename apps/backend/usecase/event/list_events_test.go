@@ -12,8 +12,9 @@ import (
 )
 
 type stubQueryService struct {
-	fn         func(context.Context, eventuc.ListFilter) ([]eventuc.EventReadModel, error)
-	findByIDFn func(context.Context, uuid.UUID) (eventuc.EventReadModel, error)
+	fn          func(context.Context, eventuc.ListFilter) ([]eventuc.EventReadModel, error)
+	findByIDFn  func(context.Context, uuid.UUID) (eventuc.EventReadModel, error)
+	listByIDsFn func(context.Context, []uuid.UUID, time.Time, time.Time) ([]eventuc.EventReadModel, error)
 }
 
 func (s *stubQueryService) List(ctx context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
@@ -28,6 +29,15 @@ func (s *stubQueryService) FindByID(ctx context.Context, id uuid.UUID) (eventuc.
 		return eventuc.EventReadModel{}, nil
 	}
 	return s.findByIDFn(ctx, id)
+}
+
+func (s *stubQueryService) ListByIDs(
+	ctx context.Context, ids []uuid.UUID, startDate, endDate time.Time,
+) ([]eventuc.EventReadModel, error) {
+	if s.listByIDsFn == nil {
+		return nil, nil
+	}
+	return s.listByIDsFn(ctx, ids, startDate, endDate)
 }
 
 // stubSubscriptionRepo implements domaineventsubscription.Repository. Only
@@ -161,6 +171,36 @@ func TestListEventsQuery_Execute_EmptyResult(t *testing.T) {
 	}
 }
 
+func TestListEventsQuery_Execute_DoesNotCallListByIDsWhenNoSubscriptions(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+
+	called := false
+	queryStub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{}, nil
+		},
+		listByIDsFn: func(
+			_ context.Context, _ []uuid.UUID, _, _ time.Time,
+		) ([]eventuc.EventReadModel, error) {
+			called = true
+			return nil, nil
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(queryStub, &stubSubscriptionRepo{})
+	_, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if called {
+		t.Errorf("expected ListByIDs not to be called when the user has no subscriptions")
+	}
+}
+
 func TestListEventsQuery_Execute_IncludesSubscribedEvents(t *testing.T) {
 	userID := uuid.New()
 	ownerID := uuid.New()
@@ -177,16 +217,23 @@ func TestListEventsQuery_Execute_IncludesSubscribedEvents(t *testing.T) {
 				{ID: ownEventID, UserID: userID, Title: "My event", StartAt: start, EndAt: start.Add(time.Hour)},
 			}, nil
 		},
-		findByIDFn: func(_ context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {
-			if id != subscribedEventID {
-				t.Fatalf("unexpected FindByID id: %v", id)
+		listByIDsFn: func(
+			_ context.Context, ids []uuid.UUID, gotStart, gotEnd time.Time,
+		) ([]eventuc.EventReadModel, error) {
+			if len(ids) != 1 || ids[0] != subscribedEventID {
+				t.Fatalf("unexpected ids: %v", ids)
 			}
-			return eventuc.EventReadModel{
-				ID:      subscribedEventID,
-				UserID:  ownerID,
-				Title:   "Shared meeting",
-				StartAt: start.Add(2 * time.Hour),
-				EndAt:   start.Add(3 * time.Hour),
+			if !gotStart.Equal(start) || !gotEnd.Equal(end) {
+				t.Errorf("date range mismatch: got (%v, %v), want (%v, %v)", gotStart, gotEnd, start, end)
+			}
+			return []eventuc.EventReadModel{
+				{
+					ID:      subscribedEventID,
+					UserID:  ownerID,
+					Title:   "Shared meeting",
+					StartAt: start.Add(2 * time.Hour),
+					EndAt:   start.Add(3 * time.Hour),
+				},
 			}, nil
 		},
 	}
@@ -231,33 +278,37 @@ func TestListEventsQuery_Execute_IncludesSubscribedEvents(t *testing.T) {
 	}
 }
 
-func TestListEventsQuery_Execute_ExcludesSubscribedEventOutsideDateRange(t *testing.T) {
+// A source event deleted between ListByUserID and ListByIDs (or already
+// outside the date range) must simply be absent from ListByIDs' result,
+// not surfaced as an error that would fail the whole request.
+func TestListEventsQuery_Execute_SubscribedEventMissingFromListByIDs_SilentlyOmitted(t *testing.T) {
 	userID := uuid.New()
 	now := time.Now()
 	start := now
 	end := now.Add(24 * time.Hour)
 
-	subscribedEventID := uuid.New()
+	ownEventID := uuid.New()
+	staleSubscribedEventID := uuid.New()
 
 	queryStub := &stubQueryService{
 		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
-			return []eventuc.EventReadModel{}, nil
-		},
-		findByIDFn: func(_ context.Context, _ uuid.UUID) (eventuc.EventReadModel, error) {
-			// Entirely before the requested range: end_at (-23h) <= start (0h).
-			return eventuc.EventReadModel{
-				ID:      subscribedEventID,
-				Title:   "Old shared meeting",
-				StartAt: start.Add(-24 * time.Hour),
-				EndAt:   start.Add(-23 * time.Hour),
+			return []eventuc.EventReadModel{
+				{ID: ownEventID, Title: "My event", StartAt: start, EndAt: start.Add(time.Hour)},
 			}, nil
+		},
+		listByIDsFn: func(
+			_ context.Context, _ []uuid.UUID, _, _ time.Time,
+		) ([]eventuc.EventReadModel, error) {
+			// The source event no longer exists (or fell outside the range),
+			// so the bulk query simply returns nothing for it.
+			return nil, nil
 		},
 	}
 
 	subsStub := &stubSubscriptionRepo{
 		listByUserIDFn: func(_ context.Context, _ uuid.UUID) ([]domaineventsubscription.EventSubscription, error) {
 			return []domaineventsubscription.EventSubscription{
-				domaineventsubscription.New(uuid.New(), subscribedEventID, userID, now),
+				domaineventsubscription.New(uuid.New(), staleSubscribedEventID, userID, now),
 			}, nil
 		},
 	}
@@ -265,10 +316,10 @@ func TestListEventsQuery_Execute_ExcludesSubscribedEventOutsideDateRange(t *test
 	q := eventuc.NewListEventsQuery(queryStub, subsStub)
 	result, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{StartDate: start, EndDate: end})
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("expected no error when a subscribed event is missing, got: %v", err)
 	}
-	if len(result) != 0 {
-		t.Fatalf("expected subscribed event outside date range to be excluded, got %d: %+v", len(result), result)
+	if len(result) != 1 || result[0].ID != ownEventID {
+		t.Fatalf("expected only the own event to remain, got: %+v", result)
 	}
 }
 
@@ -287,12 +338,16 @@ func TestListEventsQuery_Execute_SortsMergedEventsByStartAt(t *testing.T) {
 				{ID: laterOwnEventID, Title: "Later own event", StartAt: start.Add(3 * time.Hour), EndAt: start.Add(4 * time.Hour)},
 			}, nil
 		},
-		findByIDFn: func(_ context.Context, _ uuid.UUID) (eventuc.EventReadModel, error) {
-			return eventuc.EventReadModel{
-				ID:      earlierSubscribedEventID,
-				Title:   "Earlier subscribed event",
-				StartAt: start.Add(time.Hour),
-				EndAt:   start.Add(2 * time.Hour),
+		listByIDsFn: func(
+			_ context.Context, _ []uuid.UUID, _, _ time.Time,
+		) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{
+				{
+					ID:      earlierSubscribedEventID,
+					Title:   "Earlier subscribed event",
+					StartAt: start.Add(time.Hour),
+					EndAt:   start.Add(2 * time.Hour),
+				},
 			}, nil
 		},
 	}
@@ -330,6 +385,38 @@ func TestListEventsQuery_Execute_SubscriptionRepoError(t *testing.T) {
 	subsStub := &stubSubscriptionRepo{
 		listByUserIDFn: func(_ context.Context, _ uuid.UUID) ([]domaineventsubscription.EventSubscription, error) {
 			return nil, errDBFailure
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(queryStub, subsStub)
+	_, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestListEventsQuery_Execute_ListByIDsError(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+
+	queryStub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{}, nil
+		},
+		listByIDsFn: func(
+			_ context.Context, _ []uuid.UUID, _, _ time.Time,
+		) ([]eventuc.EventReadModel, error) {
+			return nil, errDBFailure
+		},
+	}
+	subsStub := &stubSubscriptionRepo{
+		listByUserIDFn: func(_ context.Context, _ uuid.UUID) ([]domaineventsubscription.EventSubscription, error) {
+			return []domaineventsubscription.EventSubscription{
+				domaineventsubscription.New(uuid.New(), uuid.New(), userID, now),
+			}, nil
 		},
 	}
 

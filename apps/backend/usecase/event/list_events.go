@@ -57,25 +57,24 @@ func (q *ListEventsQuery) Execute(ctx context.Context, userID uuid.UUID, in List
 	if err != nil {
 		return nil, fmt.Errorf("list event subscriptions: %w", err)
 	}
-	for _, s := range subs {
-		ev, err := q.queryService.FindByID(ctx, s.EventID())
+	if len(subs) > 0 {
+		ids := make([]uuid.UUID, len(subs))
+		for i, s := range subs {
+			ids[i] = s.EventID()
+		}
+		// A subscribed event missing from this result (deleted, or outside
+		// the range) is simply omitted below, not an error: the caller's own
+		// events must still be returned.
+		subscribed, err := q.queryService.ListByIDs(ctx, ids, in.StartDate, in.EndDate)
 		if err != nil {
-			return nil, fmt.Errorf("find subscribed event: %w", err)
+			return nil, fmt.Errorf("list subscribed events: %w", err)
 		}
-		if !overlapsRange(ev.StartAt, ev.EndAt, in.StartDate, in.EndDate) {
-			continue
+		for _, ev := range subscribed {
+			ev.IsSubscribed = true
+			result = append(result, ev)
 		}
-		ev.IsSubscribed = true
-		result = append(result, ev)
 	}
 
 	sort.Slice(result, func(i, j int) bool { return result[i].StartAt.Before(result[j].StartAt) })
 	return result, nil
-}
-
-// overlapsRange mirrors the SQL date-range filter used for the caller's own
-// events (end_at > start AND start_at < end), so subscribed events are
-// filtered to the requested range the same way.
-func overlapsRange(eventStart, eventEnd, rangeStart, rangeEnd time.Time) bool {
-	return eventEnd.After(rangeStart) && eventStart.Before(rangeEnd)
 }

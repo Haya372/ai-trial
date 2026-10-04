@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -41,6 +42,56 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 	if err != nil {
 		r.logger.Error("list events query failed", "error", err)
 		return nil, fmt.Errorf("list events: %w", err)
+	}
+
+	result := make([]eventuc.EventReadModel, 0, len(rows))
+	for _, row := range rows {
+		var desc, location, url string
+		if row.Description.Valid {
+			desc = row.Description.String
+		}
+		if row.Location.Valid {
+			location = row.Location.String
+		}
+		if row.Url.Valid {
+			url = row.Url.String
+		}
+		result = append(result, eventuc.EventReadModel{
+			ID:          uuid.UUID(row.ID.Bytes),
+			UserID:      uuid.UUID(row.UserID.Bytes),
+			Title:       row.Title,
+			Description: desc,
+			StartAt:     row.StartAt.Time,
+			EndAt:       row.EndAt.Time,
+			Location:    location,
+			URL:         url,
+		})
+	}
+	return result, nil
+}
+
+func (r *eventQueryRepository) ListByIDs(
+	ctx context.Context, ids []uuid.UUID, startDate, endDate time.Time,
+) ([]eventuc.EventReadModel, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	pgIDs := make([]pgtype.UUID, len(ids))
+	for i, id := range ids {
+		pgIDs[i] = toPgUUID(id)
+	}
+
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
+	rows, err := r.querier(spanCtx).ListEventsByIDsAndDateRange(spanCtx, query.ListEventsByIDsAndDateRangeParams{
+		Ids:       pgIDs,
+		StartDate: pgtype.Timestamptz{Time: startDate, Valid: true},
+		EndDate:   pgtype.Timestamptz{Time: endDate, Valid: true},
+	})
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("list events by ids query failed", "error", err)
+		return nil, fmt.Errorf("list events by ids: %w", err)
 	}
 
 	result := make([]eventuc.EventReadModel, 0, len(rows))
