@@ -4,6 +4,7 @@ import type { EventResponse } from '../../api/generated'
 import {
   DEFAULT_EVENT_DURATION_MS,
   getEventErrorMessage,
+  toCreateEventRequest,
   toDateTimeLocalValue,
   toFormValues,
   toIsoString,
@@ -110,6 +111,52 @@ describe('toFormValues', () => {
     expect(values.description).toBe('')
     expect(values.location).toBe('')
     expect(values.url).toBe('')
+  })
+})
+
+describe('toCreateEventRequest', () => {
+  it('description/location/urlが指定された場合、そのまま設定する', () => {
+    const payload = toCreateEventRequest({
+      title: 'デザインレビュー',
+      startAt: '2026-09-22T01:00:00.000Z',
+      endAt: '2026-09-22T02:00:00.000Z',
+      description: 'メモ',
+      location: '会議室A',
+      url: 'https://example.com',
+    })
+    expect(payload).toEqual({
+      title: 'デザインレビュー',
+      startAt: '2026-09-22T01:00:00.000Z',
+      endAt: '2026-09-22T02:00:00.000Z',
+      description: 'メモ',
+      location: '会議室A',
+      url: 'https://example.com',
+    })
+  })
+
+  it('description/location/urlが未指定の場合、nullにする', () => {
+    const payload = toCreateEventRequest({
+      title: 'デザインレビュー',
+      startAt: '2026-09-22T01:00:00.000Z',
+      endAt: '2026-09-22T02:00:00.000Z',
+    })
+    expect(payload.description).toBeNull()
+    expect(payload.location).toBeNull()
+    expect(payload.url).toBeNull()
+  })
+
+  it('description/location/urlが空文字の場合、nullにする', () => {
+    const payload = toCreateEventRequest({
+      title: 'デザインレビュー',
+      startAt: '2026-09-22T01:00:00.000Z',
+      endAt: '2026-09-22T02:00:00.000Z',
+      description: '',
+      location: '',
+      url: '',
+    })
+    expect(payload.description).toBeNull()
+    expect(payload.location).toBeNull()
+    expect(payload.url).toBeNull()
   })
 })
 

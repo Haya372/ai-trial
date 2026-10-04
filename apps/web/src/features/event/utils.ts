@@ -1,5 +1,5 @@
 import type { ParseKeys, TFunction } from 'i18next'
-import type { EventResponse } from '../../api/generated'
+import type { CreateEventRequest, EventResponse } from '../../api/generated'
 import { pad } from '../../lib/dateFormat'
 import { mapErrorToMessage } from '../../lib/errorMessage'
 import type { EventFormMode, EventFormValues } from './types'
@@ -55,6 +55,24 @@ export function toDateTimeLocalValue(iso: string): string {
 
 export function toIsoString(value: string): string {
   return new Date(value).toISOString()
+}
+
+export function toCreateEventRequest(params: {
+  title: string
+  startAt: string
+  endAt: string
+  description?: string | null
+  location?: string | null
+  url?: string | null
+}): CreateEventRequest {
+  return {
+    title: params.title,
+    startAt: params.startAt,
+    endAt: params.endAt,
+    description: params.description || null,
+    location: params.location || null,
+    url: params.url || null,
+  }
 }
 
 export const DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000
