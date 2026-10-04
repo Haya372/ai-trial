@@ -90,14 +90,17 @@ describe('getUnsubscribeErrorMessage', () => {
 })
 
 describe('formatShareDateTime', () => {
-  it('share:fields.dateTimeFormat キーと年月日時分を渡して t を呼び出す', () => {
+  it('fields.dateTimeFormat キーと年月日時分を渡して t を呼び出す', () => {
     const tMock = vi.fn(
       (_key: string, opts?: Record<string, unknown>) =>
         `${opts?.year}/${opts?.month}/${opts?.day} ${opts?.time}`,
     )
     const date = new Date(2026, 9, 8, 10, 0, 0)
-    const result = formatShareDateTime(date.toISOString(), tMock as never)
-    expect(tMock).toHaveBeenCalledWith('share:fields.dateTimeFormat', {
+    const result = formatShareDateTime(
+      date.toISOString(),
+      tMock as unknown as import('i18next').TFunction<'share'>,
+    )
+    expect(tMock).toHaveBeenCalledWith('fields.dateTimeFormat', {
       year: 2026,
       month: 10,
       day: 8,

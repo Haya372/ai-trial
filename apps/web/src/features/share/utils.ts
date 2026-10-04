@@ -1,4 +1,4 @@
-import type { ParseKeys } from 'i18next'
+import type { ParseKeys, TFunction } from 'i18next'
 import { mapErrorToMessage } from '../../lib/errorMessage'
 import { pad } from '../../lib/dateFormat'
 
@@ -65,12 +65,12 @@ export function getUnsubscribeErrorMessage(
 
 export function formatShareDateTime(
   isoString: string,
-  t: ShareTFunction,
+  t: TFunction<'share'>,
 ): string {
   const d = new Date(isoString)
   const year = d.getFullYear()
   const month = d.getMonth() + 1
   const day = d.getDate()
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  return t('share:fields.dateTimeFormat', { year, month, day, time })
+  return t('fields.dateTimeFormat', { year, month, day, time })
 }
