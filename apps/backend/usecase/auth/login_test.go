@@ -14,7 +14,10 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	usermock "github.com/Haya372/ai-trial/backend/domain/user/generated"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
+	"github.com/Haya372/ai-trial/backend/usecase/testutil"
 )
+
+var fixedNow = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 const loginTestEmail = "u@ex.com"
 
@@ -47,10 +50,10 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 		FindByEmail(gomock.Any(), email).
 		Return(stub, nil)
 	mockSessRepo.EXPECT().
-		Create(gomock.Any(), fixedUserID, gomock.Any()).
-		Return(session.New(fixedSessID, fixedUserID, time.Now().Add(30*24*time.Hour)), nil)
+		Create(gomock.Any(), fixedUserID, fixedNow.Add(30*24*time.Hour)).
+		Return(session.New(fixedSessID, fixedUserID, fixedNow.Add(30*24*time.Hour)), nil)
 
-	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo)
+	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo, testutil.FixedClock{Time: fixedNow})
 	out, err := cmd.Execute(context.Background(), authuc.LoginInput{
 		Email:    loginTestEmail,
 		Password: testPassword,
@@ -76,7 +79,7 @@ func TestLoginCommand_Execute_WrongPassword_ReturnsPasswordMismatch(t *testing.T
 		FindByEmail(gomock.Any(), email).
 		Return(stub, nil)
 
-	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo)
+	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo, testutil.FixedClock{})
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
 		Email:    loginTestEmail,
 		Password: "WrongPass1!",
@@ -96,7 +99,7 @@ func TestLoginCommand_Execute_UnknownEmail_ReturnsUserNotFound(t *testing.T) {
 		FindByEmail(gomock.Any(), email).
 		Return(nil, user.ErrUserNotFound)
 
-	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl))
+	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl), testutil.FixedClock{})
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
 		Email:    "no@ex.com",
 		Password: testPassword,
@@ -116,7 +119,7 @@ func TestLoginCommand_Execute_UnknownEmail_MalformedPassword_ReturnsPasswordMism
 		FindByEmail(gomock.Any(), email).
 		Return(nil, user.ErrUserNotFound)
 
-	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl))
+	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl), testutil.FixedClock{})
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
 		Email:    "no@ex.com",
 		Password: "short",
@@ -137,7 +140,7 @@ func TestLoginCommand_Execute_KnownEmail_MalformedPassword_ReturnsPasswordMismat
 		FindByEmail(gomock.Any(), email).
 		Return(stub, nil)
 
-	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl))
+	cmd := authuc.NewLoginCommand(mockUserRepo, sessionmock.NewMockRepository(ctrl), testutil.FixedClock{})
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
 		Email:    loginTestEmail,
 		Password: "short",
@@ -152,6 +155,7 @@ func TestLoginCommand_Execute_InvalidEmailFormat_ReturnsEmailValidationError(t *
 	cmd := authuc.NewLoginCommand(
 		usermock.NewMockRepository(ctrl),
 		sessionmock.NewMockRepository(ctrl),
+		testutil.FixedClock{},
 	)
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
 		Email:    "not-an-email",

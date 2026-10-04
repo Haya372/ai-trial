@@ -19,6 +19,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 	mw "github.com/Haya372/ai-trial/backend/interface/middleware"
+	"github.com/Haya372/ai-trial/backend/usecase"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 	eventsubscriptionuc "github.com/Haya372/ai-trial/backend/usecase/eventsubscription"
@@ -38,13 +39,13 @@ func buildEventSubscriptionTestRouter() eventSubscriptionTestDeps {
 	subsRepo := repository.NewEventSubscriptionRepository(routeTestPool, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
-	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
+	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr, usecase.RealClock{})
 	loader := eventshareuc.NewShareTokenLoader(eventShareRepo, eventQueryRepo)
 	subscribeToShare := eventsubscriptionuc.NewSubscribeToShareCommand(loader, subsRepo)
 	deleteSubscription := eventsubscriptionuc.NewDeleteSubscriptionCommand(subsRepo, logger)
 
 	auth := handler.NewAuthHandler(
-		signup, authuc.NewLoginCommand(userRepo, sessRepo), authuc.NewLogoutCommand(sessRepo), logger,
+		signup, authuc.NewLoginCommand(userRepo, sessRepo, usecase.RealClock{}), authuc.NewLogoutCommand(sessRepo), logger,
 	)
 	sub := handler.NewEventSubscriptionHandler(subscribeToShare, deleteSubscription, logger)
 
