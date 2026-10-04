@@ -12,17 +12,17 @@ import {
   type EventFormMode,
   type EventFormValues,
 } from '../types'
-import { toFormValues, toIsoString } from '../utils'
+import { toCreateEventRequest, toFormValues, toIsoString } from '../utils'
 
 function toRequestPayload(data: EventFormValues): CreateEventRequest {
-  return {
+  return toCreateEventRequest({
     title: data.title,
     startAt: toIsoString(data.startAt),
     endAt: toIsoString(data.endAt),
-    description: data.description || null,
-    location: data.location || null,
-    url: data.url || null,
-  }
+    description: data.description,
+    location: data.location,
+    url: data.url,
+  })
 }
 
 export function useEventForm(

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import type { CreateEventRequest, EventResponse } from '../../../api/generated'
+import type { EventResponse } from '../../../api/generated'
 import { createEvent } from '../../../api/generated'
 import { useRevalidateOnLanguageChange } from '../../../hooks/useRevalidateOnLanguageChange'
 import { runEventMutation } from '../runEventMutation'
@@ -11,7 +11,7 @@ import {
   createQuickRegistrationSchema,
   type QuickRegistrationValues,
 } from '../types'
-import { DEFAULT_EVENT_DURATION_MS } from '../utils'
+import { DEFAULT_EVENT_DURATION_MS, toCreateEventRequest } from '../utils'
 
 export type QuickRegistrationPhase =
   | { status: 'input' }
@@ -34,14 +34,11 @@ export function useQuickRegistrationForm(start: Date) {
 
   const onSubmit = async (data: QuickRegistrationValues) => {
     const endAt = new Date(start.getTime() + DEFAULT_EVENT_DURATION_MS)
-    const payload: CreateEventRequest = {
+    const payload = toCreateEventRequest({
       title: data.title,
       startAt: start.toISOString(),
       endAt: endAt.toISOString(),
-      description: null,
-      location: null,
-      url: null,
-    }
+    })
     await runEventMutation({
       queryClient,
       request: createEvent(payload),
