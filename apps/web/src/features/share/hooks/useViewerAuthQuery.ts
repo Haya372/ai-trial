@@ -8,21 +8,23 @@ export function useViewerAuthQuery(): {
   isPending: boolean
 } {
   const setUser = useAuthStore((s) => s.setUser)
+  const clearUser = useAuthStore((s) => s.clearUser)
 
   const query = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
-      try {
-        const res = await getMe()
-        if (res.status === 200) {
-          setUser(res.data)
-          return res.data
-        }
-        // 401 や 500 は null として扱い、公開閲覧を止めない
-        return null
-      } catch {
+      const res = await getMe()
+      if (res.status === 200) {
+        setUser(res.data)
+        return res.data
+      }
+      // 401 はセッション切れ: ストアの古いユーザー情報を明示的に破棄する
+      if (res.status === 401) {
+        clearUser()
         return null
       }
+      // 5xx など認証エラーと判断できない場合は再スローし、ネットワーク障害と区別する
+      throw new Error(`auth check failed: ${res.status}`)
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
