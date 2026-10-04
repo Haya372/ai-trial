@@ -127,8 +127,8 @@ func newLogoutExecutor(sr session.Repository) handler.LogoutExecutor {
 	return authuc.NewLogoutCommand(sr)
 }
 
-func newListEventsExecutor(s eventuc.QueryService, subs eventsubscription.Repository) handler.ListEventsExecutor {
-	return eventuc.NewListEventsQuery(s, subs)
+func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
+	return eventuc.NewListEventsQuery(s)
 }
 
 func newCreateEventExecutor(r event.Repository) handler.CreateEventExecutor {

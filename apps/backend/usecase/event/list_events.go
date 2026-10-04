@@ -3,12 +3,9 @@ package event
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/google/uuid"
-
-	domaineventsubscription "github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 )
 
 type ListEventsInput struct {
@@ -27,21 +24,21 @@ type EventReadModel struct {
 	URL         string
 	// IsSubscribed is true when the event was added via EventSubscription
 	// (another user's event the caller subscribed to), not created by the
-	// caller. Such events are read-only.
+	// caller. Such events are read-only. The query side's SQL (ADR-022
+	// logical CQRS) sets this directly, so this layer just passes it through.
 	IsSubscribed bool
 }
 
 type ListEventsQuery struct {
-	queryService     QueryService
-	subscriptionRepo domaineventsubscription.Repository
+	queryService QueryService
 }
 
-func NewListEventsQuery(s QueryService, subs domaineventsubscription.Repository) *ListEventsQuery {
-	return &ListEventsQuery{queryService: s, subscriptionRepo: subs}
+func NewListEventsQuery(s QueryService) *ListEventsQuery {
+	return &ListEventsQuery{queryService: s}
 }
 
 func (q *ListEventsQuery) Execute(ctx context.Context, userID uuid.UUID, in ListEventsInput) ([]EventReadModel, error) {
-	owned, err := q.queryService.List(ctx, ListFilter{
+	events, err := q.queryService.List(ctx, ListFilter{
 		UserID:    userID,
 		StartDate: in.StartDate,
 		EndDate:   in.EndDate,
@@ -49,32 +46,5 @@ func (q *ListEventsQuery) Execute(ctx context.Context, userID uuid.UUID, in List
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)
 	}
-
-	result := make([]EventReadModel, 0, len(owned))
-	result = append(result, owned...)
-
-	subs, err := q.subscriptionRepo.ListByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("list event subscriptions: %w", err)
-	}
-	if len(subs) > 0 {
-		ids := make([]uuid.UUID, len(subs))
-		for i, s := range subs {
-			ids[i] = s.EventID()
-		}
-		// A subscribed event missing from this result (deleted, or outside
-		// the range) is simply omitted below, not an error: the caller's own
-		// events must still be returned.
-		subscribed, err := q.queryService.ListByIDs(ctx, ids, in.StartDate, in.EndDate)
-		if err != nil {
-			return nil, fmt.Errorf("list subscribed events: %w", err)
-		}
-		for _, ev := range subscribed {
-			ev.IsSubscribed = true
-			result = append(result, ev)
-		}
-	}
-
-	sort.Slice(result, func(i, j int) bool { return result[i].StartAt.Before(result[j].StartAt) })
-	return result, nil
+	return events, nil
 }
