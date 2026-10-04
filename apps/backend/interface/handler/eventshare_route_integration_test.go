@@ -18,6 +18,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 	mw "github.com/Haya372/ai-trial/backend/interface/middleware"
+	"github.com/Haya372/ai-trial/backend/usecase"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
@@ -30,10 +31,12 @@ func buildEventShareTestRouter() *chi.Mux {
 	eventShareRepo := repository.NewEventShareRepository(routeTestPool, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
-	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
+	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr, usecase.RealClock{})
 	createShare := eventshareuc.NewCreateShareCommand(eventRepo, eventShareRepo, txMgr, logger)
 
-	auth := handler.NewAuthHandler(signup, authuc.NewLoginCommand(userRepo, sessRepo), authuc.NewLogoutCommand(sessRepo), logger)
+	auth := handler.NewAuthHandler(
+		signup, authuc.NewLoginCommand(userRepo, sessRepo, usecase.RealClock{}), authuc.NewLogoutCommand(sessRepo), logger,
+	)
 	es := handler.NewEventShareHandler(createShare, logger)
 
 	r := chi.NewRouter()

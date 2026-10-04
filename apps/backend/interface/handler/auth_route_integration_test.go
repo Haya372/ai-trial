@@ -23,6 +23,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
 	mw "github.com/Haya372/ai-trial/backend/interface/middleware"
+	"github.com/Haya372/ai-trial/backend/usecase"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
 
@@ -70,8 +71,8 @@ func buildRouteTestRouter() *chi.Mux {
 	sessRepo := repository.NewSessionRepository(routeTestPool, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
-	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr)
-	login := authuc.NewLoginCommand(userRepo, sessRepo)
+	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr, usecase.RealClock{})
+	login := authuc.NewLoginCommand(userRepo, sessRepo, usecase.RealClock{})
 	logout := authuc.NewLogoutCommand(sessRepo)
 
 	auth := handler.NewAuthHandler(signup, login, logout, testLogger)
