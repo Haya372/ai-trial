@@ -20,7 +20,8 @@
 
 - 予定のタイトルは必須で空文字は許容しない
 - 終了日時は開始日時以降でなければならない（end_at >= start_at）
-- 予定はそれを作成したユーザーのみが参照・変更できる
+- 予定の変更・削除は作成したユーザーのみが行える
+- 予定の参照は、作成したユーザーに加え、共有リンク（EventShare）経由の閲覧者、および自分のカレンダーに追加（EventSubscription）したユーザーにも開かれている
 - 説明・場所・URL は任意項目であり、空文字を許容する（バリデーションを行わない）
 - URL の形式（スキーム・ホスト等）はドメイン層では検証しない（入力境界での検証は将来のIssueで扱う）
 
@@ -36,8 +37,12 @@
 
 - [PRD-002: カレンダービュー](../prd/PRD-002-calendar-view.md)
 - [PRD-003: 予定管理](../prd/PRD-003-event-management.md)
+- [PRD-004: 予定共有](../prd/PRD-004-event-sharing.md)
 - [SPEC-002: カレンダービュー仕様](../spec/SPEC-002-calendar-view.md)
 - [SPEC-003: 予定管理仕様](../spec/SPEC-003-event-management.md)
+- [SPEC-004: 予定共有（URLシェア）仕様](../spec/SPEC-004-event-sharing.md)
 - [ADR-022: CQRS方針](../adr/ADR-022-cqrs.md)
 - [ADR-027: カレンダー描画ライブラリ選定](../adr/ADR-027-calendar-rendering-library.md)
 - [User ドメイン](./user.md)
+- [EventShare ドメイン](./eventshare.md)
+- [EventSubscription ドメイン](./eventsubscription.md)
