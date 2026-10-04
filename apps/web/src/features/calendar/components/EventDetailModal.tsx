@@ -71,6 +71,11 @@ export default function EventDetailModal({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{event.title}</DialogTitle>
+            {event.isSubscribed && (
+              <span className="text-muted-foreground text-xs">
+                {t('eventDetail.subscribedBadge')}
+              </span>
+            )}
           </DialogHeader>
           <div className="flex flex-col gap-2 text-sm">
             <LabeledField label={t('eventDetail.startLabel')}>
@@ -102,17 +107,22 @@ export default function EventDetailModal({
               </LabeledField>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
-              {t('eventDetail.delete')}
-            </Button>
-            <Button variant="secondary" onClick={() => onEdit(event)}>
-              {t('eventDetail.edit')}
-            </Button>
-            <Button variant="secondary" onClick={() => onShare(event)}>
-              {t('eventDetail.share')}
-            </Button>
-          </DialogFooter>
+          {!event.isSubscribed && (
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmOpen(true)}
+              >
+                {t('eventDetail.delete')}
+              </Button>
+              <Button variant="secondary" onClick={() => onEdit(event)}>
+                {t('eventDetail.edit')}
+              </Button>
+              <Button variant="secondary" onClick={() => onShare(event)}>
+                {t('eventDetail.share')}
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 

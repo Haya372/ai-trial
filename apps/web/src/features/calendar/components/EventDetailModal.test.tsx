@@ -59,6 +59,11 @@ const mockEventWithDetails: EventResponse = {
   url: 'https://example.com/agenda',
 }
 
+const mockSubscribedEvent: EventResponse = {
+  ...mockEvent,
+  isSubscribed: true,
+}
+
 function renderModal(
   props: Partial<React.ComponentProps<typeof EventDetailModal>> = {},
 ) {
@@ -149,6 +154,31 @@ describe('EventDetailModal', () => {
       const { onShare } = renderModal()
       fireEvent.click(screen.getByRole('button', { name: '共有リンクを生成' }))
       expect(onShare).toHaveBeenCalledWith(mockEvent)
+    })
+  })
+
+  describe('購読中の予定（isSubscribed）', () => {
+    it('isSubscribedがtrueのとき「閲覧専用」を表示する', () => {
+      renderModal({ event: mockSubscribedEvent })
+      expect(screen.getByText('閲覧専用')).toBeInTheDocument()
+    })
+
+    it('isSubscribedがfalseのとき「閲覧専用」を表示しない', () => {
+      renderModal()
+      expect(screen.queryByText('閲覧専用')).not.toBeInTheDocument()
+    })
+
+    it('isSubscribedがtrueのとき削除・編集・共有ボタンを表示しない', () => {
+      renderModal({ event: mockSubscribedEvent })
+      expect(
+        screen.queryByRole('button', { name: '削除' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: '編集' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: '共有リンクを生成' }),
+      ).not.toBeInTheDocument()
     })
   })
 
