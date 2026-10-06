@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CMD=$(jq -r '.tool_input.command // empty'); if printf '%s' \"$CMD\" | grep -qE '\\$\\(\\s*cat\\s*<<'; then jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"heredocとcommand substitutionの組み合わせ（例: git commit -m \\\"$(cat <<EOF ... EOF)\\\" / gh pr create --body \\\"$(cat <<EOF ...)\\\"）はsandbox環境によって不安定になることがあります。$TMPDIR 配下に一時ファイルを書いて、git commit -F <file> や gh pr create --body-file <file> / gh pr comment --body-file <file> を使ってください。\"}}'; fi",
+            "command": "CMD=$(jq -r '.tool_input.command // empty'); if printf '%s' \"$CMD\" | grep -qE '^[[:space:]]*(grep|rg|ag)[[:space:]]'; then exit 0; fi; if printf '%s' \"$CMD\" | grep -qE '\\$\\(\\s*cat\\s*<<'; then jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"heredocとcommand substitutionの組み合わせ（例: git commit -m \\\"$(cat <<EOF ... EOF)\\\" / gh pr create --body \\\"$(cat <<EOF ...)\\\"）はsandbox環境によって不安定になることがあります。$TMPDIR 配下に一時ファイルを書いて、git commit -F <file> や gh pr create --body-file <file> / gh pr comment --body-file <file> を使ってください。\"}}'; fi",
             "statusMessage": "Checking for heredoc+substitution pattern..."
           }
         ]
