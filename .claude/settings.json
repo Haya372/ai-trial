@@ -41,8 +41,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/block-heredoc-substitution.sh",
-            "statusMessage": "Checking for heredoc+substitution pattern..."
+            "command": "sh \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sandbox-command-guard.sh",
+            "statusMessage": "Checking command against sandbox pitfalls..."
           }
         ]
       }
