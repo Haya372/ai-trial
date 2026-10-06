@@ -65,6 +65,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 |---|---|
 | 「次回から気をつける」で終わらせる | 必ずファイルを編集する。編集しない限りこのスキルの完了条件を満たさない |
 | 1つの改善のために新しいドキュメント階層を作る | まず既存ファイル（該当スキル・`AGENTS.md`）への追記で足りないか検討する |
+| Bashのリダイレクト（`jq ... > .claude/settings.json` 等）で設定ファイルを直接書き換える | `.claude/settings.json`・`.claude/settings.local.json` へのBash経由の書き込みはsandboxのwrite denyで失敗する。Edit/Writeツールで編集する |
 
 ---
 
