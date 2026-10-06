@@ -20,9 +20,15 @@ fi
 # 2. excludedCommandsの対象コマンドを他のコマンドと連結する
 # sandbox.excludedCommands はコマンド単独で実行したときだけ効き、パイプや && で連結すると
 # コマンド全体がsandbox内で実行される。ネットワークを使うgit操作とghは認証・TLSで失敗するため単独実行させる。
-# 引用符内の | や ; 、2>&1 等のリダイレクトは連結とみなさない。
-STRIPPED=$(printf '%s' "$CMD" | perl -0pe "s/'[^']*'//g; s/\"(?:\\\\.|[^\"\\\\])*\"//g; s/[0-9]*[<>]&[0-9-]+//g")
-if printf '%s' "$STRIPPED" | grep -qE '(^|[[:space:];|&(])(git[[:space:]]+(push|fetch|pull|ls-remote)|gh)([[:space:]]|$)' &&
-  printf '%s' "$STRIPPED" | perl -0ne 'exit(/[|;&\n]/ ? 0 : 1)'; then
+# 引用符内の | や ; 、2>&1・&> 等のリダイレクトは連結とみなさない。
+# 引用符は左から1パスで除去する（"it's" のように別種の引用符を含む文字列で除去範囲がずれないように）。
+# git/gh はコマンド位置（先頭・区切り文字の直後、環境変数代入の後）にあるときだけ対象とし、
+# grep gh のような引数としての出現は対象外とする。
+if printf '%s' "$CMD" | perl -0ne '
+  s/'\''[^'\'']*'\''|"(?:\\.|[^"\\])*"//g;
+  s/[0-9]*[<>]&[0-9-]+|&>>?//g;
+  my $target = qr/(?:^|[|;&(\n])\s*(?:\w+=\S*\s+)*(?:git\s+(?:push|fetch|pull|ls-remote)|gh)(?:\s|$)/;
+  exit((/$target/ && /[|;&\n]/) ? 0 : 1);
+'; then
   deny 'git push/fetch/pull/ls-remote と gh は sandbox.excludedCommands の対象ですが、パイプ・&&・;・改行で他のコマンドと連結するとコマンド全体がsandbox内で実行され、認証やTLSで失敗します。他のコマンドと連結せず単独で実行してください（ghの出力整形は --jq を使ってください）。'
 fi
