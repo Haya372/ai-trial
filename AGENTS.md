@@ -73,7 +73,7 @@ Claude CodeのSkillツールを持たないツールでも、該当する `SKILL
 
 ### コマンド実行時の注意
 
-`mise exec -- pnpm <command>` 等のmise経由のコマンドは、mise が環境変数解決のために `.env.example` を読み込む。BashツールのデフォルトサンドボックスはURLパターン `.env.*` を読み取り拒否対象にしており、これに `.env.example` もマッチしてしまうため、mise側の環境変数テンプレート解決が失敗しコマンドがエラーになることがある。このエラーが出た場合はサンドボックスを無効化して再実行する。
+`mise exec -- pnpm <command>` 等のmise経由のコマンドは、mise が環境変数解決のために `.env.example` を読み込む。サンドボックスは `.env.*` を読み取り拒否対象にしているため、`.claude/settings.json` の `sandbox.filesystem.allowRead` で `.env.example` のみ読み取りを許可している。`allowUnsandboxedCommands: false` によりサンドボックスの無効化はできないため、mise経由のコマンドが別のサンドボックス制約で失敗した場合は、制約の内容をユーザーに報告して設定変更を依頼する。
 
 ### 制約
 
