@@ -219,7 +219,7 @@ describe('EventDetailModal', () => {
       expect(onClose).not.toHaveBeenCalled()
     })
 
-    it('確認ダイアログで「削除」を押すとdeleteSubscriptionを呼び、成功後にonCloseを呼ぶ', async () => {
+    it('確認ダイアログで「カレンダーから削除」を押すとdeleteSubscriptionを呼び、成功後にonCloseを呼ぶ', async () => {
       const { deleteSubscription } = await import('../../../api/generated')
       vi.mocked(deleteSubscription).mockResolvedValueOnce({
         data: undefined,
@@ -233,7 +233,9 @@ describe('EventDetailModal', () => {
       )
       const confirmDialog = screen.getByRole('alertdialog')
       fireEvent.click(
-        within(confirmDialog).getByRole('button', { name: '削除' }),
+        within(confirmDialog).getByRole('button', {
+          name: 'カレンダーから削除',
+        }),
       )
 
       await waitFor(() => {
@@ -259,7 +261,7 @@ describe('EventDetailModal', () => {
       )
       fireEvent.click(
         within(screen.getByRole('alertdialog')).getByRole('button', {
-          name: '削除',
+          name: 'カレンダーから削除',
         }),
       )
 

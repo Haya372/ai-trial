@@ -173,7 +173,11 @@ export default function EventDetailModal({
                       ? 'eventDetail.removing'
                       : 'eventDetail.deleting',
                   )
-                : t('eventDetail.delete')}
+                : t(
+                    event.isSubscribed
+                      ? 'eventDetail.removeFromCalendar'
+                      : 'eventDetail.delete',
+                  )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
