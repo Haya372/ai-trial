@@ -115,6 +115,7 @@ const fullEvent: EventResponse = {
   location: '会議室A',
   url: null,
   isSubscribed: false,
+  subscriptionId: null,
 }
 
 describe('CalendarPage', () => {
@@ -194,6 +195,49 @@ describe('CalendarPage', () => {
       render(<CalendarPage />, { wrapper: createWrapper() })
       expect(screen.getByTestId('week-calendar')).toBeInTheDocument()
       expect(screen.queryByTestId('month-calendar')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('購読予定のカレンダー表示', () => {
+    it('MonthCalendarに渡すイベントにisSubscribedを反映する', async () => {
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
+      vi.mocked(useCalendarStore).mockImplementation(
+        (selector: (state: CalendarState) => unknown) => {
+          const state: CalendarState = {
+            view: 'month',
+            currentDate: new Date(2026, 8, 13),
+            setView: vi.fn(),
+            setCurrentDate: vi.fn(),
+          }
+          return selector ? selector(state) : state
+        },
+      )
+
+      const subscribedEvent: EventResponse = {
+        ...fullEvent,
+        id: 'event-2',
+        isSubscribed: true,
+        subscriptionId: 'subscription-1',
+      }
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [fullEvent, subscribedEvent] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+
+      const { MonthCalendar } = await import('@repo/ui')
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(MonthCalendar)
+      const events = props.events as Array<{
+        id: string
+        isSubscribed?: boolean
+      }>
+      expect(events.find((e) => e.id === 'event-1')?.isSubscribed).toBe(false)
+      expect(events.find((e) => e.id === 'event-2')?.isSubscribed).toBe(true)
     })
   })
 

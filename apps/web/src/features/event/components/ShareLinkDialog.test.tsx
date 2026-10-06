@@ -51,6 +51,7 @@ const mockEvent: EventResponse = {
   location: null,
   url: null,
   isSubscribed: false,
+  subscriptionId: null,
 }
 
 function renderDialog(

@@ -24,7 +24,8 @@
   "toast": {
     "createSuccess": "Event created",
     "updateSuccess": "Event updated",
-    "deleteSuccess": "Event deleted"
+    "deleteSuccess": "Event deleted",
+    "removeFromCalendarSuccess": "Removed from your calendar"
   },
   "validation": {
     "titleRequired": "Title is required",
@@ -34,9 +35,11 @@
   },
   "errors": {
     "notFound": "Event not found (it may have been deleted)",
+    "subscriptionNotFound": "This event has already been removed from your calendar",
     "unauthorized": "Login is required",
     "createFallback": "Failed to create event",
     "editFallback": "Failed to update event",
-    "deleteFallback": "Failed to delete event"
+    "deleteFallback": "Failed to delete event",
+    "unsubscribeFallback": "Failed to remove from calendar"
   }
 }

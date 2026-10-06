@@ -68,15 +68,17 @@ func insertRouteTestEvent(t *testing.T, userID, title string, start, end time.Ti
 	return id
 }
 
-func insertRouteTestEventSubscription(t *testing.T, eventID, userID string) {
+func insertRouteTestEventSubscription(t *testing.T, eventID, userID string) string {
 	t.Helper()
-	_, err := routeTestPool.Exec(context.Background(),
-		"INSERT INTO event_subscriptions (event_id, user_id) VALUES ($1, $2)",
+	var id string
+	err := routeTestPool.QueryRow(context.Background(),
+		"INSERT INTO event_subscriptions (event_id, user_id) VALUES ($1, $2) RETURNING id",
 		eventID, userID,
-	)
+	).Scan(&id)
 	if err != nil {
 		t.Fatalf("insert event subscription: %v", err)
 	}
+	return id
 }
 
 func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
@@ -91,7 +93,7 @@ func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	ownEventID := insertRouteTestEvent(t, viewerID, "My own event", now, now.Add(time.Hour))
 	sharedEventID := insertRouteTestEvent(t, ownerID, "Owner's shared meeting", now.Add(2*time.Hour), now.Add(3*time.Hour))
-	insertRouteTestEventSubscription(t, sharedEventID, viewerID)
+	subscriptionID := insertRouteTestEventSubscription(t, sharedEventID, viewerID)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
 		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
@@ -105,9 +107,10 @@ func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 
 	var body struct {
 		Events []struct {
-			ID           string `json:"id"`
-			Title        string `json:"title"`
-			IsSubscribed bool   `json:"isSubscribed"`
+			ID             string  `json:"id"`
+			Title          string  `json:"title"`
+			IsSubscribed   bool    `json:"isSubscribed"`
+			SubscriptionID *string `json:"subscriptionId"`
 		} `json:"events"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
@@ -117,15 +120,14 @@ func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 		t.Fatalf("expected 2 events, got %d: %+v", len(body.Events), body.Events)
 	}
 
-	byID := map[string]struct {
-		Title        string
-		IsSubscribed bool
-	}{}
+	type eventSummary struct {
+		Title          string
+		IsSubscribed   bool
+		SubscriptionID *string
+	}
+	byID := map[string]eventSummary{}
 	for _, e := range body.Events {
-		byID[e.ID] = struct {
-			Title        string
-			IsSubscribed bool
-		}{e.Title, e.IsSubscribed}
+		byID[e.ID] = eventSummary{e.Title, e.IsSubscribed, e.SubscriptionID}
 	}
 	own, ok := byID[ownEventID]
 	if !ok {
@@ -133,6 +135,9 @@ func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 	}
 	if own.IsSubscribed {
 		t.Errorf("expected own event isSubscribed=false, got true")
+	}
+	if own.SubscriptionID != nil {
+		t.Errorf("expected own event subscriptionId=null, got %v", *own.SubscriptionID)
 	}
 	shared, ok := byID[sharedEventID]
 	if !ok {
@@ -143,6 +148,9 @@ func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 	}
 	if !shared.IsSubscribed {
 		t.Errorf("expected subscribed event isSubscribed=true, got false")
+	}
+	if shared.SubscriptionID == nil || *shared.SubscriptionID != subscriptionID {
+		t.Errorf("expected subscriptionId=%q, got %v", subscriptionID, shared.SubscriptionID)
 	}
 }
 

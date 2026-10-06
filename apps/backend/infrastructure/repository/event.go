@@ -55,16 +55,22 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 		if row.Url.Valid {
 			url = row.Url.String
 		}
+		var subscriptionID *uuid.UUID
+		if row.SubscriptionID.Valid {
+			id := uuid.UUID(row.SubscriptionID.Bytes)
+			subscriptionID = &id
+		}
 		result = append(result, eventuc.EventReadModel{
-			ID:           uuid.UUID(row.ID.Bytes),
-			UserID:       uuid.UUID(row.UserID.Bytes),
-			Title:        row.Title,
-			Description:  desc,
-			StartAt:      row.StartAt.Time,
-			EndAt:        row.EndAt.Time,
-			Location:     location,
-			URL:          url,
-			IsSubscribed: row.IsSubscribed,
+			ID:             uuid.UUID(row.ID.Bytes),
+			UserID:         uuid.UUID(row.UserID.Bytes),
+			Title:          row.Title,
+			Description:    desc,
+			StartAt:        row.StartAt.Time,
+			EndAt:          row.EndAt.Time,
+			Location:       location,
+			URL:            url,
+			IsSubscribed:   row.IsSubscribed,
+			SubscriptionID: subscriptionID,
 		})
 	}
 	return result, nil

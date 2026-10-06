@@ -45,6 +45,7 @@ const existingEvent: EventResponse = {
   location: '会議室A',
   url: 'https://example.com',
   isSubscribed: false,
+  subscriptionId: null,
 }
 
 function renderModal(

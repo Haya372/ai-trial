@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { pad } from '../../../lib/dateFormat'
 import { useEventDelete } from '../../event/hooks/useEventDelete'
+import { useSubscriptionDelete } from '../hooks/useSubscriptionDelete'
 import LabeledField from './LabeledField'
 
 interface EventDetailModalProps {
@@ -57,8 +58,16 @@ export default function EventDetailModal({
     setConfirmOpen(false)
     onClose()
   })
+  const { handleDelete: handleRemove, isDeleting: isRemoving } =
+    useSubscriptionDelete(event?.subscriptionId ?? null, () => {
+      setConfirmOpen(false)
+      onClose()
+    })
 
   if (!event) return null
+
+  const isBusy = event.isSubscribed ? isRemoving : isDeleting
+  const confirmAction = event.isSubscribed ? handleRemove : handleDelete
 
   return (
     <>
@@ -71,6 +80,11 @@ export default function EventDetailModal({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{event.title}</DialogTitle>
+            {event.isSubscribed && (
+              <span className="text-muted-foreground text-xs">
+                {t('eventDetail.subscribedBadge')}
+              </span>
+            )}
           </DialogHeader>
           <div className="flex flex-col gap-2 text-sm">
             <LabeledField label={t('eventDetail.startLabel')}>
@@ -102,17 +116,31 @@ export default function EventDetailModal({
               </LabeledField>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
-              {t('eventDetail.delete')}
-            </Button>
-            <Button variant="secondary" onClick={() => onEdit(event)}>
-              {t('eventDetail.edit')}
-            </Button>
-            <Button variant="secondary" onClick={() => onShare(event)}>
-              {t('eventDetail.share')}
-            </Button>
-          </DialogFooter>
+          {event.isSubscribed ? (
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmOpen(true)}
+              >
+                {t('eventDetail.removeFromCalendar')}
+              </Button>
+            </DialogFooter>
+          ) : (
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmOpen(true)}
+              >
+                {t('eventDetail.delete')}
+              </Button>
+              <Button variant="secondary" onClick={() => onEdit(event)}>
+                {t('eventDetail.edit')}
+              </Button>
+              <Button variant="secondary" onClick={() => onShare(event)}>
+                {t('eventDetail.share')}
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -120,22 +148,36 @@ export default function EventDetailModal({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('eventDetail.confirmDeleteTitle')}
+              {event.isSubscribed
+                ? t('eventDetail.confirmRemoveTitle')
+                : t('eventDetail.confirmDeleteTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('eventDetail.confirmDeleteDescription')}
+              {event.isSubscribed
+                ? t('eventDetail.confirmRemoveDescription')
+                : t('eventDetail.confirmDeleteDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
+            <AlertDialogCancel disabled={isBusy}>
               {t('eventDetail.cancel')}
             </AlertDialogCancel>
             <Button
               variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
+              onClick={confirmAction}
+              disabled={isBusy}
             >
-              {isDeleting ? t('eventDetail.deleting') : t('eventDetail.delete')}
+              {isBusy
+                ? t(
+                    event.isSubscribed
+                      ? 'eventDetail.removing'
+                      : 'eventDetail.deleting',
+                  )
+                : t(
+                    event.isSubscribed
+                      ? 'eventDetail.removeFromCalendar'
+                      : 'eventDetail.delete',
+                  )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

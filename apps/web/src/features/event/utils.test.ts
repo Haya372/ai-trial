@@ -55,6 +55,7 @@ describe('toFormValues', () => {
       location: '会議室A',
       url: 'https://example.com',
       isSubscribed: false,
+      subscriptionId: null,
     }
     const values = toFormValues(event)
     expect(values.title).toBe('デザインレビュー')
@@ -91,6 +92,7 @@ describe('toFormValues', () => {
       location: null,
       url: null,
       isSubscribed: false,
+      subscriptionId: null,
     }
     const values = toFormValues(event, initialStart)
     expect(values.startAt).toBe(toDateTimeLocalValue(event.startAt))
@@ -106,6 +108,7 @@ describe('toFormValues', () => {
       location: null,
       url: null,
       isSubscribed: false,
+      subscriptionId: null,
     }
     const values = toFormValues(event)
     expect(values.description).toBe('')
@@ -206,6 +209,18 @@ describe('getEventErrorMessage', () => {
   it('deleteモードでもNOT_FOUND等のコード別メッセージを返す', () => {
     expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'delete', t)).toBe(
       '予定が見つかりませんでした（削除された可能性があります）',
+    )
+  })
+
+  it('unsubscribeモードのNOT_FOUNDは予定自体ではなく購読の不在を伝えるメッセージを返す', () => {
+    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'unsubscribe', t)).toBe(
+      'この予定は既にカレンダーから削除されています',
+    )
+  })
+
+  it('未知のエラーの場合、unsubscribeモードではカレンダー削除失敗メッセージを返す', () => {
+    expect(getEventErrorMessage(new Error('unknown'), 'unsubscribe', t)).toBe(
+      'カレンダーからの削除に失敗しました',
     )
   })
 })

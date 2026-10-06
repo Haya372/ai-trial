@@ -24,7 +24,8 @@
   "toast": {
     "createSuccess": "予定を登録しました",
     "updateSuccess": "予定を更新しました",
-    "deleteSuccess": "予定を削除しました"
+    "deleteSuccess": "予定を削除しました",
+    "removeFromCalendarSuccess": "カレンダーから削除しました"
   },
   "validation": {
     "titleRequired": "タイトルを入力してください",
@@ -34,9 +35,11 @@
   },
   "errors": {
     "notFound": "予定が見つかりませんでした（削除された可能性があります）",
+    "subscriptionNotFound": "この予定は既にカレンダーから削除されています",
     "unauthorized": "ログインが必要です",
     "createFallback": "予定の登録に失敗しました",
     "editFallback": "予定の更新に失敗しました",
-    "deleteFallback": "予定の削除に失敗しました"
+    "deleteFallback": "予定の削除に失敗しました",
+    "unsubscribeFallback": "カレンダーからの削除に失敗しました"
   }
 }

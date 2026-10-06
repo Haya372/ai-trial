@@ -31,5 +31,7 @@ jobs:
         run: pnpm --filter @repo/ui lint
       - name: Type check
         run: pnpm --filter @repo/ui exec tsc --noEmit
+      - name: Run tests
+        run: pnpm --filter @repo/ui test
       - name: Build Storybook
         run: pnpm --filter @repo/ui build-storybook

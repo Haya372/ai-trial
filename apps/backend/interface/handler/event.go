@@ -24,14 +24,15 @@ const errCodeNotFound = "NOT_FOUND"
 // eventResponseBody is the JSON shape for a single event response.
 // Defined here because oapi-codegen v2 inlines these fields per-operation.
 type eventResponseBody struct {
-	ID           uuid.UUID `json:"id"`
-	Title        string    `json:"title"`
-	Description  *string   `json:"description,omitempty"`
-	StartAt      time.Time `json:"startAt"`
-	EndAt        time.Time `json:"endAt"`
-	Location     *string   `json:"location,omitempty"`
-	URL          *string   `json:"url,omitempty"`
-	IsSubscribed bool      `json:"isSubscribed"`
+	ID             uuid.UUID  `json:"id"`
+	Title          string     `json:"title"`
+	Description    *string    `json:"description,omitempty"`
+	StartAt        time.Time  `json:"startAt"`
+	EndAt          time.Time  `json:"endAt"`
+	Location       *string    `json:"location,omitempty"`
+	URL            *string    `json:"url,omitempty"`
+	IsSubscribed   bool       `json:"isSubscribed"`
+	SubscriptionID *uuid.UUID `json:"subscriptionId"`
 }
 
 // eventsListResponseBody is the JSON shape for the list events response.
@@ -117,14 +118,15 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 	}
 	for i, e := range events {
 		resp.Events[i] = eventResponseBody{
-			ID:           e.ID,
-			Title:        e.Title,
-			StartAt:      e.StartAt,
-			EndAt:        e.EndAt,
-			Description:  optionalString(e.Description),
-			Location:     optionalString(e.Location),
-			URL:          optionalString(e.URL),
-			IsSubscribed: e.IsSubscribed,
+			ID:             e.ID,
+			Title:          e.Title,
+			StartAt:        e.StartAt,
+			EndAt:          e.EndAt,
+			Description:    optionalString(e.Description),
+			Location:       optionalString(e.Location),
+			URL:            optionalString(e.URL),
+			IsSubscribed:   e.IsSubscribed,
+			SubscriptionID: e.SubscriptionID,
 		}
 	}
 
@@ -158,17 +160,19 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 }
 
 // toEventResponse builds the response for create/update, which only ever
-// act on the caller's own event, so IsSubscribed is always false.
+// act on the caller's own event, so IsSubscribed/SubscriptionId are always
+// false/nil.
 func toEventResponse(ev domainevent.Event) api.EventResponse {
 	return api.EventResponse{
-		Id:           ev.ID(),
-		Title:        ev.Title(),
-		StartAt:      ev.StartAt(),
-		EndAt:        ev.EndAt(),
-		Description:  optionalString(ev.Description()),
-		Location:     optionalString(ev.Location()),
-		Url:          optionalString(ev.URL()),
-		IsSubscribed: false,
+		Id:             ev.ID(),
+		Title:          ev.Title(),
+		StartAt:        ev.StartAt(),
+		EndAt:          ev.EndAt(),
+		Description:    optionalString(ev.Description()),
+		Location:       optionalString(ev.Location()),
+		Url:            optionalString(ev.URL()),
+		IsSubscribed:   false,
+		SubscriptionId: nil,
 	}
 }
 

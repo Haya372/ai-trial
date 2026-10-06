@@ -19,13 +19,18 @@
     "noteLabel": "メモ",
     "locationLabel": "場所",
     "urlLabel": "URL",
+    "subscribedBadge": "閲覧専用",
     "delete": "削除",
     "deleting": "削除中…",
     "edit": "編集",
     "share": "共有リンクを生成",
     "cancel": "キャンセル",
     "confirmDeleteTitle": "この予定を削除しますか？",
-    "confirmDeleteDescription": "この操作は取り消せません。"
+    "confirmDeleteDescription": "この操作は取り消せません。",
+    "removeFromCalendar": "カレンダーから削除",
+    "removing": "削除中…",
+    "confirmRemoveTitle": "この予定をカレンダーから削除しますか？",
+    "confirmRemoveDescription": "いつでも共有リンクから再度追加できます。"
   },
   "page": {
     "createButton": "新規作成",

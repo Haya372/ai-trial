@@ -13,7 +13,7 @@ import EventDetailModal from './EventDetailModal'
 
 vi.mock('../../../api/generated', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/generated')>()
-  return { ...actual, deleteEvent: vi.fn() }
+  return { ...actual, deleteEvent: vi.fn(), deleteSubscription: vi.fn() }
 })
 
 const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
@@ -50,6 +50,7 @@ const mockEvent: EventResponse = {
   location: null,
   url: null,
   isSubscribed: false,
+  subscriptionId: null,
 }
 
 const mockEventWithDetails: EventResponse = {
@@ -57,6 +58,12 @@ const mockEventWithDetails: EventResponse = {
   description: '設計方針をレビューする',
   location: '会議室A',
   url: 'https://example.com/agenda',
+}
+
+const mockSubscribedEvent: EventResponse = {
+  ...mockEvent,
+  isSubscribed: true,
+  subscriptionId: 'subscription-1',
 }
 
 function renderModal(
@@ -149,6 +156,122 @@ describe('EventDetailModal', () => {
       const { onShare } = renderModal()
       fireEvent.click(screen.getByRole('button', { name: '共有リンクを生成' }))
       expect(onShare).toHaveBeenCalledWith(mockEvent)
+    })
+  })
+
+  describe('購読中の予定（isSubscribed）', () => {
+    it('isSubscribedがtrueのとき「閲覧専用」を表示する', () => {
+      renderModal({ event: mockSubscribedEvent })
+      expect(screen.getByText('閲覧専用')).toBeInTheDocument()
+    })
+
+    it('isSubscribedがfalseのとき「閲覧専用」を表示しない', () => {
+      renderModal()
+      expect(screen.queryByText('閲覧専用')).not.toBeInTheDocument()
+    })
+
+    it('isSubscribedがtrueのとき編集・共有ボタンを表示しない', () => {
+      renderModal({ event: mockSubscribedEvent })
+      expect(
+        screen.queryByRole('button', { name: '編集' }),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: '共有リンクを生成' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('isSubscribedがtrueのとき「カレンダーから削除」ボタンを表示する', () => {
+      renderModal({ event: mockSubscribedEvent })
+      expect(
+        screen.getByRole('button', { name: 'カレンダーから削除' }),
+      ).toBeInTheDocument()
+    })
+
+    it('isSubscribedがfalseのとき「カレンダーから削除」ボタンを表示しない', () => {
+      renderModal()
+      expect(
+        screen.queryByRole('button', { name: 'カレンダーから削除' }),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  describe('カレンダーから削除（購読中の予定）', () => {
+    it('「カレンダーから削除」ボタン押下で確認ダイアログを表示する', () => {
+      renderModal({ event: mockSubscribedEvent })
+      fireEvent.click(
+        screen.getByRole('button', { name: 'カレンダーから削除' }),
+      )
+      expect(
+        screen.getByText('この予定をカレンダーから削除しますか？'),
+      ).toBeInTheDocument()
+    })
+
+    it('確認ダイアログで「キャンセル」を押すと確認ダイアログを閉じ、詳細モーダルは開いたままになる', () => {
+      const { onClose } = renderModal({ event: mockSubscribedEvent })
+      fireEvent.click(
+        screen.getByRole('button', { name: 'カレンダーから削除' }),
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'キャンセル' }))
+      expect(
+        screen.queryByText('この予定をカレンダーから削除しますか？'),
+      ).not.toBeInTheDocument()
+      expect(screen.getByText('デザインレビュー')).toBeInTheDocument()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it('確認ダイアログで「カレンダーから削除」を押すとdeleteSubscriptionを呼び、成功後にonCloseを呼ぶ', async () => {
+      const { deleteSubscription } = await import('../../../api/generated')
+      vi.mocked(deleteSubscription).mockResolvedValueOnce({
+        data: undefined,
+        status: 204,
+        headers: new Headers(),
+      } as never)
+
+      const { onClose } = renderModal({ event: mockSubscribedEvent })
+      fireEvent.click(
+        screen.getByRole('button', { name: 'カレンダーから削除' }),
+      )
+      const confirmDialog = screen.getByRole('alertdialog')
+      fireEvent.click(
+        within(confirmDialog).getByRole('button', {
+          name: 'カレンダーから削除',
+        }),
+      )
+
+      await waitFor(() => {
+        expect(deleteSubscription).toHaveBeenCalledWith('subscription-1')
+      })
+      await waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        'カレンダーから削除しました',
+      )
+    })
+
+    it('削除失敗時はエラートーストを表示し、モーダルを閉じない', async () => {
+      const { deleteSubscription } = await import('../../../api/generated')
+      vi.mocked(deleteSubscription).mockResolvedValueOnce({
+        data: { code: 'INTERNAL_ERROR', message: 'error' },
+        status: 500,
+        headers: new Headers(),
+      } as never)
+
+      const { onClose } = renderModal({ event: mockSubscribedEvent })
+      fireEvent.click(
+        screen.getByRole('button', { name: 'カレンダーから削除' }),
+      )
+      fireEvent.click(
+        within(screen.getByRole('alertdialog')).getByRole('button', {
+          name: 'カレンダーから削除',
+        }),
+      )
+
+      await waitFor(() => {
+        expect(mockToastError).toHaveBeenCalledWith(
+          'サーバーエラーが発生しました。しばらく経ってから再試行してください',
+        )
+      })
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByText('デザインレビュー')).toBeInTheDocument()
     })
   })
 

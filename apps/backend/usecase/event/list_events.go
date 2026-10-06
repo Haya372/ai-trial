@@ -27,6 +27,10 @@ type EventReadModel struct {
 	// caller. Such events are read-only. The query side's SQL (ADR-022
 	// logical CQRS) sets this directly, so this layer just passes it through.
 	IsSubscribed bool
+	// SubscriptionID is the EventSubscription's own ID, set only when
+	// IsSubscribed is true. Callers need it to remove the event from their
+	// calendar via DELETE /subscriptions/{id}.
+	SubscriptionID *uuid.UUID
 }
 
 type ListEventsQuery struct {
