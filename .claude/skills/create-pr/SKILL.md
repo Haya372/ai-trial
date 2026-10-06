@@ -19,16 +19,18 @@ description: GitHubにPRを作成するとき。
 `.github/PULL_REQUEST_TEMPLATE.md` の構成を参照しながら、各セクションの内容を実際の値で埋めてbodyを構築する。
 
 ```bash
-gh pr create \
-  --title "<type>: <English title>" \
-  --body "$(cat <<'EOF'
+# ※ --body "$(cat <<EOF ... EOF)" はsandbox環境で不安定なため使わない
+cat > "$TMPDIR/pr-body.md" <<'EOF'
 ## 概要
 
 <変更内容の簡潔な説明>
 
 ...（テンプレートのセクションを埋める）
 EOF
-)"
+
+gh pr create \
+  --title "<type>: <English title>" \
+  --body-file "$TMPDIR/pr-body.md"
 ```
 
 ## チェックリスト

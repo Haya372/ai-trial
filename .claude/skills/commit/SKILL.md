@@ -73,13 +73,14 @@ git add <file>...
 # コミット（本文なし）
 git commit -m "<type>: <summary>"
 
-# コミット（本文あり）
-git commit -m "$(cat <<'EOF'
+# コミット（本文あり）: 一時ファイルに書いてから -F で渡す
+# ※ git commit -m "$(cat <<EOF ... EOF)" はsandbox環境で不安定なため使わない
+cat > "$TMPDIR/commit-msg.txt" <<'EOF'
 <type>: <summary>
 
 <body>
 EOF
-)"
+git commit -F "$TMPDIR/commit-msg.txt"
 ```
 
 ## チェックリスト
