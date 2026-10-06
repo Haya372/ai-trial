@@ -9,7 +9,7 @@ interface RunEventMutationParams {
   queryClient: QueryClient
   request: Promise<{ status: number; data: unknown }>
   expectedStatus: number
-  mode: EventFormMode | 'delete'
+  mode: EventFormMode | 'delete' | 'unsubscribe'
   successMessage: string
   t: TFunction<['event', 'common']>
   onSuccess: (data: unknown) => void

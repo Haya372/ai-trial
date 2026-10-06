@@ -90,12 +90,13 @@ export function toFormValues(
 type EventTFunction = TFunction<['event', 'common']>
 
 const fallbackKeyByMode: Record<
-  EventFormMode | 'delete',
+  EventFormMode | 'delete' | 'unsubscribe',
   ParseKeys<['event', 'common']>
 > = {
   create: 'errors.createFallback',
   edit: 'errors.editFallback',
   delete: 'errors.deleteFallback',
+  unsubscribe: 'errors.unsubscribeFallback',
 }
 
 const codeToKey: Record<string, ParseKeys<['event', 'common']>> = {
@@ -105,10 +106,20 @@ const codeToKey: Record<string, ParseKeys<['event', 'common']>> = {
   INTERNAL_ERROR: 'common:errors.internalError',
 }
 
+// unsubscribe only removes the caller's EventSubscription, not the event
+// itself, so a 404 here means "already removed from your calendar", not
+// "event not found" — distinct enough from codeToKey's NOT_FOUND to warrant
+// its own map rather than a mode-keyed exception inside one shared map.
+const unsubscribeCodeToKey: Record<string, ParseKeys<['event', 'common']>> = {
+  ...codeToKey,
+  NOT_FOUND: 'errors.subscriptionNotFound',
+}
+
 export function getEventErrorMessage(
   error: unknown,
-  mode: EventFormMode | 'delete',
+  mode: EventFormMode | 'delete' | 'unsubscribe',
   t: EventTFunction,
 ): string {
-  return mapErrorToMessage(error, t, codeToKey, fallbackKeyByMode[mode])
+  const map = mode === 'unsubscribe' ? unsubscribeCodeToKey : codeToKey
+  return mapErrorToMessage(error, t, map, fallbackKeyByMode[mode])
 }

@@ -19,7 +19,7 @@ export function useSubscriptionDelete(
       queryClient,
       request: deleteSubscription(subscriptionId),
       expectedStatus: 204,
-      mode: 'delete',
+      mode: 'unsubscribe',
       successMessage: t('toast.removeFromCalendarSuccess'),
       t,
       onSuccess: onDeleted,

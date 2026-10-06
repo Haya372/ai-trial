@@ -164,4 +164,16 @@ describe('getEventErrorMessage', () => {
       '予定が見つかりませんでした（削除された可能性があります）',
     )
   })
+
+  it('unsubscribeモードのNOT_FOUNDは予定自体ではなく購読の不在を伝えるメッセージを返す', () => {
+    expect(getEventErrorMessage({ code: 'NOT_FOUND' }, 'unsubscribe', t)).toBe(
+      'この予定は既にカレンダーから削除されています',
+    )
+  })
+
+  it('未知のエラーの場合、unsubscribeモードではカレンダー削除失敗メッセージを返す', () => {
+    expect(getEventErrorMessage(new Error('unknown'), 'unsubscribe', t)).toBe(
+      'カレンダーからの削除に失敗しました',
+    )
+  })
 })
