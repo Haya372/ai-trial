@@ -70,9 +70,15 @@ Dev Container 内では `bubblewrap` によるファイルシステム・ネッ�
 | 設定 | 値 | 説明 |
 |---|---|---|
 | `sandbox.enabled` | `true` | サンドボックス有効 |
+| `sandbox.autoAllowBashIfSandboxed` | `true` | サンドボックス内で実行されるBashコマンドは許可プロンプトを省略 |
+| `sandbox.allowUnsandboxedCommands` | `false` | `dangerouslyDisableSandbox` によるサンドボックス回避を禁止し、全コマンドをサンドボックス経由に強制 |
+| `sandbox.enableWeakerNetworkIsolation` | `true` | TLS証明書検証などで`trustd`へのアクセスが必要なツール（gh/gcloud等）のために分離を緩和 |
 | `sandbox.excludedCommands` | `["docker *", "gh *", "git *"]` | sandbox 非対応またはTLS問題があるコマンドを除外 |
 | `sandbox.credentials.files` | `~/.aws`, `~/.ssh` | クレデンシャルファイルを読み取り禁止 |
 | `sandbox.network.allowedDomains` | GitHub, npm, Go など | Bash コマンドが到達できるドメイン |
+| `permissions.disableBypassPermissionsMode` | `"disable"` | Bypass Permissions モードへの切り替えを禁止 |
+
+`hooks.PreToolUse`（matcher: `Bash`）には、`git commit -m "$(cat <<EOF ... EOF)"` のようなheredoc×コマンド置換パターンを検知してブロックするhookを設定しています。このパターンはサンドボックス環境によって不安定になることがあるため、`$TMPDIR` 配下に一時ファイルを書いて `git commit -F <file>` / `gh pr create --body-file <file>` を使う方式に誘導します。
 
 `enableWeakerNestedSandbox: true` は `postCreateCommand` によってコンテナ内の `.claude/settings.local.json` にのみ書き込まれます。ホスト直実行時には適用されません。
 
