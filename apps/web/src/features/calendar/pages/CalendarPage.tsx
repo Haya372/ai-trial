@@ -64,6 +64,7 @@ export default function CalendarPage() {
     title: e.title,
     start: new Date(e.startAt),
     end: new Date(e.endAt),
+    isSubscribed: e.isSubscribed,
   }))
 
   function handleEventClick(event: CalendarEvent) {

@@ -9,6 +9,7 @@ import type {
 } from '@fullcalendar/react'
 import { useEffect, useRef } from 'react'
 import { createDateClickHandler } from './createDateClickHandler'
+import { eventClassNames } from './eventClassNames'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -46,6 +47,7 @@ export function MonthCalendar({
     title: e.title,
     start: e.start,
     end: e.end,
+    classNames: eventClassNames(e),
     extendedProps: { calendarEvent: e },
   }))
 
