@@ -24,7 +24,8 @@
   "toast": {
     "createSuccess": "Event created",
     "updateSuccess": "Event updated",
-    "deleteSuccess": "Event deleted"
+    "deleteSuccess": "Event deleted",
+    "removeFromCalendarSuccess": "Removed from your calendar"
   },
   "validation": {
     "titleRequired": "Title is required",

@@ -24,7 +24,8 @@
   "toast": {
     "createSuccess": "予定を登録しました",
     "updateSuccess": "予定を更新しました",
-    "deleteSuccess": "予定を削除しました"
+    "deleteSuccess": "予定を削除しました",
+    "removeFromCalendarSuccess": "カレンダーから削除しました"
   },
   "validation": {
     "titleRequired": "タイトルを入力してください",

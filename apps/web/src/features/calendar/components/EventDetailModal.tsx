@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { pad } from '../../../lib/dateFormat'
 import { useEventDelete } from '../../event/hooks/useEventDelete'
+import { useSubscriptionDelete } from '../hooks/useSubscriptionDelete'
 import LabeledField from './LabeledField'
 
 interface EventDetailModalProps {
@@ -57,8 +58,16 @@ export default function EventDetailModal({
     setConfirmOpen(false)
     onClose()
   })
+  const { handleDelete: handleRemove, isDeleting: isRemoving } =
+    useSubscriptionDelete(event?.subscriptionId ?? null, () => {
+      setConfirmOpen(false)
+      onClose()
+    })
 
   if (!event) return null
+
+  const isBusy = event.isSubscribed ? isRemoving : isDeleting
+  const confirmAction = event.isSubscribed ? handleRemove : handleDelete
 
   return (
     <>
@@ -107,7 +116,16 @@ export default function EventDetailModal({
               </LabeledField>
             )}
           </div>
-          {!event.isSubscribed && (
+          {event.isSubscribed ? (
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmOpen(true)}
+              >
+                {t('eventDetail.removeFromCalendar')}
+              </Button>
+            </DialogFooter>
+          ) : (
             <DialogFooter>
               <Button
                 variant="destructive"
@@ -130,22 +148,32 @@ export default function EventDetailModal({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t('eventDetail.confirmDeleteTitle')}
+              {event.isSubscribed
+                ? t('eventDetail.confirmRemoveTitle')
+                : t('eventDetail.confirmDeleteTitle')}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t('eventDetail.confirmDeleteDescription')}
+              {event.isSubscribed
+                ? t('eventDetail.confirmRemoveDescription')
+                : t('eventDetail.confirmDeleteDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
+            <AlertDialogCancel disabled={isBusy}>
               {t('eventDetail.cancel')}
             </AlertDialogCancel>
             <Button
               variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
+              onClick={confirmAction}
+              disabled={isBusy}
             >
-              {isDeleting ? t('eventDetail.deleting') : t('eventDetail.delete')}
+              {isBusy
+                ? t(
+                    event.isSubscribed
+                      ? 'eventDetail.removing'
+                      : 'eventDetail.deleting',
+                  )
+                : t('eventDetail.delete')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

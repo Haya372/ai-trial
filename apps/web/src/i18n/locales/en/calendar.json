@@ -26,7 +26,11 @@
     "share": "共有リンクを生成",
     "cancel": "Cancel",
     "confirmDeleteTitle": "Delete this event?",
-    "confirmDeleteDescription": "This action cannot be undone."
+    "confirmDeleteDescription": "This action cannot be undone.",
+    "removeFromCalendar": "Remove from calendar",
+    "removing": "Removing…",
+    "confirmRemoveTitle": "Remove this event from your calendar?",
+    "confirmRemoveDescription": "You can add it again anytime from the share link."
   },
   "page": {
     "createButton": "Create",
