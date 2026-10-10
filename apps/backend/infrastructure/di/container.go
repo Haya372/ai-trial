@@ -198,7 +198,8 @@ func newRouter(
 	r.Use(mw.Metrics(mp))
 	r.Use(mw.AccessLog(logger))
 	r.Get("/health", health.ServeHTTP)
-	r.Handle("/metrics", telemetry.NewMetricsHandler(metricsReader))
+	r.With(mw.RequireMetricsToken(os.Getenv("METRICS_BEARER_TOKEN"))).
+		Handle("/metrics", telemetry.NewMetricsHandler(metricsReader))
 	r.Post("/auth/signup", auth.Signup)
 	r.Post("/auth/login", auth.Login)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/auth/logout", auth.Logout)
