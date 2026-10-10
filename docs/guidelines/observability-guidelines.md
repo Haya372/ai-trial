@@ -190,6 +190,25 @@ if err != nil {
 | `http_errors_total` | Counter | `method`, `path`, `status` | 4xx/5xx のエラー数 |
 | `http_request_duration_seconds` | Histogram | `method`, `path` | リクエスト処理時間 |
 
+### `/metrics` のアクセス制限
+
+`/metrics` は Bearer トークン認証で保護する（ADR-032）。
+
+- 環境変数 `METRICS_BEARER_TOKEN` にトークンを設定し、スクレイパーは `Authorization: Bearer <token>` を付けてアクセスする
+- `METRICS_BEARER_TOKEN` が未設定の場合、全リクエストが 401 になる。メトリクスを収集する環境では必ず設定する
+- トークンはリポジトリにコミットせず、十分な長さのランダム値を使う
+- 可能な環境ではリバースプロキシやセキュリティグループで `/metrics` を内部ネットワークに限定し、認証と併用する
+
+Prometheus の設定例:
+
+```yaml
+scrape_configs:
+  - job_name: backend
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
+```
+
 ### 命名規則
 
 - スネークケースで記述する（例: `http_request_duration_seconds`）
