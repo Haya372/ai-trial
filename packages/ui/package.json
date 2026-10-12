@@ -31,16 +31,16 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@storybook/react": "10.6.0",
-    "@storybook/react-vite": "10.6.0",
+    "@storybook/react": "10.6.1",
+    "@storybook/react-vite": "10.6.1",
     "@tailwindcss/vite": "4.3.3",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "npm-run-all2": "catalog:",
     "oxlint": "catalog:",
-    "storybook": "10.6.0",
+    "storybook": "10.6.1",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:",
-    "vitest": "5.0.2"
+    "vitest": "5.0.3"
   }
 }
