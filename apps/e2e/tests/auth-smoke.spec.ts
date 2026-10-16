@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('サインアップ後、同じ認証情報でログインできる', async ({ page }) => {
   const email = `e2e-${Date.now()}@example.com`
-  const password = 'password1234'
+  const password = 'Passw0rd!1234'
 
   await page.goto('/signup')
   await page.getByLabel('メールアドレス').fill(email)
