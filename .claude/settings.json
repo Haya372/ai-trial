@@ -12,7 +12,7 @@
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false,
     "enableWeakerNetworkIsolation": true,
-    "excludedCommands": ["docker *", "gh *", "git *"],
+    "excludedCommands": ["docker *", "gh *", "git *", "make test-coverage TAGS=integration"],
     "credentials": {
       "files": [
         { "path": "~/.aws/credentials", "mode": "deny" },
@@ -31,7 +31,11 @@
       ]
     },
     "filesystem": {
-      "allowRead": ["./.env.example"]
+      "allowRead": ["./.env.example"],
+      "allowWrite": [
+        "~/Library/Caches/go-build",
+        "~/Library/Caches/golangci-lint"
+      ]
     }
   },
   "hooks": {
