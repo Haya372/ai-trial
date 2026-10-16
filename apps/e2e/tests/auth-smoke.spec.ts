@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('サインアップ後、同じ認証情報でログインできる', async ({ page }) => {
+test('サインアップ後、同じ認証情報でログインし、ログアウトできる', async ({ page }) => {
   const email = `e2e-${Date.now()}@example.com`
   const password = 'Passw0rd!1234'
 
@@ -17,4 +17,11 @@ test('サインアップ後、同じ認証情報でログインできる', async
   await page.getByLabel('パスワード').fill(password)
   await page.getByRole('button', { name: 'ログイン' }).click()
   await expect(page).toHaveURL('/')
+
+  await page.getByRole('button', { name: 'ログアウト' }).click()
+  await expect(page).toHaveURL('/login')
+
+  // 認証必須ページには戻れない
+  await page.goto('/')
+  await expect(page).toHaveURL('/login')
 })
