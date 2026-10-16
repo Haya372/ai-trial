@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../stores/calendarStore'
+import LogoutButton from '../../auth/components/LogoutButton'
 import EventFormModal from '../../event/components/EventFormModal'
 import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
@@ -138,6 +139,7 @@ export default function CalendarPage() {
             {t('page.createButton')}
           </Button>
           <CalendarViewTabs view={view} onViewChange={setView} />
+          <LogoutButton />
         </div>
       </div>
 
