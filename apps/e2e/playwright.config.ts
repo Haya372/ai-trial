@@ -21,6 +21,8 @@ export default defineConfig({
       cwd: '../backend',
       url: `http://localhost:${backendPort}/health`,
       env: { PORT: String(backendPort) },
+      // go run はコールドキャッシュ時にコンパイルを含むため、既定の60秒では足りない場合がある
+      timeout: 180_000,
       reuseExistingServer: !isCI,
     },
     {
