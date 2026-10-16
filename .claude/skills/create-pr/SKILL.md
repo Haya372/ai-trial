@@ -18,19 +18,17 @@ description: GitHubにPRを作成するとき。
 
 `.github/PULL_REQUEST_TEMPLATE.md` の構成を参照しながら、各セクションの内容を実際の値で埋めてbodyを構築する。
 
+body ファイルは、Write ツールでスクラッチパッドディレクトリ（システムプロンプトに記載の絶対パス）に作成し、その絶対パスを `--body-file` に渡す。
+
+`gh` はsandbox外で実行されるため、`$TMPDIR` の値がsandbox内と異なり、`$TMPDIR/pr-body.md` を渡すと「no such file or directory」で失敗する。
+
 ```bash
 # ※ --body "$(cat <<EOF ... EOF)" はsandbox環境で不安定なため使わない
-cat > "$TMPDIR/pr-body.md" <<'EOF'
-## 概要
-
-<変更内容の簡潔な説明>
-
-...（テンプレートのセクションを埋める）
-EOF
+# 事前に Write ツールで <scratchpad>/pr-body.md を作成する（テンプレートのセクションを埋める）
 
 gh pr create \
   --title "<type>: <English title>" \
-  --body-file "$TMPDIR/pr-body.md"
+  --body-file "<scratchpad>/pr-body.md"
 ```
 
 ## チェックリスト
