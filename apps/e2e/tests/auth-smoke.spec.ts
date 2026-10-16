@@ -21,6 +21,10 @@ test('サインアップ後、同じ認証情報でログインし、ログア�
   await page.getByRole('button', { name: 'ログアウト' }).click()
   await expect(page).toHaveURL('/login')
 
+  // サーバー側のセッションが破棄されている（リロードによるストア消失とは独立に検証する）
+  const me = await page.request.get('/api/auth/me')
+  expect(me.status()).toBe(401)
+
   // 認証必須ページには戻れない
   await page.goto('/')
   await expect(page).toHaveURL('/login')
