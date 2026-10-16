@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
+	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
@@ -97,29 +98,40 @@ func setupRouteTest(t *testing.T) {
 
 // --- DB assertion helpers ---
 
-func assertSessionExistsInDB(t *testing.T, sessionID string) {
+// sessionRowCount counts sessions stored for a cookie value. The DB holds only
+// the token hash (ADR-033), so the cookie value is hashed before lookup.
+func sessionRowCount(t *testing.T, cookieValue string) int {
 	t.Helper()
 	var count int
 	err := routeTestPool.QueryRow(context.Background(),
-		"SELECT COUNT(*) FROM sessions WHERE id = $1", sessionID).Scan(&count)
+		"SELECT COUNT(*) FROM sessions WHERE token_hash = $1",
+		session.NewToken(cookieValue).Hash().String()).Scan(&count)
 	if err != nil {
 		t.Fatalf("query session: %v", err)
 	}
-	if count == 0 {
-		t.Errorf("expected session %s to exist in DB", sessionID)
+	return count
+}
+
+func assertSessionExistsInDB(t *testing.T, cookieValue string) {
+	t.Helper()
+	if sessionRowCount(t, cookieValue) == 0 {
+		t.Error("expected a session for the cookie value to exist in DB")
+	}
+	var plaintextRows int
+	err := routeTestPool.QueryRow(context.Background(),
+		"SELECT COUNT(*) FROM sessions WHERE token_hash = $1", cookieValue).Scan(&plaintextRows)
+	if err != nil {
+		t.Fatalf("query session: %v", err)
+	}
+	if plaintextRows != 0 {
+		t.Error("plaintext cookie value must not be stored in sessions.token_hash")
 	}
 }
 
-func assertSessionNotExistsInDB(t *testing.T, sessionID string) {
+func assertSessionNotExistsInDB(t *testing.T, cookieValue string) {
 	t.Helper()
-	var count int
-	err := routeTestPool.QueryRow(context.Background(),
-		"SELECT COUNT(*) FROM sessions WHERE id = $1", sessionID).Scan(&count)
-	if err != nil {
-		t.Fatalf("query session: %v", err)
-	}
-	if count != 0 {
-		t.Errorf("expected session %s to be deleted from DB, but it still exists", sessionID)
+	if sessionRowCount(t, cookieValue) != 0 {
+		t.Error("expected the session to be deleted from DB, but it still exists")
 	}
 }
 
