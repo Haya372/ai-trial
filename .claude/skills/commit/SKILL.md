@@ -75,7 +75,9 @@ git commit -m "<type>: <summary>"
 
 # コミット（本文あり）: 一時ファイルに書いてから -F で渡す
 # ※ git commit -m "$(cat <<EOF ... EOF)" はsandbox環境で不安定なため使わない
-cat > "$TMPDIR/commit-msg.txt" <<'EOF'
+# ※ シェルの noclobber が有効だと `>` は既存ファイルを上書きできず「file exists」で失敗し、
+#    前回のメッセージが残ったままコミットされうる。上書きできる `>|` を使う
+cat >| "$TMPDIR/commit-msg.txt" <<'EOF'
 <type>: <summary>
 
 <body>
