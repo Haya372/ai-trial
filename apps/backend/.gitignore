@@ -2,3 +2,5 @@ infrastructure/db/generated/
 infrastructure/db/mock/
 interface/api/generated/
 domain/*/generated/
+
+coverage.out
