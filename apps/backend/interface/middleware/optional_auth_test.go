@@ -41,36 +41,11 @@ func TestOptionalAuth_noCookie_callsNextWithoutUser(t *testing.T) {
 	}
 }
 
-func TestOptionalAuth_invalidUUID_callsNextWithoutUser(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	sessRepo := sessionmock.NewMockRepository(ctrl)
-	userRepo := usermock.NewMockRepository(ctrl)
-
-	called := false
-	var capturedUser user.User
-	mw := middleware.OptionalAuth(sessRepo, userRepo, testLogger)
-	h := mw(nextHandlerCapture(&called, &capturedUser))
-
-	req := requestWithCookie(t, "not-a-uuid")
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-
-	if !called {
-		t.Error("expected next handler to be called")
-	}
-	if capturedUser != nil {
-		t.Errorf("expected nil user in context, got %v", capturedUser)
-	}
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", rec.Code)
-	}
-}
-
 func TestOptionalAuth_sessionNotFound_callsNextWithoutUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sessRepo := sessionmock.NewMockRepository(ctrl)
 	userRepo := usermock.NewMockRepository(ctrl)
-	sessRepo.EXPECT().FindActiveByID(gomock.Any(), gomock.Any()).Return(nil, nil)
+	sessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	called := false
 	var capturedUser user.User
@@ -96,7 +71,7 @@ func TestOptionalAuth_sessionRepoError_callsNextWithoutUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sessRepo := sessionmock.NewMockRepository(ctrl)
 	userRepo := usermock.NewMockRepository(ctrl)
-	sessRepo.EXPECT().FindActiveByID(gomock.Any(), gomock.Any()).Return(nil, errDB)
+	sessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), gomock.Any()).Return(nil, errDB)
 
 	called := false
 	var capturedUser user.User
@@ -121,12 +96,13 @@ func TestOptionalAuth_sessionRepoError_callsNextWithoutUser(t *testing.T) {
 func TestOptionalAuth_userNotFound_callsNextWithoutUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sessID := uuid.New()
+	token := session.NewToken("test-session-token")
 	userID := uuid.New()
 
 	sess := session.New(sessID, userID, time.Now().Add(time.Hour))
 	sessRepo := sessionmock.NewMockRepository(ctrl)
 	userRepo := usermock.NewMockRepository(ctrl)
-	sessRepo.EXPECT().FindActiveByID(gomock.Any(), sessID).Return(sess, nil)
+	sessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), token.Hash()).Return(sess, nil)
 	userRepo.EXPECT().FindByID(gomock.Any(), userID).Return(nil, nil)
 
 	called := false
@@ -134,7 +110,7 @@ func TestOptionalAuth_userNotFound_callsNextWithoutUser(t *testing.T) {
 	mw := middleware.OptionalAuth(sessRepo, userRepo, testLogger)
 	h := mw(nextHandlerCapture(&called, &capturedUser))
 
-	req := requestWithCookie(t, sessID.String())
+	req := requestWithCookie(t, token.String())
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

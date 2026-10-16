@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/Haya372/ai-trial/backend/domain"
+	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler"
@@ -42,14 +43,14 @@ func (s *stubLoginExec) Execute(ctx context.Context, in authuc.LoginInput) (*aut
 }
 
 type stubLogoutExec struct {
-	fn func(context.Context, uuid.UUID) error
+	fn func(context.Context, session.Token) error
 }
 
-func (s *stubLogoutExec) Execute(ctx context.Context, id uuid.UUID) error {
+func (s *stubLogoutExec) Execute(ctx context.Context, token session.Token) error {
 	if s.fn == nil {
 		return nil
 	}
-	return s.fn(ctx, id)
+	return s.fn(ctx, token)
 }
 
 // --- stub user.User ---
@@ -104,12 +105,12 @@ func sessionCookieForRequest(value string) *http.Cookie {
 
 func TestAuthHandler_Signup_validInput_returns201_and_sets_cookie(t *testing.T) {
 	fixedUserID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-	fixedSessID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	fixedToken := session.NewToken("signup-session-token")
 
 	stub := &stubSignupExec{fn: func(_ context.Context, _ authuc.SignupInput) (*authuc.AuthOutput, error) {
 		return &authuc.AuthOutput{
-			User:      newStubUser(fixedUserID, "u@ex.com", "U"),
-			SessionID: fixedSessID,
+			User:         newStubUser(fixedUserID, "u@ex.com", "U"),
+			SessionToken: fixedToken,
 		}, nil
 	}}
 	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
@@ -122,12 +123,12 @@ func TestAuthHandler_Signup_validInput_returns201_and_sets_cookie(t *testing.T) 
 	}
 	hasCookie := false
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == testSessionCookieName && c.Value == fixedSessID.String() {
+		if c.Name == testSessionCookieName && c.Value == fixedToken.String() {
 			hasCookie = true
 		}
 	}
 	if !hasCookie {
-		t.Errorf("expected Set-Cookie: %s=%s", testSessionCookieName, fixedSessID)
+		t.Errorf("expected Set-Cookie: %s=%s", testSessionCookieName, fixedToken)
 	}
 }
 
@@ -185,8 +186,8 @@ func TestAuthHandler_Signup_responseBody_containsUserFields(t *testing.T) {
 
 	stub := &stubSignupExec{fn: func(_ context.Context, _ authuc.SignupInput) (*authuc.AuthOutput, error) {
 		return &authuc.AuthOutput{
-			User:      newStubUser(fixedUserID, "body@ex.com", "Body"),
-			SessionID: uuid.New(),
+			User:         newStubUser(fixedUserID, "body@ex.com", "Body"),
+			SessionToken: session.NewToken("any-session-token"),
 		}, nil
 	}}
 	h := handler.NewAuthHandler(stub, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
@@ -212,12 +213,12 @@ func TestAuthHandler_Signup_responseBody_containsUserFields(t *testing.T) {
 
 func TestAuthHandler_Login_validCredentials_returns200_and_sets_cookie(t *testing.T) {
 	fixedUserID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-	fixedSessID := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
+	fixedToken := session.NewToken("login-session-token")
 
 	stub := &stubLoginExec{fn: func(_ context.Context, _ authuc.LoginInput) (*authuc.AuthOutput, error) {
 		return &authuc.AuthOutput{
-			User:      newStubUser(fixedUserID, "u@ex.com", "U"),
-			SessionID: fixedSessID,
+			User:         newStubUser(fixedUserID, "u@ex.com", "U"),
+			SessionToken: fixedToken,
 		}, nil
 	}}
 	h := handler.NewAuthHandler(&stubSignupExec{}, stub, &stubLogoutExec{}, testLogger)
@@ -230,12 +231,12 @@ func TestAuthHandler_Login_validCredentials_returns200_and_sets_cookie(t *testin
 	}
 	hasCookie := false
 	for _, c := range rec.Result().Cookies() {
-		if c.Name == testSessionCookieName {
+		if c.Name == testSessionCookieName && c.Value == fixedToken.String() {
 			hasCookie = true
 		}
 	}
 	if !hasCookie {
-		t.Errorf("expected Set-Cookie: %s", testSessionCookieName)
+		t.Errorf("expected Set-Cookie: %s=%s", testSessionCookieName, fixedToken)
 	}
 }
 
@@ -284,24 +285,24 @@ func TestAuthHandler_Login_internalError_returns500(t *testing.T) {
 // --- Logout tests ---
 
 func TestAuthHandler_Logout_withValidCookie_returns204_and_clears_cookie(t *testing.T) {
-	sessID := uuid.New()
-	var deletedID uuid.UUID
-	stub := &stubLogoutExec{fn: func(_ context.Context, id uuid.UUID) error {
-		deletedID = id
+	cookieToken := session.NewToken("logout-session-token")
+	var deletedToken session.Token
+	stub := &stubLogoutExec{fn: func(_ context.Context, token session.Token) error {
+		deletedToken = token
 		return nil
 	}}
 	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, stub, testLogger)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
-	req.AddCookie(sessionCookieForRequest(sessID.String()))
+	req.AddCookie(sessionCookieForRequest(cookieToken.String()))
 	rec := httptest.NewRecorder()
 	h.Logout(rec, req)
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", rec.Code)
 	}
-	if deletedID != sessID {
-		t.Errorf("expected delete called with %v, got %v", sessID, deletedID)
+	if deletedToken.String() != cookieToken.String() {
+		t.Errorf("expected logout called with token %q, got %q", cookieToken.String(), deletedToken.String())
 	}
 	cleared := false
 	for _, c := range rec.Result().Cookies() {
@@ -326,21 +327,8 @@ func TestAuthHandler_Logout_noCookie_returns401(t *testing.T) {
 	}
 }
 
-func TestAuthHandler_Logout_invalidCookieUUID_returns401(t *testing.T) {
-	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, &stubLogoutExec{}, testLogger)
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/logout", nil)
-	req.AddCookie(sessionCookieForRequest("not-a-uuid"))
-	rec := httptest.NewRecorder()
-	h.Logout(rec, req)
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d", rec.Code)
-	}
-}
-
 func TestAuthHandler_Logout_executionError_returns500(t *testing.T) {
-	stub := &stubLogoutExec{fn: func(_ context.Context, _ uuid.UUID) error {
+	stub := &stubLogoutExec{fn: func(_ context.Context, _ session.Token) error {
 		return errInternal
 	}}
 	h := handler.NewAuthHandler(&stubSignupExec{}, &stubLoginExec{}, stub, testLogger)

@@ -9,13 +9,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// Repository stores sessions keyed by the hash of their plaintext token (ADR-033).
+// Implementations never receive or persist the plaintext token.
 type Repository interface {
-	Create(ctx context.Context, userID uuid.UUID, expiresAt time.Time) (Session, error)
-	// FindByID returns the session with the given ID, or nil if not found.
-	// It returns expired sessions as well; callers that need only active sessions should use FindActiveByID.
-	FindByID(ctx context.Context, id uuid.UUID) (Session, error)
-	// FindActiveByID returns the session only if it exists and has not expired.
+	Create(ctx context.Context, userID uuid.UUID, tokenHash TokenHash, expiresAt time.Time) (Session, error)
+	// FindActiveByTokenHash returns the session only if it exists and has not expired.
 	// Returns nil, nil when the session does not exist or is expired.
-	FindActiveByID(ctx context.Context, id uuid.UUID) (Session, error)
-	Delete(ctx context.Context, id uuid.UUID) error
+	FindActiveByTokenHash(ctx context.Context, tokenHash TokenHash) (Session, error)
+	DeleteByTokenHash(ctx context.Context, tokenHash TokenHash) error
 }

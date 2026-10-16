@@ -11,7 +11,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Haya372/ai-trial/backend/domain"
-	"github.com/Haya372/ai-trial/backend/domain/session"
 	sessionmock "github.com/Haya372/ai-trial/backend/domain/session/generated"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	usermock "github.com/Haya372/ai-trial/backend/domain/user/generated"
@@ -23,21 +22,17 @@ func TestSignupCommand_Execute_ValidInput_ReturnsAuthOutput(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	fixedUserID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
-	fixedSessID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	email, _ := user.NewEmail(testEmail)
 
 	mockUserRepo := usermock.NewMockRepository(ctrl)
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
 
 	u := user.New(fixedUserID, email, "test", "hash")
-	sess := session.New(fixedSessID, fixedUserID, fixedNow.Add(30*24*time.Hour))
 
 	mockUserRepo.EXPECT().
 		Create(gomock.Any(), email, "test", gomock.Any()).
 		Return(u, nil)
-	mockSessRepo.EXPECT().
-		Create(gomock.Any(), fixedUserID, fixedNow.Add(30*24*time.Hour)).
-		Return(sess, nil)
+	storedHash := captureSessionCreate(mockSessRepo, fixedUserID, fixedNow.Add(30*24*time.Hour))
 
 	cmd := authuc.NewSignupCommand(
 		mockUserRepo, mockSessRepo, &testutil.StubTxManager{}, testutil.FixedClock{Time: fixedNow},
@@ -52,8 +47,12 @@ func TestSignupCommand_Execute_ValidInput_ReturnsAuthOutput(t *testing.T) {
 	if out.User.Email() != email {
 		t.Errorf("expected email %v, got %v", email, out.User.Email())
 	}
-	if out.SessionID != fixedSessID {
-		t.Errorf("expected session ID %v, got %v", fixedSessID, out.SessionID)
+	if out.SessionToken.String() == "" {
+		t.Fatal("expected a plaintext session token in the output")
+	}
+	if storedHash.String() != out.SessionToken.Hash().String() {
+		t.Errorf("repository received hash %q, want hash of the returned token %q",
+			storedHash.String(), out.SessionToken.Hash().String())
 	}
 }
 
@@ -68,9 +67,7 @@ func TestSignupCommand_Execute_DisplayNameDefaultsToEmailLocalPart(t *testing.T)
 	mockUserRepo.EXPECT().
 		Create(gomock.Any(), email, "hello", gomock.Any()).
 		Return(u, nil)
-	mockSessRepo.EXPECT().
-		Create(gomock.Any(), u.ID(), fixedNow.Add(30*24*time.Hour)).
-		Return(session.New(uuid.New(), u.ID(), fixedNow.Add(30*24*time.Hour)), nil)
+	captureSessionCreate(mockSessRepo, u.ID(), fixedNow.Add(30*24*time.Hour))
 
 	cmd := authuc.NewSignupCommand(
 		mockUserRepo, mockSessRepo, &testutil.StubTxManager{}, testutil.FixedClock{Time: fixedNow},

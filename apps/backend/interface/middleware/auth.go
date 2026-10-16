@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
-
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
@@ -28,12 +26,11 @@ func resolveSessionUser(
 		logger.Warn("session cookie not found", "path", r.URL.Path)
 		return nil, nil //nolint:nilerr // no cookie means anonymous, not a failure
 	}
-	sessionID, err := uuid.Parse(cookie.Value)
-	if err != nil {
-		logger.Warn("invalid session id format in cookie", "path", r.URL.Path)
-		return nil, nil //nolint:nilerr // malformed cookie means anonymous, not a failure
+	if cookie.Value == "" {
+		logger.Warn("empty session cookie", "path", r.URL.Path)
+		return nil, nil
 	}
-	sess, err := sessionRepo.FindActiveByID(ctx, sessionID)
+	sess, err := sessionRepo.FindActiveByTokenHash(ctx, session.NewToken(cookie.Value).Hash())
 	if err != nil {
 		return nil, err
 	}
