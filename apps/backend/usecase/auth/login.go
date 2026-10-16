@@ -55,12 +55,12 @@ func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput,
 		return nil, err
 	}
 
-	sess, err := c.sessionRepo.Create(ctx, authenticated.ID(), c.clock.Now().Add(sessionExpiry))
+	token, err := issueSession(ctx, c.sessionRepo, authenticated.ID(), c.clock.Now().Add(sessionExpiry))
 	if err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
+		return nil, err
 	}
 
-	return &AuthOutput{User: authenticated, SessionID: sess.ID()}, nil
+	return &AuthOutput{User: authenticated, SessionToken: token}, nil
 }
 
 // authenticate is the single call site that runs the bcrypt comparison: the

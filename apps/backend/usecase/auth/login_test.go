@@ -38,7 +38,6 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	fixedUserID := uuid.New()
-	fixedSessID := uuid.New()
 	email, _ := user.NewEmail(loginTestEmail)
 
 	stub := &stubUser{id: fixedUserID, email: email, displayName: "U", compareErr: nil}
@@ -49,9 +48,7 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 	mockUserRepo.EXPECT().
 		FindByEmail(gomock.Any(), email).
 		Return(stub, nil)
-	mockSessRepo.EXPECT().
-		Create(gomock.Any(), fixedUserID, fixedNow.Add(30*24*time.Hour)).
-		Return(session.New(fixedSessID, fixedUserID, fixedNow.Add(30*24*time.Hour)), nil)
+	storedHash := captureSessionCreate(mockSessRepo, fixedUserID, fixedNow.Add(30*24*time.Hour))
 
 	cmd := authuc.NewLoginCommand(mockUserRepo, mockSessRepo, testutil.FixedClock{Time: fixedNow})
 	out, err := cmd.Execute(context.Background(), authuc.LoginInput{
@@ -61,9 +58,31 @@ func TestLoginCommand_Execute_ValidCredentials_ReturnsAuthOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if out.SessionID != fixedSessID {
-		t.Errorf("expected session %v, got %v", fixedSessID, out.SessionID)
+	if out.SessionToken.String() == "" {
+		t.Fatal("expected a plaintext session token in the output")
 	}
+	if storedHash.String() != out.SessionToken.Hash().String() {
+		t.Errorf("repository received hash %q, want hash of the returned token %q",
+			storedHash.String(), out.SessionToken.Hash().String())
+	}
+	if storedHash.String() == out.SessionToken.String() {
+		t.Error("repository must not receive the plaintext token")
+	}
+}
+
+// captureSessionCreate expects one session Create call and records the token
+// hash it receives, so tests can assert it matches the token returned to the caller.
+func captureSessionCreate(
+	repo *sessionmock.MockRepository, userID uuid.UUID, expiresAt time.Time,
+) *session.TokenHash {
+	var got session.TokenHash
+	repo.EXPECT().
+		Create(gomock.Any(), userID, gomock.Any(), expiresAt).
+		DoAndReturn(func(_ context.Context, uid uuid.UUID, h session.TokenHash, exp time.Time) (session.Session, error) {
+			got = h
+			return session.New(uuid.New(), uid, exp), nil
+		})
+	return &got
 }
 
 func TestLoginCommand_Execute_WrongPassword_ReturnsPasswordMismatch(t *testing.T) {

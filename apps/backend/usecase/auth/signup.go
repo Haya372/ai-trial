@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/Haya372/ai-trial/backend/domain"
@@ -65,11 +64,11 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 		if err != nil {
 			return err
 		}
-		sess, err := c.sessionRepo.Create(ctx, u.ID(), c.clock.Now().Add(sessionExpiry))
+		token, err := issueSession(ctx, c.sessionRepo, u.ID(), c.clock.Now().Add(sessionExpiry))
 		if err != nil {
-			return fmt.Errorf("create session: %w", err)
+			return err
 		}
-		out = &AuthOutput{User: u, SessionID: sess.ID()}
+		out = &AuthOutput{User: u, SessionToken: token}
 		return nil
 	}); err != nil {
 		return nil, err

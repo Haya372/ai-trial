@@ -25,9 +25,10 @@ type authMiddlewareFactory func(session.Repository, user.Repository, *slog.Logge
 // setupValidSessionMocks builds a session+user mock pair that resolves
 // successfully, shared by the "valid session" tests of both middlewares.
 func setupValidSessionMocks(ctrl *gomock.Controller) (
-	uuid.UUID, uuid.UUID, *sessionmock.MockRepository, *usermock.MockRepository,
+	session.Token, uuid.UUID, *sessionmock.MockRepository, *usermock.MockRepository,
 ) {
 	sessID := uuid.New()
+	token := session.NewToken("test-session-token")
 	userID := uuid.New()
 	sess := session.New(sessID, userID, time.Now().Add(time.Hour))
 	email, _ := user.NewEmail("u@ex.com")
@@ -35,9 +36,9 @@ func setupValidSessionMocks(ctrl *gomock.Controller) (
 
 	sessRepo := sessionmock.NewMockRepository(ctrl)
 	userRepo := usermock.NewMockRepository(ctrl)
-	sessRepo.EXPECT().FindActiveByID(gomock.Any(), sessID).Return(sess, nil)
+	sessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), token.Hash()).Return(sess, nil)
 	userRepo.EXPECT().FindByID(gomock.Any(), userID).Return(u, nil)
-	return sessID, userID, sessRepo, userRepo
+	return token, userID, sessRepo, userRepo
 }
 
 // assertValidSessionSetsUser exercises the "valid session" happy path shared
@@ -45,14 +46,14 @@ func setupValidSessionMocks(ctrl *gomock.Controller) (
 func assertValidSessionSetsUser(t *testing.T, buildMW authMiddlewareFactory) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	sessID, userID, sessRepo, userRepo := setupValidSessionMocks(ctrl)
+	token, userID, sessRepo, userRepo := setupValidSessionMocks(ctrl)
 
 	called := false
 	var capturedUser user.User
 	mw := buildMW(sessRepo, userRepo, testLogger)
 	h := mw(nextHandlerCapture(&called, &capturedUser))
 
-	req := requestWithCookie(t, sessID.String())
+	req := requestWithCookie(t, token.String())
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -110,30 +111,11 @@ func TestRequireAuth_noSessionCookie_returns401(t *testing.T) {
 	}
 }
 
-func TestRequireAuth_invalidUUID_returns401(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	mockSessRepo := sessionmock.NewMockRepository(ctrl)
-	mockUserRepo := usermock.NewMockRepository(ctrl)
-
-	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
-	h := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		t.Error("next handler should not be called")
-	}))
-
-	req := requestWithCookie(t, "not-a-uuid")
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d", rec.Code)
-	}
-}
-
 func TestRequireAuth_sessionNotFound_returns401(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
 	mockUserRepo := usermock.NewMockRepository(ctrl)
-	mockSessRepo.EXPECT().FindActiveByID(gomock.Any(), gomock.Any()).Return(nil, nil)
+	mockSessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
 	h := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -153,7 +135,7 @@ func TestRequireAuth_sessionRepoError_returns401(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
 	mockUserRepo := usermock.NewMockRepository(ctrl)
-	mockSessRepo.EXPECT().FindActiveByID(gomock.Any(), gomock.Any()).Return(nil, errDB)
+	mockSessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), gomock.Any()).Return(nil, errDB)
 
 	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
 	h := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -172,12 +154,13 @@ func TestRequireAuth_sessionRepoError_returns401(t *testing.T) {
 func TestRequireAuth_userNotFound_returns401(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sessID := uuid.New()
+	token := session.NewToken("test-session-token")
 	userID := uuid.New()
 
 	sess := session.New(sessID, userID, time.Now().Add(time.Hour))
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
 	mockUserRepo := usermock.NewMockRepository(ctrl)
-	mockSessRepo.EXPECT().FindActiveByID(gomock.Any(), sessID).Return(sess, nil)
+	mockSessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), token.Hash()).Return(sess, nil)
 	mockUserRepo.EXPECT().FindByID(gomock.Any(), userID).Return(nil, user.ErrUserNotFound)
 
 	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
@@ -185,7 +168,7 @@ func TestRequireAuth_userNotFound_returns401(t *testing.T) {
 		t.Error("next handler should not be called")
 	}))
 
-	req := requestWithCookie(t, sessID.String())
+	req := requestWithCookie(t, token.String())
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -197,12 +180,13 @@ func TestRequireAuth_userNotFound_returns401(t *testing.T) {
 func TestRequireAuth_userNilWithNoError_returns401(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	sessID := uuid.New()
+	token := session.NewToken("test-session-token")
 	userID := uuid.New()
 
 	sess := session.New(sessID, userID, time.Now().Add(time.Hour))
 	mockSessRepo := sessionmock.NewMockRepository(ctrl)
 	mockUserRepo := usermock.NewMockRepository(ctrl)
-	mockSessRepo.EXPECT().FindActiveByID(gomock.Any(), sessID).Return(sess, nil)
+	mockSessRepo.EXPECT().FindActiveByTokenHash(gomock.Any(), token.Hash()).Return(sess, nil)
 	mockUserRepo.EXPECT().FindByID(gomock.Any(), userID).Return(nil, nil)
 
 	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
@@ -210,7 +194,27 @@ func TestRequireAuth_userNilWithNoError_returns401(t *testing.T) {
 		t.Error("next handler should not be called")
 	}))
 
-	req := requestWithCookie(t, sessID.String())
+	req := requestWithCookie(t, token.String())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestRequireAuth_emptyCookieValue_returns401WithoutLookup(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	mockSessRepo := sessionmock.NewMockRepository(ctrl)
+	mockUserRepo := usermock.NewMockRepository(ctrl)
+
+	mw := middleware.RequireAuth(mockSessRepo, mockUserRepo, testLogger)
+	h := mw(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("next handler should not be called")
+	}))
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/me", nil)
+	req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: ""}) //nolint:gosec
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

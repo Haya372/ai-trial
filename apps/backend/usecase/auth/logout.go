@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
-
 	"github.com/Haya372/ai-trial/backend/domain/session"
 )
 
@@ -17,8 +15,8 @@ func NewLogoutCommand(sr session.Repository) *LogoutCommand {
 	return &LogoutCommand{sessionRepo: sr}
 }
 
-func (c *LogoutCommand) Execute(ctx context.Context, sessionID uuid.UUID) error {
-	if err := c.sessionRepo.Delete(ctx, sessionID); err != nil {
+func (c *LogoutCommand) Execute(ctx context.Context, token session.Token) error {
+	if err := c.sessionRepo.DeleteByTokenHash(ctx, token.Hash()); err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
 	return nil

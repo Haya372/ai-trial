@@ -7,10 +7,10 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/google/uuid"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Haya372/ai-trial/backend/domain"
+	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
@@ -46,7 +46,7 @@ type LoginExecutor interface {
 }
 
 type LogoutExecutor interface {
-	Execute(ctx context.Context, sessionID uuid.UUID) error
+	Execute(ctx context.Context, token session.Token) error
 }
 
 type AuthHandler struct {
@@ -84,7 +84,7 @@ func (h *AuthHandler) Signup(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}
-	setSessionCookie(w, out.SessionID.String())
+	setSessionCookie(w, out.SessionToken.String())
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write(respBody)
@@ -112,7 +112,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
 	}
-	setSessionCookie(w, out.SessionID.String())
+	setSessionCookie(w, out.SessionToken.String())
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(respBody)
 }
@@ -124,13 +124,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
-	sessionID, err := uuid.Parse(cookie.Value)
-	if err != nil {
-		h.logger.Warn("invalid session id format in logout request", "path", r.URL.Path)
-		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
-		return
-	}
-	if err := h.logout.Execute(r.Context(), sessionID); err != nil {
+	if err := h.logout.Execute(r.Context(), session.NewToken(cookie.Value)); err != nil {
 		h.logger.Error("failed to execute logout", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		return
