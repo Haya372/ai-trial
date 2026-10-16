@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { logout } from '../../../api/generated'
@@ -30,6 +31,14 @@ const user = {
   displayName: 'Test',
 }
 
+function renderWithClient(queryClient = new QueryClient()) {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <LogoutButton />
+    </QueryClientProvider>,
+  )
+}
+
 describe('LogoutButton', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -38,7 +47,7 @@ describe('LogoutButton', () => {
 
   it('calls logout API, clears auth store and navigates to /login', async () => {
     vi.mocked(logout).mockResolvedValue({ status: 204 } as never)
-    render(<LogoutButton />)
+    renderWithClient()
     fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }))
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith({ to: '/login' })
@@ -49,7 +58,7 @@ describe('LogoutButton', () => {
 
   it('clears auth state when the session is already invalid (401)', async () => {
     vi.mocked(logout).mockResolvedValue({ status: 401 } as never)
-    render(<LogoutButton />)
+    renderWithClient()
     fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }))
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith({ to: '/login' })
@@ -59,7 +68,7 @@ describe('LogoutButton', () => {
 
   it('keeps auth state and shows error toast when the server fails (500)', async () => {
     vi.mocked(logout).mockResolvedValue({ status: 500 } as never)
-    render(<LogoutButton />)
+    renderWithClient()
     fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }))
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith('ログアウトに失敗しました')
@@ -70,11 +79,35 @@ describe('LogoutButton', () => {
 
   it('keeps auth state and shows error toast on network error', async () => {
     vi.mocked(logout).mockRejectedValue(new Error('network'))
-    render(<LogoutButton />)
+    renderWithClient()
     fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }))
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalledWith('ログアウトに失敗しました')
     })
     expect(useAuthStore.getState().user).not.toBeNull()
+  })
+
+  it('clears the query cache so the next user cannot see stale data', async () => {
+    vi.mocked(logout).mockResolvedValue({ status: 204 } as never)
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(['events'], [{ id: 'prev-user-event' }])
+    renderWithClient(queryClient)
+    fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }))
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/login' })
+    })
+    expect(queryClient.getQueryData(['events'])).toBeUndefined()
+  })
+
+  it('keeps the query cache when logout fails', async () => {
+    vi.mocked(logout).mockResolvedValue({ status: 500 } as never)
+    const queryClient = new QueryClient()
+    queryClient.setQueryData(['events'], [{ id: 'event' }])
+    renderWithClient(queryClient)
+    fireEvent.click(screen.getByRole('button', { name: 'ログアウト' }))
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalled()
+    })
+    expect(queryClient.getQueryData(['events'])).toBeDefined()
   })
 })

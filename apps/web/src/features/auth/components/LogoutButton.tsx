@@ -1,4 +1,5 @@
 import { Button, toast } from '@repo/ui'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { logout } from '../../../api/generated'
@@ -7,6 +8,7 @@ import { useAuthStore } from '../../../stores/auth'
 export default function LogoutButton() {
   const { t } = useTranslation('auth')
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const clearUser = useAuthStore((s) => s.clearUser)
 
   const handleLogout = async () => {
@@ -18,6 +20,8 @@ export default function LogoutButton() {
         return
       }
       clearUser()
+      // 同じタブで別ユーザーがログインしたとき、前ユーザーのキャッシュが見えないようにする
+      queryClient.clear()
       await navigate({ to: '/login' })
     } catch {
       toast.error(t('logout.errors.fallback'))
