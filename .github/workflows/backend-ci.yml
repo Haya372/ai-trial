@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@v5.0.1
         with:
           install: true
       - uses: pnpm/action-setup@v6.1.0
@@ -141,7 +141,7 @@ jobs:
       - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@v4.3.0
+      - uses: jdx/mise-action@v5.0.1
         with:
           install: true
       - name: Restore sqlc generated files
@@ -175,7 +175,7 @@ jobs:
           name: go-coverage
           path: apps/backend/coverage.out
       - name: Coverage report
-        uses: fgrosse/go-coverage-report@v1.4.0
+        uses: fgrosse/go-coverage-report@v1.5.0
         continue-on-error: true
         with:
           coverage-artifact-name: go-coverage
