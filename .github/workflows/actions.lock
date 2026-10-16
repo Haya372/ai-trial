@@ -17,6 +17,13 @@ workflows:
         - 'golangci/golangci-lint-action@v9.3.0'
         - 'jdx/mise-action@v4.3.0'
         - 'pnpm/action-setup@v6.1.0'
+    '.github/workflows/e2e-ci.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'actions/setup-go@v7.0.0'
+        - 'actions/setup-node@v7.0.0'
+        - 'actions/upload-artifact@v7.0.1'
+        - 'jdx/mise-action@v5.0.1'
+        - 'pnpm/action-setup@v6.1.0'
     '.github/workflows/markdown-lint.yml':
         - 'actions/checkout@v7.0.1'
         - 'jdx/mise-action@v4.3.0'
@@ -79,6 +86,11 @@ dependencies:
     'jdx/mise-action@v4.3.0':
         ref: 'v4.3.0'
         commit: 'sha1-c2a87611a18de5b3828c5652fe268e992400cb5c'
+        owner_id: 216188
+        repo_id: 738284564
+    'jdx/mise-action@v5.0.1':
+        ref: 'v5.0.1'
+        commit: 'sha1-7a4e45a543138629540c9a1616d08632b893e492'
         owner_id: 216188
         repo_id: 738284564
     'pnpm/action-setup@v6.1.0':
