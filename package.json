@@ -15,7 +15,7 @@
     "generate:web": "pnpm --filter web generate:routes"
   },
   "devDependencies": {
-    "lefthook": "2.1.16",
+    "lefthook": "2.2.1",
     "npm-run-all2": "9.0.3",
     "turbo": "2.11.7"
   }
