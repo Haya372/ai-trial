@@ -22,12 +22,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Run actionlint
-        uses: reviewdog/action-actionlint@v1.78.1
+        uses: reviewdog/action-actionlint@v1.80.0
       - name: Run zizmor 🌈
         uses: zizmorcore/zizmor-action@v0.6.4
         with:
           advanced-security: false
       - name: Install gh-actions-lock
-        run: gh extension install github/gh-actions-lock --pin v0.1.6
+        run: gh extension install github/gh-actions-lock --pin v0.3.0
       - name: Verify actions.lock matches workflows
         run: gh actions-lock --no-fix

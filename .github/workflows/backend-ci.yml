@@ -43,11 +43,11 @@ jobs:
       - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@v5.0.1
+      - uses: jdx/mise-action@v5.1.1
         with:
           install: true
       - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.0.0
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: "26"
           cache: pnpm
@@ -141,7 +141,7 @@ jobs:
       - uses: actions/setup-go@v7.0.0
         with:
           go-version-file: apps/backend/go.mod
-      - uses: jdx/mise-action@v5.0.1
+      - uses: jdx/mise-action@v5.1.1
         with:
           install: true
       - name: Restore sqlc generated files
@@ -170,7 +170,7 @@ jobs:
         # expects "apps/backend/". This sed replaces the module path to match.
         run: sed -i 's|github.com/Haya372/ai-trial/backend/|github.com/Haya372/ai-trial/apps/backend/|g' apps/backend/coverage.out
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v7.0.1
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: go-coverage
           path: apps/backend/coverage.out
