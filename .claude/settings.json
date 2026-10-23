@@ -36,7 +36,8 @@
       "allowWrite": [
         "~/Library/Caches/go-build",
         "~/Library/Caches/golangci-lint"
-      ]
+      ],
+      "denyWrite": ["./.agents/skills"]
     }
   },
   "hooks": {

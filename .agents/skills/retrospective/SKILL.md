@@ -75,7 +75,7 @@ description: セッション終了時や作業の節目に振り返りを行う�
 
 | アクション | 対象ファイル | 内容 |
 |---|---|---|
-| スキル更新 | .claude/skills/xxx.md | ... |
+| スキル更新 | .agents/skills/xxx/SKILL.md | ... |
 | CLAUDE.md追記 | CLAUDE.md | ... |
 ```
 

@@ -26,7 +26,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 | 原因カテゴリ | 修正対象 | 判断基準・具体的な直し方 |
 |---|---|---|
 | ツールで防げる | `lefthook.yml`（pre-commit/pre-push）、`.github/workflows/*.yml`、linter設定、Claude Codeのhook設定 | まず既存のhook（PostEditでlintを回す設定など）で既に防げていないか確認する。防げているのに再発した場合のみ、検知できるチェックを追加できるか検討する。ローカルで速く実行できるものは pre-commit/PostEdit、ビルドなど重いものは pre-push、ローカルで再現しにくいものは CI に追加する。既存の job があれば流用し、新設は最小限にする |
-| スキル不足 | `.claude/skills/<該当スキル>/SKILL.md` | 曖昧だった手順・欠けていた分岐を追記する。既存の見出し構成（目的/手順/チェックリスト）を壊さず、該当ステップに追記する。新規セクションを作る前に既存セクションへの追記で足りないか検討する |
+| スキル不足 | `.agents/skills/<該当スキル>/SKILL.md` | 曖昧だった手順・欠けていた分岐を追記する。既存の見出し構成（目的/手順/チェックリスト）を壊さず、該当ステップに追記する。新規セクションを作る前に既存セクションへの追記で足りないか検討する |
 | スキル未参照 | 該当スキルの `description`、および呼び出し元スキル・`AGENTS.md` の参照表 | `description` に呼び出しトリガーとなる発言例・状況を追加する。呼び出し元からの参照が漏れている場合は `AGENTS.md` の表や関連スキル本文にリンクを追加する |
 | 指示の曖昧さ | `docs/guidelines/` 配下の該当ドキュメント、または該当スキル | プロジェクト全体に適用される制約は `docs/guidelines/` にまとめる（既存ドキュメントに該当する節があれば追記し、重複を避ける）。`AGENTS.md`/`CLAUDE.md` には本文を直接書かず、そのドキュメントへの参照だけを置く。1スキルに閉じる話であればAGENTS.mdでも `docs/guidelines/` でもなく該当スキルに書く |
 | エージェントの判断 | 該当スキルの「よくある落とし穴」「禁止事項」節 | 「〜してはいけない」を明示する。既存スキルに該当節があれば追記、なければ新設する |
@@ -39,7 +39,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 1. 入力を確認する: `retrospective` の「改善アクション」表、または直接指摘されたハーネスの不備を確認する。対象ファイルが不明な場合は上表で判断する
 2. ブランチを作成する: 対応するGitHub Issueがある場合は `start-issue` スキルの命名規則に従う。ない場合は `chore/harness-<内容>` 形式で作成する。mainの最新から作成する
 3. 各アクションについて対象ファイルを編集する
-   - 新規スキルを作成する場合は `superpowers:writing-skills` スキルを参照し、既存スキル（例: `retrospective`, `commit`）の frontmatter（`name`/`description`）と見出し構成（目的→手順→チェックリスト）を模倣する
+   - 新規スキルは `.agents/skills/<スキル名>/SKILL.md` に作成する（`.claude/skills` は `.agents/skills` へのsymlinkのため直接作らない）。Claude Codeでは `superpowers:writing-skills` スキルも参照する。既存スキル（例: `retrospective`, `commit`）の frontmatter（`name`/`description`）と見出し構成（目的→手順→チェックリスト）を模倣する
    - 既存スキルの一部だけを直す場合は該当セクションのみ変更し、無関係な節は変更しない
 4. 変更内容が既存の規約と矛盾しないか確認する（`AGENTS.md` の参照表・`development-flow.md` との整合性、他スキルからの参照が壊れていないか）
 5. `commit` スキルの規約に従いコミットする。「新規スキル追加」と「既存フローへの組み込み」など論理的に独立していればコミットを分ける
@@ -54,7 +54,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 
 | 問題 | 原因カテゴリ | 対応 |
 |---|---|---|
-| ... | スキル不足 | `.claude/skills/xxx/SKILL.md` に◯◯を追記 |
+| ... | スキル不足 | `.agents/skills/xxx/SKILL.md` に◯◯を追記 |
 ```
 
 ---
@@ -65,7 +65,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 |---|---|
 | 「次回から気をつける」で終わらせる | 必ずファイルを編集する。編集しない限りこのスキルの完了条件を満たさない |
 | 1つの改善のために新しいドキュメント階層を作る | まず既存ファイル（該当スキル・`AGENTS.md`）への追記で足りないか検討する |
-| Bashのリダイレクト（`jq ... > .claude/settings.json` 等）で設定ファイルを直接書き換える | `.claude/settings.json`・`.claude/settings.local.json` へのBash経由の書き込みはsandboxのwrite denyで失敗する。Edit/Writeツールで編集する |
+| （Claude Code）Bashのリダイレクト（`jq ... > .claude/settings.json` 等）で設定ファイルを直接書き換える | `.claude/settings.json`・`.claude/settings.local.json` へのBash経由の書き込みはsandboxのwrite denyで失敗する。Edit/Writeツールで編集する |
 
 ---
 

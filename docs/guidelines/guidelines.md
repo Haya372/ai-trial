@@ -44,4 +44,4 @@
 
 ## コミットメッセージ
 
-`.claude/skills/commit/SKILL.md` を参照。
+`.agents/skills/commit/SKILL.md` を参照。
