@@ -8,7 +8,7 @@ description: TDD（Red-Green-Refactor）で実装するとき。
 ## 目的
 
 設計ドキュメントのインターフェースを忠実に実装する。
-Red-Green-Refactorサイクル自体は `superpowers:test-driven-development` スキルを使う。
+Red-Green-Refactorサイクル自体は一般的なTDDの進め方に従う（Claude Codeでは `superpowers:test-driven-development` スキルを使う）。
 このスキルはそれに加えて、このリポジトリ固有の前提・ルールを定義する。
 
 ---
@@ -29,7 +29,7 @@ Red-Green-Refactorサイクル自体は `superpowers:test-driven-development` �
 ## 手順
 
 1. 詳細設計ドキュメントを読み、実装するインターフェース（関数シグネチャ・型・責務）を把握する
-2. `superpowers:test-driven-development` スキルのRed-Green-Refactorサイクルに従って実装する
+2. Red-Green-Refactorサイクルに従って実装する（Claude Codeでは `superpowers:test-driven-development` スキルに従う）
    - 設計ドキュメントのインターフェースを厳守する
    - 1サイクルを小さく保ち、完了したらコミットする（コミットメッセージは `commit` スキルの規約に沿う）
 3. 次のテストケースを選び、1に戻る
@@ -40,7 +40,7 @@ Red-Green-Refactorサイクル自体は `superpowers:test-driven-development` �
 
 実装完了前に以下を確認する。
 
-- [ ] `superpowers:test-driven-development` の Verification Checklist を満たしているか
+- [ ] すべてのテストが意図した理由で一度失敗（Red）し、現在はパス（Green）しているか（Claude Codeでは `superpowers:test-driven-development` の Verification Checklist も満たす）
 - [ ] 設計ドキュメントのインターフェースと実装が一致しているか
 - [ ] コミットメッセージは `commit` スキルの規約に沿っているか
 - [ ] コードコメントはWHY（理由）のみ書かれているか（WHATは書かない）
@@ -88,7 +88,7 @@ HTTPハンドラーはユニットテスト（stub使用）に加え、**ルー�
 
 ## 参照ドキュメント
 
-- `superpowers:test-driven-development` — Red-Green-Refactorサイクルの詳細
+- `superpowers:test-driven-development` — Red-Green-Refactorサイクルの詳細（Claude Codeのみ）
 - `docs/guidelines/guidelines.md` — 設計原則
 - `docs/guidelines/document-review-criteria.md` — ドキュメント作成時の観点（正確性・完全性・明瞭さ等）
 - `docs/guidelines/development-flow.md` — 全体の開発フロー（PRD → Issue → 詳細設計 → TDD実装 → PRレビュー → マージ）

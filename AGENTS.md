@@ -17,26 +17,28 @@ PRD作成 → Issue作成 → 仕様定義 → 詳細設計 → TDD実装 → PR
 Claude Codeでは工程ごとに専用のSubagent（pdm/designer/implementer/qa等）へ切り替えながら進める。
 Subagentの仕組みを持たないツールでは、1つのセッション内で開発フローの工程を順番に進めればよい。
 
-各工程の具体的な手順は `.claude/skills/` 配下に工程ごとのMarkdownファイル（`SKILL.md`）として置かれている。
-Claude CodeのSkillツールを持たないツールでも、該当する `SKILL.md` を直接読み、その手順に従うこと。
+各工程の具体的な手順は `.agents/skills/` 配下に工程ごとのMarkdownファイル（`SKILL.md`）として置かれている。
+Codex・Gemini CLIは `.agents/skills/` を自動で読み込む。Claude Code向けには `.claude/skills` を `.agents/skills` へのsymlinkにしている（Windowsでは `git config core.symlinks true` が必要）。
+スキルを自動で読み込まないツールでも、該当する `SKILL.md` を直接読み、その手順に従うこと。
+スキル本文中の「Claude Codeでは〜」という記述は、Claude Code以外のツールでは無視してよい。
 
 | 工程 | 参照するファイル |
 |---|---|
-| Issue着手 | `.claude/skills/start-issue/SKILL.md` |
-| Issue分割 | `.claude/skills/create-sub-issue/SKILL.md` |
-| 要件定義・PRD作成 | `.claude/skills/requirements-definition/SKILL.md` |
-| Issue起票 | `.claude/skills/create-issue/SKILL.md` |
-| 仕様定義 | `.claude/skills/specification/SKILL.md` |
-| 詳細設計 | `.claude/skills/detailed-design/SKILL.md` |
-| テスト設計 | `.claude/skills/test-design/SKILL.md` |
-| TDD実装 | `.claude/skills/implementation/SKILL.md` |
-| リファクタリング | `.claude/skills/refactoring/SKILL.md` |
-| コミット | `.claude/skills/commit/SKILL.md` |
-| PR作成 | `.claude/skills/create-pr/SKILL.md` |
-| スタックPR作成 | `.claude/skills/stack-pr/SKILL.md` |
-| レビュー対応 | `.claude/skills/review-response/SKILL.md` |
-| 振り返り | `.claude/skills/retrospective/SKILL.md` |
-| ハーネス修正 | `.claude/skills/update-harness/SKILL.md` |
+| Issue着手 | `.agents/skills/start-issue/SKILL.md` |
+| Issue分割 | `.agents/skills/create-sub-issue/SKILL.md` |
+| 要件定義・PRD作成 | `.agents/skills/requirements-definition/SKILL.md` |
+| Issue起票 | `.agents/skills/create-issue/SKILL.md` |
+| 仕様定義 | `.agents/skills/specification/SKILL.md` |
+| 詳細設計 | `.agents/skills/detailed-design/SKILL.md` |
+| テスト設計 | `.agents/skills/test-design/SKILL.md` |
+| TDD実装 | `.agents/skills/implementation/SKILL.md` |
+| リファクタリング | `.agents/skills/refactoring/SKILL.md` |
+| コミット | `.agents/skills/commit/SKILL.md` |
+| PR作成 | `.agents/skills/create-pr/SKILL.md` |
+| スタックPR作成 | `.agents/skills/stack-pr/SKILL.md` |
+| レビュー対応 | `.agents/skills/review-response/SKILL.md` |
+| 振り返り | `.agents/skills/retrospective/SKILL.md` |
+| ハーネス修正 | `.agents/skills/update-harness/SKILL.md` |
 
 ## コマンド実行
 

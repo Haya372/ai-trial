@@ -8,7 +8,7 @@ description: PRD作成・要件定義が必要なとき。
 ## 目的
 
 ユーザーや関係者との対話を通じて製品要件を明確にし、`docs/prd/template.md` に沿ったPRDとして文書化する。
-このスキルはPDMエージェントとPersonaエージェントが使用する。
+このスキルはPDM・Persona（ユーザー視点）の役割で使用する（Claude Codeでは `pdm` / `persona` エージェントが担当する）。
 
 開発フロー上の位置づけ：**PRD作成 → Issue作成 → 詳細設計 → TDD実装 → PRレビュー → マージ**
 このスキルは最初のステップ「PRD作成」をカバーする。
@@ -54,7 +54,7 @@ description: PRD作成・要件定義が必要なとき。
 
 ### ステップ3: ユーザーストーリーの作成
 
-エンドユーザーの視点から要件を記述する。Personaエージェントがこのステップで特に活躍する。
+エンドユーザーの視点から要件を記述する。Persona（ユーザー視点）の観点がこのステップで特に重要になる。
 
 フォーマット：
 
@@ -134,7 +134,7 @@ PRDが完成したら：
 
 1. PRとしてmainブランチにマージする
 2. マージしたPRDをもとに実装IssueをGitHubに作成する（PDMが担当）
-3. Issue作成後、Designerエージェントが詳細設計（`detailed-design` スキル）を開始する
+3. Issue作成後、Designer（Claude Codeでは `designer` エージェント）が詳細設計（`detailed-design` スキル）を開始する
 
 ## 参照ドキュメント
 
