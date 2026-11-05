@@ -61,7 +61,7 @@ if err != nil {
 logger.Info("server starting", "addr", srv.Addr)
 logger.Info("shutting down server")
 
-logger.Warn("authentication failed", "reason", "invalid_token", "path", r.URL.Path)
+logger.Warn("authentication failed", "reason", "invalid_token", "path", route.Pattern(r))
 ```
 
 #### 出さない: 関数の内部処理
@@ -95,7 +95,7 @@ logger.Warn("user login failed", "user_id", userID, "reason", "invalid_password"
 | `error` | string | エラー内容。`err.Error()` の値（ERROR レベル必須） |
 | `request_id` | string | リクエストID（トレーシングと紐付ける） |
 | `user_id` | string | 操作ユーザーのID（認証済みリクエストの場合） |
-| `path` | string | HTTPリクエストのパス |
+| `path` | string | HTTPリクエストのルートパターン（例: `/shares/{token}`）。`route.Pattern(r)` で取得する |
 | `method` | string | HTTPメソッド |
 | `status` | int | HTTPステータスコード |
 | `duration_ms` | int | 処理時間（ミリ秒） |
@@ -105,6 +105,7 @@ logger.Warn("user login failed", "user_id", userID, "reason", "invalid_password"
 | 禁止情報 | 具体例 |
 |---|---|
 | 認証情報 | パスワード、APIキー、JWTトークンの中身 |
+| URLに含まれる秘密 | 共有トークン等のパスパラメーター（生のパスではなくルートパターンを出す） |
 | 個人情報 | メールアドレス、氏名、住所、電話番号 |
 | DBの内部詳細 | SQLクエリ文字列、DBエラーメッセージそのもの |
 | スタックトレース | `runtime/debug.Stack()` の出力（障害調査時のデバッグログを除く） |

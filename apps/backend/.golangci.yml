@@ -22,6 +22,16 @@ linters:
     - nlreturn
     - mnd
   settings:
+    forbidigo:
+      forbid:
+        # forbidigo's default rule, kept because setting `forbid` replaces it.
+        - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+        # The raw path can carry secrets such as share tokens (/shares/{token})
+        # and has unbounded cardinality. Only interface/route may read it.
+        - pattern: \.URL\.Path$
+          msg: "Use route.Pattern(r) instead: the raw path can carry secrets such as share tokens."
+        - pattern: \.RequestURI$
+          msg: "Use route.Pattern(r) instead: the raw request URI can carry secrets such as share tokens."
     depguard:
       rules:
         # Clean Architecture: inner layers must not depend on outer layers.
@@ -73,6 +83,11 @@ linters:
           - cyclop
           - gocognit
           - gocyclo
+      # route.Pattern is the single place allowed to fall back to the raw path.
+      - path: interface/route/
+        text: "use of `.+\\.URL\\.Path` forbidden"
+        linters:
+          - forbidigo
 
 formatters:
   enable:
