@@ -193,8 +193,7 @@ func TestCreateShareCommand_Execute_ExpiresAtBeforeEventStart_ReturnsValidationE
 	_, err := cmd.Execute(context.Background(), userID, eventshareuc.CreateShareInput{
 		EventID: eventID, ExpiresAt: &tooEarly,
 	})
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Fatalf("expected *domain.ValidationError, got %T: %v", err, err)
 	}
 }
@@ -219,8 +218,7 @@ func TestCreateShareCommand_Execute_ExpiresAtNotInFuture_ReturnsValidationError(
 	_, err := cmd.Execute(context.Background(), userID, eventshareuc.CreateShareInput{
 		EventID: eventID, ExpiresAt: &alreadyPast,
 	})
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Fatalf("expected *domain.ValidationError, got %T: %v", err, err)
 	}
 }

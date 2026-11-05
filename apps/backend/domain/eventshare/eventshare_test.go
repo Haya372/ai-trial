@@ -49,8 +49,7 @@ func TestNew_ValidEventShare(t *testing.T) {
 func TestNew_EmptyTokenHash(t *testing.T) {
 	_, err := eventshare.New(uuid.New(), uuid.New(), eventshare.TokenHash{}, time.Now().Add(time.Hour))
 
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Fatalf("expected *domain.ValidationError, got %T (%v)", err, err)
 	}
 }
@@ -58,8 +57,7 @@ func TestNew_EmptyTokenHash(t *testing.T) {
 func TestNew_ZeroExpiresAt(t *testing.T) {
 	_, err := eventshare.New(uuid.New(), uuid.New(), eventshare.NewTokenHash("hash-value"), time.Time{})
 
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Fatalf("expected *domain.ValidationError, got %T (%v)", err, err)
 	}
 }

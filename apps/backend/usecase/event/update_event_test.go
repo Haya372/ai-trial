@@ -81,8 +81,7 @@ func TestUpdateEventCommand_Execute_EndAtBeforeStartAt_ReturnsValidationError(t 
 		StartAt: end,
 		EndAt:   start,
 	})
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Fatalf("expected *ValidationError, got %T: %v", err, err)
 	}
 }
@@ -106,8 +105,7 @@ func TestUpdateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 		StartAt: start,
 		EndAt:   end,
 	})
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Fatalf("expected *ValidationError, got %T: %v", err, err)
 	}
 }

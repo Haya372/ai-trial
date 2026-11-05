@@ -78,8 +78,7 @@ func (c *SignupCommand) Execute(ctx context.Context, in SignupInput) (*AuthOutpu
 }
 
 func toValidationDetail(field string, err error) domain.ValidationDetail {
-	var domErr *domain.DomainError
-	if errors.As(err, &domErr) {
+	if domErr, ok := errors.AsType[*domain.DomainError](err); ok {
 		return domain.ValidationDetail{Field: field, Code: domErr.Code(), Message: domErr.Message()}
 	}
 	return domain.ValidationDetail{Field: field, Code: "INVALID", Message: err.Error()}

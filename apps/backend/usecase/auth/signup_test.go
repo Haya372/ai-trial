@@ -96,8 +96,7 @@ func TestSignupCommand_Execute_InvalidEmail_ReturnsValidationError(t *testing.T)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Errorf("expected *ValidationError, got %T: %v", err, err)
 	}
 }
@@ -114,8 +113,7 @@ func TestSignupCommand_Execute_ShortPassword_ReturnsValidationError(t *testing.T
 		Email:    testEmail,
 		Password: "Ab1!",
 	})
-	var ve *domain.ValidationError
-	if !errors.As(err, &ve) {
+	if _, ok := errors.AsType[*domain.ValidationError](err); !ok {
 		t.Errorf("expected *ValidationError, got %T: %v", err, err)
 	}
 }
