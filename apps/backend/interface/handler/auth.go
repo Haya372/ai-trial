@@ -15,6 +15,7 @@ import (
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
+	"github.com/Haya372/ai-trial/backend/interface/route"
 	authuc "github.com/Haya372/ai-trial/backend/usecase/auth"
 )
 
@@ -120,7 +121,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(cookieName)
 	if err != nil {
-		h.logger.Warn("logout attempted without session cookie", "path", r.URL.Path)
+		h.logger.Warn("logout attempted without session cookie", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -136,7 +137,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to GET /auth/me", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to GET /auth/me", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -166,14 +167,14 @@ func (h *AuthHandler) writeAuthError(w http.ResponseWriter, r *http.Request, err
 		case user.CodeEmailTaken:
 			response.WriteError(w, http.StatusConflict, errCodeConflict, de.Message())
 		case user.CodeUserNotFound, user.CodePasswordMismatch:
-			h.logger.Warn("authentication failed", "reason", de.Code(), "path", r.URL.Path)
+			h.logger.Warn("authentication failed", "reason", de.Code(), "path", route.Pattern(r))
 			response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Invalid email or password")
 		default:
-			h.logger.Error("unexpected domain error in auth handler", "error", err, "path", r.URL.Path)
+			h.logger.Error("unexpected domain error in auth handler", "error", err, "path", route.Pattern(r))
 			response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 		}
 	default:
-		h.logger.Error("internal error in auth handler", "error", err, "path", r.URL.Path)
+		h.logger.Error("internal error in auth handler", "error", err, "path", route.Pattern(r))
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 	}
 }

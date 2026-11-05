@@ -8,6 +8,8 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+
+	"github.com/Haya372/ai-trial/backend/interface/route"
 )
 
 // Metrics returns a middleware that records RED (Rate, Errors, Duration)
@@ -39,7 +41,7 @@ func Metrics(mp metric.MeterProvider) func(http.Handler) http.Handler {
 
 			status := statusOf(ww)
 			elapsed := time.Since(start).Seconds()
-			routePattern := routePatternOf(r)
+			routePattern := route.Pattern(r)
 
 			attrs := []attribute.KeyValue{
 				attribute.String("method", r.Method),

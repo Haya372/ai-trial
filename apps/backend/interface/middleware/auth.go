@@ -9,6 +9,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
+	"github.com/Haya372/ai-trial/backend/interface/route"
 )
 
 // resolveSessionUser looks up the user for the session cookie on r. It returns
@@ -23,11 +24,11 @@ func resolveSessionUser(
 ) (user.User, error) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
-		logger.Warn("session cookie not found", "path", r.URL.Path)
+		logger.Warn("session cookie not found", "path", route.Pattern(r))
 		return nil, nil //nolint:nilerr // no cookie means anonymous, not a failure
 	}
 	if cookie.Value == "" {
-		logger.Warn("empty session cookie", "path", r.URL.Path)
+		logger.Warn("empty session cookie", "path", route.Pattern(r))
 		return nil, nil
 	}
 	sess, err := sessionRepo.FindActiveByTokenHash(ctx, session.NewToken(cookie.Value).Hash())
@@ -35,7 +36,7 @@ func resolveSessionUser(
 		return nil, err
 	}
 	if sess == nil {
-		logger.Warn("session not found or expired", "path", r.URL.Path)
+		logger.Warn("session not found or expired", "path", route.Pattern(r))
 		return nil, nil
 	}
 	u, err := userRepo.FindByID(ctx, sess.UserID())
@@ -45,7 +46,7 @@ func resolveSessionUser(
 	if u == nil {
 		logger.Error("data inconsistency: user not found for active session",
 			"user_id", sess.UserID(),
-			"path", r.URL.Path,
+			"path", route.Pattern(r),
 		)
 	}
 	return u, nil
@@ -60,7 +61,7 @@ func RequireAuth(
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, err := resolveSessionUser(r.Context(), r, sessionRepo, userRepo, logger)
 			if err != nil {
-				logger.Error("failed to resolve session user", "error", err, "path", r.URL.Path)
+				logger.Error("failed to resolve session user", "error", err, "path", route.Pattern(r))
 				response.WriteError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Authentication required")
 				return
 			}
@@ -83,7 +84,7 @@ func OptionalAuth(
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, err := resolveSessionUser(r.Context(), r, sessionRepo, userRepo, logger)
 			if err != nil {
-				logger.Error("failed to resolve session user in optional auth", "error", err, "path", r.URL.Path)
+				logger.Error("failed to resolve session user in optional auth", "error", err, "path", route.Pattern(r))
 			}
 			if u != nil {
 				ctx := context.WithValue(r.Context(), ctxkey.User, u)

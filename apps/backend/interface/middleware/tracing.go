@@ -8,6 +8,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/Haya372/ai-trial/backend/interface/route"
 )
 
 // Tracing returns a middleware that starts an "http.request" span for every
@@ -29,7 +31,7 @@ func Tracing(tp trace.TracerProvider) func(http.Handler) http.Handler {
 
 			span.SetAttributes(
 				attribute.String("http.method", r.Method),
-				attribute.String("http.route", routePatternOf(req)),
+				attribute.String("http.route", route.Pattern(req)),
 				attribute.Int("http.status_code", status),
 			)
 			if status >= http.StatusInternalServerError {

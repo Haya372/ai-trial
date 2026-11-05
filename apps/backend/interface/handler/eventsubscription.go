@@ -16,6 +16,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
+	"github.com/Haya372/ai-trial/backend/interface/route"
 	eventsubscriptionuc "github.com/Haya372/ai-trial/backend/usecase/eventsubscription"
 )
 
@@ -59,7 +60,7 @@ type eventSubscriptionResponseBody struct {
 func (h *EventSubscriptionHandler) SubscribeToShare(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to POST /shares/{token}/subscriptions", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to POST /shares/{token}/subscriptions", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -103,7 +104,7 @@ func (h *EventSubscriptionHandler) SubscribeToShare(w http.ResponseWriter, r *ht
 func (h *EventSubscriptionHandler) DeleteSubscription(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to DELETE /subscriptions/{id}", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to DELETE /subscriptions/{id}", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}

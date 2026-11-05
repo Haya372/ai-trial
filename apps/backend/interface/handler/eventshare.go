@@ -16,6 +16,7 @@ import (
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
+	"github.com/Haya372/ai-trial/backend/interface/route"
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 )
 
@@ -39,7 +40,7 @@ func NewEventShareHandler(c CreateShareExecutor, logger *slog.Logger) *EventShar
 func (h *EventShareHandler) CreateShare(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to POST /events/{id}/shares", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to POST /events/{id}/shares", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}

@@ -290,3 +290,21 @@ func TestShareHandler_GetShareByToken_authenticatedNotSubscribed(t *testing.T) {
 		t.Errorf("expected isOwnEvent=false for non-owner, got %v", resp["isOwnEvent"])
 	}
 }
+
+// The handler is mounted on a real chi router so the route pattern is
+// available, as in production; the share token must not reach the logs.
+func TestShareHandler_GetShareByToken_internalError_doesNotLogToken(t *testing.T) {
+	stub := &stubGetShareByTokenExec{
+		fn: func(_ context.Context, _ eventshareuc.GetShareByTokenInput) (eventshareuc.GetShareByTokenOutput, error) {
+			return eventshareuc.GetShareByTokenOutput{}, errInternal
+		},
+	}
+	logger, logs := newBufferLogger()
+	r := chi.NewRouter()
+	r.Get("/shares/{token}", handler.NewShareHandler(stub, logger).GetShareByToken)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/shares/"+secretShareToken, nil)
+	r.ServeHTTP(httptest.NewRecorder(), req)
+
+	assertShareTokenNotLogged(t, logs)
+}
