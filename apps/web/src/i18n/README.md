@@ -33,13 +33,13 @@ src/i18n/
 
 ## 名前空間
 
-| 名前空間 | 対応するフィーチャー | 用途 |
-|---|---|---|
-| `common` | 共通 | ボタンラベル・共通エラー等、フィーチャー横断の汎用文言 |
-| `auth` | `features/auth/` | ログイン・サインアップ等 |
-| `calendar` | `features/calendar/` | カレンダー表示・操作 |
-| `event` | `features/event/` | イベント登録・編集 |
-| `eventshare` | `features/event/`（共有関連） | 共有リンク生成・バリデーション・エラー |
+| 名前空間     | 対応するフィーチャー          | 用途                                                   |
+| ------------ | ----------------------------- | ------------------------------------------------------ |
+| `common`     | 共通                          | ボタンラベル・共通エラー等、フィーチャー横断の汎用文言 |
+| `auth`       | `features/auth/`              | ログイン・サインアップ等                               |
+| `calendar`   | `features/calendar/`          | カレンダー表示・操作                                   |
+| `event`      | `features/event/`             | イベント登録・編集                                     |
+| `eventshare` | `features/event/`（共有関連） | 共有リンク生成・バリデーション・エラー                 |
 
 新しいフィーチャーを追加する場合は、`features/` 配下のフィーチャー名と同名の名前空間を追加してください。
 
@@ -96,7 +96,10 @@ const { t } = useTranslation('auth')
 const schema = useMemo(
   () =>
     z.object({
-      email: z.string().min(1, t('validation.emailRequired')).email(t('validation.emailInvalid')),
+      email: z
+        .string()
+        .min(1, t('validation.emailRequired'))
+        .email(t('validation.emailInvalid')),
     }),
   [t],
 )
