@@ -339,3 +339,47 @@ func TestEventSubscriptionHandler_DeleteSubscription_internalError_500(t *testin
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+// withUser stands in for RequireAuth so handler logs can be exercised through
+// a real chi router without session repositories.
+func withUser(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := newStubUser(uuid.New(), "user@example.com", "User")
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxkey.User, u)))
+	})
+}
+
+func subscribeViaRouter(t *testing.T, h *handler.EventSubscriptionHandler, mws ...func(http.Handler) http.Handler) {
+	t.Helper()
+	r := chi.NewRouter()
+	r.With(mws...).Post("/shares/{token}/subscriptions", h.SubscribeToShare)
+	req := httptest.NewRequestWithContext(
+		t.Context(), http.MethodPost, "/shares/"+secretShareToken+"/subscriptions", nil,
+	)
+	r.ServeHTTP(httptest.NewRecorder(), req)
+}
+
+func TestEventSubscriptionHandler_SubscribeToShare_unauthenticated_doesNotLogToken(t *testing.T) {
+	logger, logs := newBufferLogger()
+	h := handler.NewEventSubscriptionHandler(noopSubscribeToShareExec, noopDeleteSubscriptionExec, logger)
+
+	subscribeViaRouter(t, h)
+
+	assertShareTokenNotLogged(t, logs)
+}
+
+func TestEventSubscriptionHandler_SubscribeToShare_internalError_doesNotLogToken(t *testing.T) {
+	stub := &stubSubscribeToShareExec{
+		fn: func(_ context.Context, _ eventsubscriptionuc.SubscribeToShareInput) (
+			eventsubscriptionuc.SubscribeToShareOutput, error,
+		) {
+			return eventsubscriptionuc.SubscribeToShareOutput{}, errInternal
+		},
+	}
+	logger, logs := newBufferLogger()
+	h := handler.NewEventSubscriptionHandler(stub, noopDeleteSubscriptionExec, logger)
+
+	subscribeViaRouter(t, h, withUser)
+
+	assertShareTokenNotLogged(t, logs)
+}

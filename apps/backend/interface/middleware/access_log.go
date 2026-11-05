@@ -6,6 +6,8 @@ import (
 	"time"
 
 	chimw "github.com/go-chi/chi/v5/middleware"
+
+	"github.com/Haya372/ai-trial/backend/interface/route"
 )
 
 func AccessLog(logger *slog.Logger) func(http.Handler) http.Handler {
@@ -20,7 +22,7 @@ func AccessLog(logger *slog.Logger) func(http.Handler) http.Handler {
 			}
 			logger.LogAttrs(r.Context(), levelFor(status), "access",
 				slog.String("method", r.Method),
-				slog.String("path", r.URL.Path),
+				slog.String("path", route.Pattern(r)),
 				slog.Int("status", status),
 				slog.Duration("latency", time.Since(start)),
 				slog.String("remote_addr", r.RemoteAddr),

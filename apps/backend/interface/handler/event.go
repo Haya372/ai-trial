@@ -16,6 +16,7 @@ import (
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
+	"github.com/Haya372/ai-trial/backend/interface/route"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
@@ -97,7 +98,7 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params api.GetEventsParams) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to GET /events", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to GET /events", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -189,7 +190,7 @@ func optionalString(s string) *string {
 func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to POST /events", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to POST /events", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -221,7 +222,7 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to PUT /events/{id}", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to PUT /events/{id}", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}
@@ -258,7 +259,7 @@ func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 func (h *EventHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	u, ok := r.Context().Value(ctxkey.User).(user.User)
 	if !ok || u == nil {
-		h.logger.Warn("unauthorized access to DELETE /events/{id}", "path", r.URL.Path)
+		h.logger.Warn("unauthorized access to DELETE /events/{id}", "path", route.Pattern(r))
 		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
 		return
 	}

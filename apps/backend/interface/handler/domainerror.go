@@ -7,6 +7,7 @@ import (
 
 	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/interface/handler/response"
+	"github.com/Haya372/ai-trial/backend/interface/route"
 )
 
 // domainErrorResponse is the HTTP status/code/message a domain error code
@@ -44,10 +45,10 @@ func writeDomainError(
 			response.WriteError(w, m.status, m.code, m.message)
 			return
 		}
-		logger.Error("unexpected domain error", "error", err, "path", r.URL.Path)
+		logger.Error("unexpected domain error", "error", err, "path", route.Pattern(r))
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 	default:
-		logger.Error("internal error", "error", err, "path", r.URL.Path)
+		logger.Error("internal error", "error", err, "path", route.Pattern(r))
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
 	}
 }
