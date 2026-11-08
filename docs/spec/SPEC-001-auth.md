@@ -94,7 +94,7 @@
 | users | display_name | TEXT | NOT NULL | |
 | users | password_hash | TEXT | NOT NULL | bcrypt ハッシュ |
 | users | created_at | TIMESTAMPTZ | NOT NULL DEFAULT `NOW()` | |
-| users | updated_at | TIMESTAMPTZ | NOT NULL DEFAULT `NOW()` | `update_updated_at_column` トリガで更新 |
+| users | updated_at | TIMESTAMPTZ | NOT NULL DEFAULT `NOW()` | トリガ `update_users_updated_at` で更新 |
 | sessions | id | UUID | PRIMARY KEY DEFAULT `uuid_generate_v4()` | 行識別子。Cookieには使わない |
 | sessions | user_id | UUID | NOT NULL REFERENCES `users(id)` ON DELETE CASCADE | インデックス `sessions_user_id_idx` |
 | sessions | token_hash | TEXT | NOT NULL UNIQUE | 平文トークンのSHA-256（ADR-033） |

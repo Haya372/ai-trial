@@ -106,8 +106,8 @@
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
 | cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
-| query | `startDate` | string | 必須 | `YYYY-MM-DD` 形式 | 検索範囲の開始日 |
-| query | `endDate` | string | 必須 | `YYYY-MM-DD` 形式 | 検索範囲の終了日（この日を含む）。ハンドラ側で `endDate + 1 日` を排他的な上限として下位層に渡す |
+| query | `startDate` | string | 必須 | `YYYY-MM-DD` 形式 | 検索範囲の開始日。UTCの0時として解釈する（クライアントはローカル日付を送るため、UTC以外のタイムゾーンでは範囲の端の予定がずれる） |
+| query | `endDate` | string | 必須 | `YYYY-MM-DD` 形式 | 検索範囲の終了日（この日を含む）。ハンドラ側で `endDate` のUTC 0時 + 1 日を排他的な上限として下位層に渡す |
 
 ##### レスポンス（200 OK）
 
