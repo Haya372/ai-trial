@@ -10,8 +10,6 @@ Claude Codeを活用した開発のテンプレートプロジェクト。
 
 `docs/guidelines/development-flow.md` を参照。
 
-PRD作成 → Issue作成 → 仕様定義 → 詳細設計 → TDD実装 → PRレビュー → マージ、の順で進める。
-
 ## Agentの使い方（Claude Code以外のツール）
 
 Claude Codeでは工程ごとに専用のSubagent（pdm/designer/implementer/qa等）へ切り替えながら進める。
