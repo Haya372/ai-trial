@@ -106,7 +106,7 @@
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
 | POST | /auth/signup | 不要 | `email`, `password`, `displayName`（任意） | 201 `UserResponse`（`id`・`email`・`displayName`） | 400 `VALIDATION_ERROR` / 409 `CONFLICT` / 500 `INTERNAL_ERROR` |
-| POST | /auth/login | 不要 | `email`, `password` | 200 `UserResponse` | 400 `VALIDATION_ERROR` / 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
+| POST | /auth/login | 不要 | `email`, `password` | 200 `UserResponse` | 400 `VALIDATION_ERROR` / 401 `UNAUTHORIZED` / 429 `TOO_MANY_REQUESTS` / 500 `INTERNAL_ERROR` |
 | POST | /auth/logout | セッションCookie | なし | 204 | 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
 | GET | /auth/me | セッションCookie | なし | 200 `UserResponse` | 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
 
@@ -168,6 +168,7 @@
 |---|---|---|---|
 | 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した（`email` を `net/mail.ParseAddress` で解釈できない場合を含む。例: `foo`） |
 | 401 | UNAUTHORIZED | - | `email` に該当するユーザーが存在しない、または `password` が不一致（識別情報はレスポンスで区別しない）。`password` の形式不正も同じ扱い |
+| 429 | TOO_MANY_REQUESTS | - | 同一IPアドレスからのログイン失敗が10回に達してから15分以内に試行した（認証情報が正しくても拒否する）。`Retry-After` ヘッダにロック解除までの秒数を付ける |
 | 500 | INTERNAL_ERROR | - | `email` は `net/mail.ParseAddress` で解釈できるが、ドメインの形式チェック（`user.NewEmail`）に通らない（例: `a@b`。`user.NewEmail` の `INVALID_FORMAT` を handler が分岐しないため）、DB 障害・bcrypt 比較失敗・レスポンスのマーシャリング失敗など内部エラー |
 
 #### POST /auth/logout
