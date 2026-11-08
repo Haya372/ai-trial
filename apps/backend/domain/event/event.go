@@ -1,6 +1,7 @@
 package event
 
 import (
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,6 +18,10 @@ type Event interface {
 	EndAt() time.Time
 	Location() string
 	URL() string
+	// Tags returns the attached tags sorted by ascending position.
+	Tags() []EventTag
+	// WithTags returns a copy of the event with its tags replaced by tags.
+	WithTags(tags []EventTag) (Event, error)
 }
 
 type eventEntity struct {
@@ -28,6 +33,7 @@ type eventEntity struct {
 	endAt       time.Time
 	location    string
 	url         string
+	tags        []EventTag
 }
 
 func New(
@@ -66,3 +72,14 @@ func (e *eventEntity) StartAt() time.Time  { return e.startAt }
 func (e *eventEntity) EndAt() time.Time    { return e.endAt }
 func (e *eventEntity) Location() string    { return e.location }
 func (e *eventEntity) URL() string         { return e.url }
+
+func (e *eventEntity) Tags() []EventTag { return slices.Clone(e.tags) }
+
+func (e *eventEntity) WithTags(tags []EventTag) (Event, error) {
+	if err := validateTags(tags); err != nil {
+		return nil, err
+	}
+	copied := *e
+	copied.tags = sortedByPosition(tags)
+	return &copied, nil
+}
