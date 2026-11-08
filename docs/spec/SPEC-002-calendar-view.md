@@ -1,8 +1,8 @@
 # カレンダービュー（月/週） 仕様書
 
 - 作成日: 2026-09-13
-- 更新日: 2026-09-13 (終日予定をスコープ外と確定、PDM合意済)
-- ステータス: PDM合意済
+- 更新日: 2026-11-08（新テンプレートに合わせて設計セクションを追加、ステータスをアーカイブに変更）
+- ステータス: アーカイブ
 - 合意日: 2026-09-13
 
 ## PRD参照
@@ -63,3 +63,117 @@
 - 週ビューにおける複数日にわたる予定は、対象曜日を横断するブロックとして表示する
 - 終日予定はスコープ外（PRDに定義がないため、後続PRDで定義された際に対応する）
 - データ取得中はローディングインジケーターを表示し、エラー時はエラーメッセージを表示する（予定データが表示できない旨を明示）
+
+## 設計
+
+### ドメインモデル
+
+- `Event`（エンティティ） — ユーザーごとの予定。識別子・ユーザーID・タイトル・開始日時・終了日時を核とし、月/週ビューに並べる単位になる。用語定義と不変条件は [docs/domain/event.md](../domain/event.md) を参照する。
+- 本仕様で前提にする不変条件:
+  - タイトルは空文字を許容しない
+  - 終了日時は開始日時より後（コード上は `endAt > startAt` で検証）
+
+### DB設計
+
+| テーブル | カラム | 型 | 制約 | 備考 |
+|---|---|---|---|---|
+| `events` | `id` | `UUID` | PRIMARY KEY, DEFAULT `uuid_generate_v4()` | 予定の識別子 |
+| `events` | `user_id` | `UUID` | NOT NULL, REFERENCES `users(id)` ON DELETE CASCADE | 作成者。ユーザー削除で予定も連鎖削除 |
+| `events` | `title` | `TEXT` | NOT NULL | タイトル |
+| `events` | `description` | `TEXT` | NULL 許容 | メモ（任意入力の受け取りは SPEC-003 で扱う） |
+| `events` | `start_at` | `TIMESTAMPTZ` | NOT NULL | 開始日時 |
+| `events` | `end_at` | `TIMESTAMPTZ` | NOT NULL | 終了日時 |
+| `events` | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 作成日時 |
+| `events` | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 更新日時。トリガ `update_events_updated_at` で `BEFORE UPDATE` 時に更新 |
+
+- インデックス: `events_user_time_range_idx` (`user_id`, `start_at`, `end_at`) — ログイン中ユーザーの指定期間の予定一覧クエリを支える。
+- `location` / `url` カラムは SPEC-003（予定管理）で追加される。共有・購読関連のテーブル（`event_shares` / `event_subscriptions`）は SPEC-004（予定共有）で追加される。
+
+### API設計
+
+| メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
+|---|---|---|---|---|---|
+| GET | `/events` | セッションCookie必須 | クエリ: `startDate` (`YYYY-MM-DD`, 必須)、`endDate` (`YYYY-MM-DD`, 必須) | 200: `{ events: EventResponse[] }` — ログイン中ユーザーに紐づく期間内の予定一覧 | 400: クエリ不正 / 401: 未認証 / 500: 内部エラー |
+
+- `EventResponse` の正本は `packages/schema/components/schemas/EventResponse.yaml` を参照する。SPEC-002 のレンダリングで使うフィールド: `id` / `title` / `startAt` / `endAt` / `description`。
+- `location` / `url` フィールドの追加は SPEC-003、`isSubscribed` / `subscriptionId` フィールドおよびレスポンスに購読予定を含める挙動の追加は SPEC-004 を参照する。
+- 予定の作成・更新・削除 API は SPEC-003、共有関連 API は SPEC-004 を参照する。
+
+#### API呼び出しシーケンス
+
+##### 画面初期表示（月ビュー）
+
+`currentDate` から当月の月初〜月末を期間として `GET /events` を1回呼び出し、各日セルに予定を配置する。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+    User->>UI: カレンダー画面を開く（月ビュー）
+    Note over UI: currentDate = 現在日時<br/>startDate = 当月の月初<br/>endDate = 当月の月末
+    UI->>API: GET /events?startDate&endDate
+    API-->>UI: 200 { events: EventResponse[] }
+    Note over UI: 各 event の startAt / endAt に基づき<br/>日セルへ配置して描画
+```
+
+##### 画面初期表示（週ビュー）
+
+`currentDate` を含む週の日曜〜土曜を期間として `GET /events` を1回呼び出し、曜日×時間帯のグリッドに予定を配置する。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+    User->>UI: カレンダー画面を開く（週ビュー）
+    Note over UI: currentDate = 現在日時<br/>startDate = currentDate を含む週の日曜<br/>endDate = 同週の土曜
+    UI->>API: GET /events?startDate&endDate
+    API-->>UI: 200 { events: EventResponse[] }
+    Note over UI: 各 event の startAt / endAt に基づき<br/>曜日 × 時間帯のセルへ配置して描画
+```
+
+##### 期間ナビゲーション（「前へ」「次へ」「今日」）
+
+ボタン種別に応じて `currentDate` を更新し、新しい期間で `GET /events` を再取得して描画し直す。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+    User->>UI: 「前へ」/「次へ」/「今日」をクリック
+    Note over UI: 月ビュー: currentDate を ±1ヶ月、または現在日時へ<br/>週ビュー: currentDate を ±1週、または現在日時へ<br/>新しい currentDate から startDate / endDate を導出
+    UI->>API: GET /events?startDate&endDate
+    API-->>UI: 200 { events: EventResponse[] }
+    Note over UI: events を再配置して描画し直す
+```
+
+##### ビュー切り替え（月 ⇄ 週）
+
+`currentDate` は維持したまま `view` を切り替え、新しいビューの期間で `GET /events` を再取得する。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+    User->>UI: 「月」/「週」タブをクリック
+    Note over UI: view を切り替え、currentDate は維持<br/>新しい view に応じて startDate / endDate を導出
+    UI->>API: GET /events?startDate&endDate
+    API-->>UI: 200 { events: EventResponse[] }
+    Note over UI: 新しいビューで events を描画
+```
+
+##### 予定クリック（詳細表示）
+
+取得済みの `events` 配列から `id` で該当予定を特定し、詳細モーダルに渡して表示する（追加の API 呼び出しは行わない）。
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    User->>UI: 予定をクリック（id を渡す）
+    Note over UI: 取得済み events から id で該当予定を特定
+    UI-->>User: 詳細モーダルを表示
+```

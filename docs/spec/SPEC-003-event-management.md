@@ -1,13 +1,13 @@
 # 予定管理（作成・編集・削除） 仕様書
 
 - 作成日: 2026-09-21
-- 更新日: 2026-09-21
-- ステータス: PDM合意済
+- 更新日: 2026-11-08（新テンプレートに追従。設計セクション追加・ステータス更新）
+- ステータス: アーカイブ
 - 合意日: 2026-09-21
 
 ## PRD参照
 
-- PRD: PRD-002 予定管理（`docs/prd/PRD-003-event-management.md`）
+- PRD: PRD-003 予定管理（`docs/prd/PRD-003-event-management.md`）
 - Issue: #20
 
 ## 対象機能
@@ -65,3 +65,97 @@
 - 過去日時の予定を編集・削除する場合: 制限なく操作を許可する（通常フローと同一）
 - カレンダービュー上で同一時間帯に予定が重なっている場合: 各予定をクリックするとそれぞれ個別の詳細表示モーダルを開く
 - Issue #166（カレンダークリックから作成フォームを開く導線）はIssue #19（カレンダービュー）完了後に着手するため、それ以前の実装では別の作成トリガー（固定「新規作成」ボタン等）を暫定的に用いてよい
+
+## 設計
+
+### ドメインモデル
+
+- `Event`（エンティティ） — 予定を表す集約ルート。`id` / `userId` / `title` / `description` / `startAt` / `endAt` / `location` / `url` を持つ。用語・不変条件・エラーは [Event ドメイン](../domain/event.md) を参照する
+- 本仕様で守る不変条件（[Event ドメイン](../domain/event.md) で定義されるもののうち予定管理に関わる範囲）:
+  - `title` は空文字を許容しない
+  - `endAt` は `startAt` より厳密に後でなければならない（同時刻は不可）
+  - 予定の変更・削除は作成したユーザー本人のみが行える
+
+### DB設計
+
+| テーブル | カラム | 型 | 制約 | 備考 |
+|---|---|---|---|---|
+| `events` | `id` | `UUID` | PRIMARY KEY, DEFAULT `uuid_generate_v4()` | 予定ID |
+| `events` | `user_id` | `UUID` | NOT NULL, REFERENCES `users(id)` ON DELETE CASCADE | 作成者。作成者削除で予定も削除 |
+| `events` | `title` | `TEXT` | NOT NULL | タイトル。空文字はドメイン層で拒否 |
+| `events` | `description` | `TEXT` | NULL 許容 | メモ（任意） |
+| `events` | `start_at` | `TIMESTAMPTZ` | NOT NULL | 開始日時 |
+| `events` | `end_at` | `TIMESTAMPTZ` | NOT NULL | 終了日時。`start_at` より後であることはドメイン層で検証 |
+| `events` | `location` | `TEXT` | NULL 許容 | 場所（任意） |
+| `events` | `url` | `TEXT` | NULL 許容 | 関連URL（任意） |
+| `events` | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 作成日時 |
+| `events` | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()`, トリガー `update_events_updated_at` で UPDATE 時に自動更新 | 更新日時 |
+
+インデックス: `events_user_time_range_idx (user_id, start_at, end_at)` — ユーザーごとの期間検索（カレンダー表示の一覧取得）で使用する。
+
+### API設計
+
+| メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
+|---|---|---|---|---|---|
+| POST | `/events` | セッション必須 | `CreateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 201 `EventResponse` | 400 ValidationError（タイトル空・日時逆転等）/ 401 Unauthorized / 500 InternalError |
+| PUT | `/events/{id}` | セッション必須 | `UpdateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 200 `EventResponse` | 400 ValidationError / 401 Unauthorized / 404 NotFound（存在しない or 他ユーザーの予定）/ 500 InternalError |
+| DELETE | `/events/{id}` | セッション必須 | （なし） | 204 No Content | 401 Unauthorized / 404 NotFound（存在しない or 他ユーザーの予定）/ 500 InternalError |
+
+404 は他ユーザーの予定にアクセスした場合もまとめて返し、所有関係の有無を漏らさない。
+
+リクエスト・レスポンスの各フィールドの型・形式は `packages/schema/components/schemas/CreateEventRequest.yaml` / `UpdateEventRequest.yaml` / `EventResponse.yaml` を参照する。
+
+#### API呼び出しシーケンス
+
+予定の新規作成:
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+
+    User->>UI: カレンダーのセルをクリック
+    UI-->>User: 作成フォームモーダルを開く（開始日時にクリック日時を初期設定）
+    User->>UI: タイトル・日時・任意項目を入力して「保存」
+    UI->>API: POST /events {title, startAt, endAt, description?, location?, url?}
+    API-->>UI: 201 EventResponse {id, ...}
+    Note over UI: 一覧キャッシュ eventsKeys.all を無効化<br/>→ GET /events (SPEC-002) が再取得され<br/>  新規予定がカレンダービューに反映される
+    UI-->>User: 成功トースト表示・モーダルを閉じる
+```
+
+予定の編集:
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+
+    Note over UI: 一覧取得で得た EventResponse を<br/>カレンダー上の予定ごとに保持している<br/>（個別取得APIは呼び出さない）
+    User->>UI: 予定をクリック → 詳細表示モーダル（SPEC-002）
+    User->>UI: 「編集」で編集フォームモーダルに切替
+    UI-->>User: 保持している EventResponse の値を初期表示
+    User->>UI: 内容を変更して「保存」
+    UI->>API: PUT /events/{id} {title, startAt, endAt, description?, location?, url?}<br/>（{id} は編集対象 EventResponse.id）
+    API-->>UI: 200 EventResponse
+    Note over UI: eventsKeys.all を無効化<br/>→ GET /events が再取得され<br/>  更新後の内容がカレンダービューに反映される
+    UI-->>User: 成功トースト表示・モーダルを閉じる
+```
+
+予定の削除:
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API as API
+
+    User->>UI: 詳細表示モーダルの「削除」をクリック
+    UI-->>User: 削除確認ダイアログを表示
+    User->>UI: 「削除する」を確定
+    UI->>API: DELETE /events/{id}<br/>（{id} は詳細表示中の EventResponse.id）
+    API-->>UI: 204 No Content
+    Note over UI: eventsKeys.all を無効化<br/>→ GET /events が再取得され<br/>  削除された予定がカレンダービューから消える
+    UI-->>User: 成功トースト表示・モーダルを閉じる
+```

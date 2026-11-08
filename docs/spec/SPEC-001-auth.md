@@ -1,9 +1,9 @@
 # ユーザー認証 仕様書
 
 - 作成日: 2026-09-07
-- 更新日: 2026-09-07
-- PDM合意日: 2026-09-07
-- ステータス: 有効
+- 更新日: 2026-11-08（新テンプレートに追従し、設計セクションを追記。ステータス表記を統一）
+- ステータス: PDM合意済
+- 合意日: 2026-09-07
 
 ## PRD参照
 
@@ -50,13 +50,6 @@
 
 ### 制約条件
 
-#### ユーザーモデル
-
-- ユーザーID: UUID v4（自動生成）
-- メールアドレス: 一意制約あり
-- 表示名: 任意入力（未設定の場合はメールアドレスのローカルパートを使用）
-- パスワードハッシュ: bcrypt
-
 #### 入力バリデーション
 
 - メールアドレス: RFC 5322 準拠の形式であること
@@ -77,7 +70,97 @@
 
 ### エッジケース・境界値
 
+- 表示名を空欄で送信した場合 → メールアドレスの `@` より前のローカルパートを表示名として使用する
 - 既に登録済みのメールアドレスでサインアップを試みた場合 → エラーメッセージを表示（「このメールアドレスは既に使用されています」）
 - 存在しないメールアドレスでログインを試みた場合 → 汎用エラー表示（ユーザー存在の有無を漏らさない）
 - パスワードが一致しない場合 → 汎用エラー表示（「メールアドレスまたはパスワードが正しくありません」）
 - セッションCookieが改ざん・無効の場合 → ログイン画面へリダイレクト
+
+## 設計
+
+### ドメインモデル
+
+- [User ドメイン](../domain/user.md) — `User` 集約。`Email`・`Password`・`LoginPassword`・表示名を持つ
+- [Session ドメイン](../domain/session.md) — `Session` 集約。平文の `Token` をCookieで送り、DBには `TokenHash`（SHA-256、ADR-033）のみを保存する
+
+### DB設計
+
+| テーブル | カラム | 型 | 制約 | 備考 |
+|---|---|---|---|---|
+| users | id | UUID | PRIMARY KEY DEFAULT `uuid_generate_v4()` | |
+| users | email | TEXT | NOT NULL UNIQUE | インデックス `users_email_idx` |
+| users | display_name | TEXT | NOT NULL | |
+| users | password_hash | TEXT | NOT NULL | bcrypt ハッシュ |
+| users | created_at | TIMESTAMPTZ | NOT NULL DEFAULT `NOW()` | |
+| users | updated_at | TIMESTAMPTZ | NOT NULL DEFAULT `NOW()` | `update_updated_at_column` トリガで更新 |
+| sessions | id | UUID | PRIMARY KEY DEFAULT `uuid_generate_v4()` | 行識別子。Cookieには使わない |
+| sessions | user_id | UUID | NOT NULL REFERENCES `users(id)` ON DELETE CASCADE | インデックス `sessions_user_id_idx` |
+| sessions | token_hash | TEXT | NOT NULL UNIQUE | 平文トークンのSHA-256（ADR-033） |
+| sessions | expires_at | TIMESTAMPTZ | NOT NULL | インデックス `sessions_expires_at_idx` |
+| sessions | created_at | TIMESTAMPTZ | NOT NULL DEFAULT `NOW()` | |
+
+### API設計
+
+| メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
+|---|---|---|---|---|---|
+| POST | /auth/signup | 不要 | `email`, `password`, `displayName`（任意） | 201 `UserResponse`（`id`・`email`・`displayName`） | 400 `VALIDATION_ERROR` / 409 `CONFLICT` / 500 `INTERNAL_ERROR` |
+| POST | /auth/login | 不要 | `email`, `password` | 200 `UserResponse` | 400 `VALIDATION_ERROR` / 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
+| POST | /auth/logout | セッションCookie | なし | 204 | 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
+| GET | /auth/me | セッションCookie | なし | 200 `UserResponse` | 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
+
+サインアップ・ログイン成功時のレスポンスには `Set-Cookie: session_id=<平文トークン>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`（30日）を付与する。ログアウト成功時は同じ属性で `Max-Age=-1` のCookieを返して失効させる。
+
+#### API呼び出しシーケンス
+
+##### サインアップ
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as サインアップ画面
+    participant API as /auth/signup
+    User->>UI: email, password, displayName を入力して送信
+    UI->>API: POST /auth/signup { email, password, displayName? }
+    API-->>UI: 201 { id, email, displayName } + Set-Cookie: session_id
+    Note over UI: レスポンスの id/email/displayName を認証ストアに保存
+    UI->>User: カレンダー画面（/）へ遷移
+```
+
+##### ログイン
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as ログイン画面
+    participant API as /auth/login
+    User->>UI: email, password を入力して送信
+    UI->>API: POST /auth/login { email, password }
+    API-->>UI: 200 { id, email, displayName } + Set-Cookie: session_id
+    Note over UI: レスポンスの id/email/displayName を認証ストアに保存
+    UI->>User: カレンダー画面（/）へ遷移
+```
+
+##### ログアウト
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as カレンダー画面
+    participant API as /auth/logout
+    User->>UI: ログアウトを実行
+    UI->>API: POST /auth/logout（Cookie: session_id を自動送信）
+    API-->>UI: 204 または 401 + Set-Cookie: session_id Max-Age=-1
+    Note over UI: 認証ストアをクリア
+    UI->>User: ログイン画面（/login）へ遷移
+```
+
+##### 未ログイン時のアクセス
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 認証が必要なルート
+    User->>UI: カレンダー画面（/）にアクセス
+    Note over UI: 認証ストアの状態を確認
+    UI->>User: 未ログインならログイン画面（/login）へリダイレクト
+```

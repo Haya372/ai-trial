@@ -1,14 +1,14 @@
 # 予定共有（URLシェア） 仕様書
 
 - 作成日: 2026-09-26
-- 更新日: 2026-09-26
-- ステータス: PDM合意済
+- 更新日: 2026-11-08（新テンプレートに追従し、設計セクションを追記）
+- ステータス: アーカイブ
 - 合意日: 2026-09-26
 
 ## PRD参照
 
 - PRD: PRD-004 予定共有（`docs/prd/PRD-004-event-sharing.md`）
-- Issue: #21（親）、#196
+- Issue: #21
 
 ## 対象機能
 
@@ -86,3 +86,161 @@
 - 同一予定に対する複数の共有リンク（別トークン）経由でそれぞれ追加操作を行った場合: 新規エントリを作らず、既存の追加済み状態を維持する
 - 共有元の予定が追加操作の直前に削除された場合: 対象が見つからないエラーとして扱う
 - 予定作成者が自分の予定への共有リンクを開いた場合: 「自分のカレンダーに追加」ボタンを表示しない
+
+## 設計
+
+### ドメインモデル
+
+- `EventShare`（エンティティ）— 共有リンク1件を表す。`Event` 集約とは別集約で、対象予定ID・トークンハッシュ・有効期限を持つ。用語・ビジネスルールは [`docs/domain/eventshare.md`](../domain/eventshare.md) を参照
+- `EventSubscription`（エンティティ）— 共有リンク経由でユーザーが自分のカレンダーに追加した状態を表す。`Event` 集約とは別集約で、対象予定ID・追加したユーザーIDのみを持ち、タイトル等の表示値は常に `Event` 側を参照する。用語・ビジネスルールは [`docs/domain/eventsubscription.md`](../domain/eventsubscription.md) を参照
+- トークンの生成・保存方式（ランダム32バイト＋base64url / DBはSHA-256ハッシュのみ）: [ADR-028](../adr/ADR-028-event-share-token.md)
+
+### DB設計
+
+| テーブル | カラム | 型 | 制約 | 備考 |
+|---|---|---|---|---|
+| event_shares | id | UUID | PRIMARY KEY, DEFAULT `uuid_generate_v4()` | 共有リンクID |
+| event_shares | event_id | UUID | NOT NULL, REFERENCES `events(id)` ON DELETE CASCADE | 共有対象の予定。予定が削除されたら共有リンクも削除 |
+| event_shares | token_hash | TEXT | NOT NULL, UNIQUE | トークンのSHA-256ハッシュ（ADR-028）。平文トークンはDBに保存しない |
+| event_shares | expires_at | TIMESTAMPTZ | NOT NULL | 有効期限（この値ちょうども失効扱い） |
+| event_shares | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT `NOW()` | - |
+| event_shares | （インデックス） | - | `idx_event_shares_event_id` on (`event_id`) | 予定単位の検索用 |
+| event_subscriptions | id | UUID | PRIMARY KEY, DEFAULT `uuid_generate_v4()` | 追加レコードID。DELETE `/subscriptions/{id}` のパスパラメータに使う |
+| event_subscriptions | event_id | UUID | NOT NULL, REFERENCES `events(id)` ON DELETE CASCADE | 追加対象の予定。予定が削除されたら追加も削除（「共有元の予定が削除された場合」の挙動） |
+| event_subscriptions | user_id | UUID | NOT NULL, REFERENCES `users(id)` ON DELETE CASCADE | 追加したユーザー |
+| event_subscriptions | created_at | TIMESTAMPTZ | NOT NULL, DEFAULT `NOW()` | - |
+| event_subscriptions | （複合UNIQUE） | - | UNIQUE (`event_id`, `user_id`) | 同一予定を同一ユーザーが重複追加できないよう保証 |
+| event_subscriptions | （インデックス） | - | `idx_event_subscriptions_user_id` on (`user_id`) | ユーザー単位の一覧（カレンダー表示）用 |
+
+### API設計
+
+| メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
+|---|---|---|---|---|---|
+| POST | /events/{id}/shares | セッションCookie（必須） | `expiresAt`（ISO 8601、省略可。省略時は予定終了日時） | 201: `{ url: "/share/{token}", expiresAt }` | 400（バリデーション: `BEFORE_EVENT_START`・`NOT_IN_FUTURE`）、401、404（予定が存在しない／他ユーザーの予定）、500 |
+| GET | /shares/{token} | 任意（[ADR-030](../adr/ADR-030-optional-auth-middleware.md) の `OptionalAuth`） | - | 200: `{ title, description?, startAt, endAt, location?, url?, isOwnEvent, isSubscribed }`。`isOwnEvent`・`isSubscribed` は未認証時は `false` | 404（トークン不一致・予定削除済み）、410（有効期限切れ）、500 |
+| POST | /shares/{token}/subscriptions | セッションCookie（必須） | - | 201: `{ id, eventId, createdAt }`（新規作成）/ 200: 同じ形（既存を返す冪等呼び出し） | 401、403（作成者本人による自分の予定の追加）、404、410、500 |
+| DELETE | /subscriptions/{id} | セッションCookie（必須） | - | 204: ボディ無し | 401、403（他ユーザーのサブスクリプション）、404、500 |
+
+カレンダー一覧API `GET /events`（SPEC-002）は本機能の実装に合わせ、自分で作成した予定に加え、自分が追加したサブスクリプション経由の予定も合わせて返す。レスポンスの各要素は `isSubscribed`（追加経由か）と `subscriptionId`（追加経由のときのみ非null、DELETE `/subscriptions/{id}` のパラメータに使う）を持つ。
+
+#### API呼び出しシーケンス
+
+##### 共有リンクの生成
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面（予定詳細／共有リンク生成モーダル）
+    participant API as バックエンドAPI
+
+    User->>UI: 「共有リンクを生成」クリック
+    UI-->>User: 生成モーダルを表示（有効期限の初期値＝予定終了日時）
+    User->>UI: 有効期限を入力し「生成」をクリック
+    UI->>API: POST /events/{id}/shares（expiresAt）
+    API-->>UI: 201 { url: "/share/{token}", expiresAt }
+    Note over UI: window.location.origin + url で完全URLを組み立てる
+    UI-->>User: 完全URLをコピー欄に表示
+```
+
+##### 共有リンクの閲覧（有効期限切れ・存在しないトークンを含む）
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面（/share/{token} ページ）
+    participant API as バックエンドAPI
+
+    User->>UI: /share/{token} にアクセス
+    par 共有詳細の取得
+        UI->>API: GET /shares/{token}
+    and ログイン判定
+        UI->>API: GET /auth/me
+    end
+    API-->>UI: GET /auth/me の結果（200 user / 401 匿名）
+    alt 200 OK（共有有効）
+        API-->>UI: 200 { title, startAt, endAt, ..., isOwnEvent, isSubscribed }
+        UI-->>User: 予定詳細を表示。ログイン済み かつ isOwnEvent=false のとき追加/削除UIを表示
+    else 410 Gone（期限切れ）
+        API-->>UI: 410 { code: "GONE" }
+        UI-->>User: 期限切れメッセージを表示
+    else 404 Not Found（存在しないトークン／予定削除済み）
+        API-->>UI: 404 { code: "NOT_FOUND" }
+        UI-->>User: 「共有リンクが見つかりません」メッセージを表示
+    end
+```
+
+##### 予定の自分のカレンダーへの追加
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー（ログイン済・非作成者）
+    participant UI as 画面（/share/{token} ページ）
+    participant API as バックエンドAPI
+
+    User->>UI: 「自分のカレンダーに追加」クリック
+    UI->>API: POST /shares/{token}/subscriptions
+    alt 201 Created（新規追加）
+        API-->>UI: 201 { id, eventId, createdAt }
+    else 200 OK（既に追加済み・冪等）
+        API-->>UI: 200 { id, eventId, createdAt }
+    end
+    Note over UI: 返却された id を保持（「追加の取り消し」で DELETE /subscriptions/{id} に使う）
+    UI-->>User: 「追加済み」表示に切り替え
+```
+
+##### 追加した予定の表示・同期
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面（カレンダービュー）
+    participant API as バックエンドAPI
+
+    User->>UI: カレンダーページを開く／期間を切り替える
+    UI->>API: GET /events?startDate=...&endDate=...（SPEC-002）
+    API-->>UI: 200 [{ id, title, ..., isSubscribed, subscriptionId }]
+    Note over UI: isSubscribed=true のエントリは追加済み予定として描画し、編集・削除UIは出さない。subscriptionId は「追加の取り消し」で使う
+    UI-->>User: 自分の予定と追加済み予定を同じビューに表示
+```
+
+##### 追加の取り消し
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面（カレンダー／共有閲覧ページ）
+    participant API as バックエンドAPI
+
+    User->>UI: 「カレンダーから削除」クリック
+    alt カレンダー経由（GET /events の subscriptionId を保持）
+        UI->>API: DELETE /subscriptions/{subscriptionId}
+    else 共有閲覧ページ経由（直前の POST レスポンスの id を保持）
+        UI->>API: DELETE /subscriptions/{id}
+    else 共有閲覧ページ経由（ページ表示時 isSubscribed=true だが id 未保持）
+        Note over UI: ShareResponse には subscriptionId が無いため、冪等POSTで id を取得してから削除する
+        UI->>API: POST /shares/{token}/subscriptions
+        API-->>UI: 200 { id, eventId, createdAt }
+        UI->>API: DELETE /subscriptions/{id}
+    end
+    API-->>UI: 204 No Content
+    UI-->>User: 自分のカレンダーから非表示に切り替え
+```
+
+##### 共有元の予定が削除された場合（追加済み予定への影響）
+
+```mermaid
+sequenceDiagram
+    actor Owner as ユーザー（予定作成者）
+    actor Subscriber as ユーザー（追加済みの閲覧者）
+    participant UI as 画面（カレンダービュー）
+    participant API as バックエンドAPI
+    participant DB as DB
+
+    Owner->>API: DELETE /events/{id}（SPEC-003）
+    Note over API,DB: 外部キー制約 event_subscriptions.event_id ON DELETE CASCADE により、関連する追加レコードも同一トランザクションで削除される
+    API-->>Owner: 204 No Content
+    Subscriber->>UI: カレンダーページを開く／期間を切り替える
+    UI->>API: GET /events?startDate=...&endDate=...
+    API-->>UI: 200 [...]（削除済み予定はレスポンスに含まれない）
+    UI-->>Subscriber: 当該予定はカレンダーから消える（明示的な取り消し操作は不要）
+```
