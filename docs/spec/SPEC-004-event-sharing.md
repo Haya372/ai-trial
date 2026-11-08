@@ -128,6 +128,7 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
+| cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
 | path | id | string(uuid) | 必須 | UUID形式 | 共有リンクを発行する予定のID |
 | body | expiresAt | string(date-time) \| null | 任意 | ISO 8601、`BEFORE_EVENT_START`（予定の開始日時以降）と `NOT_IN_FUTURE`（現在時刻より後）の両方を満たすこと。省略／null時は予定終了日時を使い、この2バリデーションはスキップされる | 共有リンクの有効期限 |
 
@@ -137,8 +138,8 @@
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| url | string | no | 共有リンクのパス（`/share/{token}` 形式）。クライアントは `window.location.origin` を前置して完全URLを組み立てる |
-| expiresAt | string(date-time) | no | 発行された共有リンクの有効期限（ISO 8601） |
+| url | string | 否 | 共有リンクのパス（`/share/{token}` 形式）。クライアントは `window.location.origin` を前置して完全URLを組み立てる |
+| expiresAt | string(date-time) | 否 | 発行された共有リンクの有効期限（ISO 8601） |
 
 ##### エラー
 
@@ -165,14 +166,14 @@
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| title | string | no | 予定のタイトル |
-| description | string | yes | 予定のメモ。null または省略 |
-| startAt | string(date-time) | no | 開始日時 |
-| endAt | string(date-time) | no | 終了日時 |
-| location | string | yes | 場所。null または省略 |
-| url | string | yes | 予定のURL。null または省略 |
-| isOwnEvent | boolean | no | 認証済みの閲覧者が予定作成者本人のとき `true`。未認証時は `false` |
-| isSubscribed | boolean | no | 認証済みの閲覧者が既に自分のカレンダーに追加済みのとき `true`。未認証時は `false` |
+| title | string | 否 | 予定のタイトル |
+| description | string | 否（空のときはフィールドごと省略する） | 予定のメモ |
+| startAt | string(date-time) | 否 | 開始日時 |
+| endAt | string(date-time) | 否 | 終了日時 |
+| location | string | 否（空のときはフィールドごと省略する） | 場所 |
+| url | string | 否（空のときはフィールドごと省略する） | 予定のURL |
+| isOwnEvent | boolean | 否 | 認証済みの閲覧者が予定作成者本人のとき `true`。未認証時は `false` |
+| isSubscribed | boolean | 否 | 認証済みの閲覧者が既に自分のカレンダーに追加済みのとき `true`。未認証時は `false` |
 
 ##### エラー
 
@@ -188,6 +189,7 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
+| cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
 | path | token | string | 必須 | - | 共有リンクのトークン（平文） |
 | body | - | - | - | - | なし |
 
@@ -197,9 +199,9 @@
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| id | string(uuid) | no | サブスクリプションID。クライアントは「追加の取り消し」で `DELETE /subscriptions/{id}` に渡す |
-| eventId | string(uuid) | no | 追加した予定のID |
-| createdAt | string(date-time) | no | 追加日時 |
+| id | string(uuid) | 否 | サブスクリプションID。クライアントは「追加の取り消し」で `DELETE /subscriptions/{id}` に渡す |
+| eventId | string(uuid) | 否 | 追加した予定のID |
+| createdAt | string(date-time) | 否 | 追加日時 |
 
 ##### エラー
 
@@ -217,6 +219,7 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
+| cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
 | path | id | string(uuid) | 必須 | UUID形式 | 削除対象のサブスクリプションID |
 | body | - | - | - | - | なし |
 
@@ -240,8 +243,8 @@
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| events[].isSubscribed | boolean | no | 共有リンク経由で追加した予定なら `true`、自分で作成した予定なら `false` |
-| events[].subscriptionId | string(uuid) | yes | `isSubscribed=true` のときのみ非null。`DELETE /subscriptions/{id}` のパスパラメータに使う |
+| events[].isSubscribed | boolean | 否 | 共有リンク経由で追加した予定なら `true`、自分で作成した予定なら `false` |
+| events[].subscriptionId | string(uuid) | 可 | `isSubscribed=true` のときのみ非null。`DELETE /subscriptions/{id}` のパスパラメータに使う |
 
 #### API呼び出しシーケンス
 

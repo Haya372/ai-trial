@@ -68,21 +68,23 @@
 
 ##### リクエスト
 
-場所は `path` / `query` / `body` / `cookie` のいずれかを書く。リクエストがない場合は「なし」と書く。
+場所は `path` / `query` / `body` / `cookie` のいずれかを書く。必須は `必須` / `任意` で書く。リクエストがない場合は「なし」と書く。
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
 | cookie | session_id | string | 必須 | - | セッショントークン |
 | path | id | string(uuid) | 必須 | UUID形式 | 共有する予定のID |
-| body | expiresAt | string(date-time) \| null | 任意 | 現在時刻より後 | 共有リンクの有効期限 |
+| body | expiresAt | string(date-time) \| null | 任意 | 予定の開始日時以降、かつ現在時刻より後 | 共有リンクの有効期限。省略時は予定の終了日時 |
 
 ##### レスポンス（201 Created）
 
 ネストした配列・オブジェクトは `events[].id` のようにドット記法で展開する。ボディがない場合は「なし」と書く。
+null許容は `否` / `可` で書き、値がないときにフィールドごと省略する場合は「否（空のときはフィールドごと省略する）」のように添える。
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| token | string | 否 | 共有リンクのトークン |
+| url | string | 否 | 共有リンクのパス（`/share/{token}` 形式） |
+| expiresAt | string(date-time) | 否 | 共有リンクの有効期限 |
 
 ##### エラー
 
@@ -90,6 +92,8 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
+| 400 | VALIDATION_ERROR | - | path の `id` がUUIDとして解釈できない、またはボディをJSONとして解釈できない |
+| 400 | VALIDATION_ERROR | BEFORE_EVENT_START | `expiresAt` が予定の開始日時より前 |
 | 400 | VALIDATION_ERROR | NOT_IN_FUTURE | `expiresAt` が現在時刻以前 |
 | 401 | UNAUTHORIZED | - | セッションが無効 |
 | 404 | NOT_FOUND | - | 予定が存在しない、または自分の予定ではない |
@@ -108,6 +112,6 @@ sequenceDiagram
     participant API
     User->>UI: 「共有リンクを生成」を確定
     UI->>API: POST /events/{id}/shares
-    API-->>UI: 201 { token }
-    Note over UI: token から /share/{token} のURLを組み立てて表示する
+    API-->>UI: 201 { url, expiresAt }
+    Note over UI: url にオリジンを前置して完全なURLを表示する
 ```

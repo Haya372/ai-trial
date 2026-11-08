@@ -120,15 +120,15 @@
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| `id` | string (uuid) | - | 作成された予定のID |
-| `title` | string | - | タイトル |
-| `description` | string | ◯ | メモ。実装は空文字のとき `omitempty` によりフィールド自体を省略する |
-| `startAt` | string (date-time) | - | 開始日時 |
-| `endAt` | string (date-time) | - | 終了日時 |
-| `location` | string | ◯ | 場所。実装は空文字のとき `omitempty` によりフィールド自体を省略する |
-| `url` | string | ◯ | 関連URL。実装は空文字のとき `omitempty` によりフィールド自体を省略する |
-| `isSubscribed` | boolean | - | SPEC-004で追加。作成系は自ユーザーが所有する予定しか扱わないため常に `false` を返す |
-| `subscriptionId` | string (uuid) | ◯ | SPEC-004で追加。作成系は常に `null` を返す |
+| `id` | string (uuid) | 否 | 作成された予定のID |
+| `title` | string | 否 | タイトル |
+| `description` | string | 否（空のときはフィールドごと省略する） | メモ |
+| `startAt` | string (date-time) | 否 | 開始日時 |
+| `endAt` | string (date-time) | 否 | 終了日時 |
+| `location` | string | 否（空のときはフィールドごと省略する） | 場所 |
+| `url` | string | 否（空のときはフィールドごと省略する） | 関連URL |
+| `isSubscribed` | boolean | 否 | SPEC-004で追加。作成系は自ユーザーが所有する予定しか扱わないため常に `false` を返す |
+| `subscriptionId` | string (uuid) | 可 | SPEC-004で追加。作成系は常に `null` を返す |
 
 ##### エラー
 

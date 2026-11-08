@@ -113,16 +113,16 @@
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| `events` | `EventResponse[]` | no | 期間内の予定一覧。該当なしの場合は空配列 |
-| `events[].id` | string (uuid) | no | 予定ID |
-| `events[].title` | string | no | タイトル |
-| `events[].startAt` | string (date-time, RFC3339) | no | 開始日時 |
-| `events[].endAt` | string (date-time, RFC3339) | no | 終了日時 |
-| `events[].description` | string | no（空の場合はフィールド自体をレスポンスから省略する） | メモ |
-| `events[].location` | string | no（空の場合はフィールド自体をレスポンスから省略する） | 場所（SPEC-003で追加） |
-| `events[].url` | string | no（空の場合はフィールド自体をレスポンスから省略する） | 関連URL（SPEC-003で追加） |
-| `events[].isSubscribed` | boolean | no | 共有リンク経由で追加された購読予定なら `true`。`true` の予定は閲覧専用（SPEC-004で追加） |
-| `events[].subscriptionId` | string (uuid) | yes（`isSubscribed = false` のとき `null`） | 購読レコードID。`DELETE /subscriptions/{id}` に渡して自分のカレンダーから外す用途（SPEC-004で追加） |
+| `events` | `EventResponse[]` | 否 | 期間内の予定一覧。該当なしの場合は空配列 |
+| `events[].id` | string (uuid) | 否 | 予定ID |
+| `events[].title` | string | 否 | タイトル |
+| `events[].startAt` | string (date-time, RFC3339) | 否 | 開始日時 |
+| `events[].endAt` | string (date-time, RFC3339) | 否 | 終了日時 |
+| `events[].description` | string | 否（空のときはフィールドごと省略する） | メモ |
+| `events[].location` | string | 否（空のときはフィールドごと省略する） | 場所（SPEC-003で追加） |
+| `events[].url` | string | 否（空のときはフィールドごと省略する） | 関連URL（SPEC-003で追加） |
+| `events[].isSubscribed` | boolean | 否 | 共有リンク経由で追加された購読予定なら `true`。`true` の予定は閲覧専用（SPEC-004で追加） |
+| `events[].subscriptionId` | string (uuid) | 可（`isSubscribed = false` のとき `null`） | 購読レコードID。`DELETE /subscriptions/{id}` に渡して自分のカレンダーから外す用途（SPEC-004で追加） |
 
 ##### エラー
 

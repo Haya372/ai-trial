@@ -135,8 +135,8 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した |
-| 400 | VALIDATION_ERROR | INVALID_FORMAT | `email` が RFC 5322 準拠の形式でない |
+| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した（`email` を `net/mail.ParseAddress` で解釈できない場合を含む。例: `foo`） |
+| 400 | VALIDATION_ERROR | INVALID_FORMAT | `email` は `net/mail.ParseAddress` で解釈できるが、ドメインの形式チェック（`user.NewEmail`）に通らない（例: `a@b`） |
 | 400 | VALIDATION_ERROR | TOO_SHORT | `password` が 8 文字未満 |
 | 400 | VALIDATION_ERROR | TOO_LONG | `password` が 72 バイト超、または `displayName` が 50 文字超 |
 | 400 | VALIDATION_ERROR | INVALID_CHARACTER | `password` に ASCII 印字可能範囲外の文字が含まれる |
@@ -166,9 +166,9 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した |
+| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した（`email` を `net/mail.ParseAddress` で解釈できない場合を含む。例: `foo`） |
 | 401 | UNAUTHORIZED | - | `email` に該当するユーザーが存在しない、または `password` が不一致（識別情報はレスポンスで区別しない）。`password` の形式不正も同じ扱い |
-| 500 | INTERNAL_ERROR | - | `email` がJSONとしては文字列だがドメインの形式チェックに通らない（例: `a@b`。`user.NewEmail` の `INVALID_FORMAT` を handler が分岐しないため）、DB 障害・bcrypt 比較失敗・レスポンスのマーシャリング失敗など内部エラー |
+| 500 | INTERNAL_ERROR | - | `email` は `net/mail.ParseAddress` で解釈できるが、ドメインの形式チェック（`user.NewEmail`）に通らない（例: `a@b`。`user.NewEmail` の `INVALID_FORMAT` を handler が分岐しないため）、DB 障害・bcrypt 比較失敗・レスポンスのマーシャリング失敗など内部エラー |
 
 #### POST /auth/logout
 
