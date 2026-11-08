@@ -55,16 +55,59 @@
 
 ### API設計
 
-追加・変更するエンドポイントのリクエスト・レスポンス・エラーを記述する。
+追加・変更するエンドポイントの一覧を記述する。エラーレスポンスの共通構造は `docs/adr/ADR-013-api-error-structure.md` に従う。
 
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
 | | | | | | |
 
+エンドポイントごとに `#### <メソッド> <パス>` の見出しを置き、リクエスト・レスポンス・エラーを表で記述する。
+ほかの仕様書で定義済みのエンドポイントを使う場合は、型・制約はその仕様書を参照し、この機能が送る値と、その値で起こりうるエラーだけを書く。
+
+#### POST /events/{id}/shares（例）
+
+##### リクエスト
+
+場所は `path` / `query` / `body` / `cookie` のいずれかを書く。リクエストがない場合は「なし」と書く。
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | session_id | string | 必須 | - | セッショントークン |
+| path | id | string(uuid) | 必須 | UUID形式 | 共有する予定のID |
+| body | expiresAt | string(date-time) \| null | 任意 | 現在時刻より後 | 共有リンクの有効期限 |
+
+##### レスポンス（201 Created）
+
+ネストした配列・オブジェクトは `events[].id` のようにドット記法で展開する。ボディがない場合は「なし」と書く。
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| token | string | 否 | 共有リンクのトークン |
+
+##### エラー
+
+返りうるエラーを、認証エラー（401）と内部エラー（500）も含めてすべて列挙する。`details` を返さない場合は `details[].code` を `-` にする。
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | VALIDATION_ERROR | NOT_IN_FUTURE | `expiresAt` が現在時刻以前 |
+| 401 | UNAUTHORIZED | - | セッションが無効 |
+| 404 | NOT_FOUND | - | 予定が存在しない、または自分の予定ではない |
+| 500 | INTERNAL_ERROR | - | 予期しない内部エラー |
+
 #### API呼び出しシーケンス
 
-基本フローの操作ごとに、画面がどのAPIをどの順序で呼び出すかと、前のAPIのレスポンスのどの値を次の呼び出しに使うかを記述する。
+基本フローの操作ごとに、画面がどのAPIをどの順序で呼び出すかと、前のAPIのレスポンスのどの値を次の呼び出しに使うかを、Mermaid の `sequenceDiagram` で記述する。
 
 - 例: 共有リンクの生成
-  1. 「共有リンクを生成」確定時に `POST /events/:id/shares` を呼び出す
-  2. レスポンスの `token` から `/share/{token}` のURLを組み立てて表示する
+
+```mermaid
+sequenceDiagram
+    actor User as ユーザー
+    participant UI as 画面
+    participant API
+    User->>UI: 「共有リンクを生成」を確定
+    UI->>API: POST /events/{id}/shares
+    API-->>UI: 201 { token }
+    Note over UI: token から /share/{token} のURLを組み立てて表示する
+```
