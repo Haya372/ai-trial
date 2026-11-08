@@ -303,7 +303,9 @@
 |---|---|---|---|
 | 400 | `VALIDATION_ERROR` | `TOO_MANY` | `tagIds` が5件を超える（`details[].field = "tagIds"`） |
 | 400 | `VALIDATION_ERROR` | `DUPLICATED` | `tagIds` に同じIDが複数ある（`details[].field = "tagIds"`） |
-| 400 | `VALIDATION_ERROR` | `TAG_NOT_FOUND` | `tagIds` に存在しないタグ、または他ユーザーのタグのIDがある（`details[].field = "tagIds"`） |
+| 400 | `VALIDATION_ERROR` | `NOT_FOUND` | `tagIds` に存在しないタグ、または他ユーザーのタグのIDがある（`details[].field = "tagIds"`） |
+
+`TOO_MANY` / `DUPLICATED` / `NOT_FOUND` は `ValidationErrorDetail.code`（`packages/schema/components/schemas/ValidationErrorDetail.yaml`）の enum に追加する。
 
 #### API呼び出しシーケンス
 
