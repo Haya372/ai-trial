@@ -114,6 +114,8 @@ flowchart LR
 4. ユーザーの回答は `taskctl answer <task> <回答>` で渡す。taskctl は保存しておいた `session_id` で `claude -p --resume <session_id>` を実行し、サブエージェントは文脈を保ったまま作業を再開する
 5. タスクは taskctl がタスク名と `session_id` の対応で管理する。複数タスクが同時に質問しても、回答は対応するタスクにだけ届く
 
+Claude の認証トークン（`CLAUDE_CODE_OAUTH_TOKEN`）は、taskctl が `claude -p` を実行するたびに `docker exec -e` で渡す。`docker run` の環境変数・`.env`・イメージには含めず、常駐プロセスに保持させない。トークンがコンテナ内に存在する時間を `claude` の実行中に限るため。
+
 サブエージェントは `--permission-mode acceptEdits --allowedTools Bash` で実行し、ファイル編集とBashをすべて許可する。
 
 - `--dangerously-skip-permissions` は使えない。本プロジェクトの設定で無効化されているため（`permissions.disableBypassPermissionsMode`）
