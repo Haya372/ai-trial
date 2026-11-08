@@ -21,7 +21,17 @@ description: ADR（Architecture Decision Record）を作成・更新するとき
 
 ### ステップ 2: ファイルを作成する
 
-- 番号: `docs/adr/` 配下の最大番号 + 1 を3桁ゼロ埋めで使う
+- 番号: 以下の2つで確認したADRのうち最大の番号 + 1 を3桁ゼロ埋めで使う。作業ブランチの `docs/adr/` は、ブランチを切った後に追加されたADRを含まないため使わない
+
+  ```bash
+  # mainにマージ済みのADR
+  git fetch origin main
+  git ls-tree --name-only origin/main docs/adr/
+
+  # オープン中のPRで追加予定のADR
+  gh pr list --state open --json number,files --jq '.[] | .number as $n | .files[].path | select(startswith("docs/adr/ADR-")) | "\($n) \(.)"'
+  ```
+
 - ファイル名: `docs/adr/ADR-XXX-[英小文字ケバブケースのタイトル].md`（例: `ADR-033-session-token-hashing.md`）
 - `docs/adr/template.md` をコピーして書き始める
 
@@ -71,7 +81,7 @@ mise exec -- markdownlint-cli2 <変更したファイル>
 ## チェックリスト
 
 - [ ] 同じテーマの既存ADRを確認し、置き換えにするかどうか決めたか
-- [ ] 番号が既存ADRと重複していないか
+- [ ] 番号が `origin/main` とオープン中のPRのADRと重複していないか
 - [ ] ステータスが合意状況と一致しているか
 - [ ] Issueを読まなくてもADR単体で背景と決定が分かるか
 - [ ] 「〜する場合は」「後続で決める」など、決定を先送りする表現が残っていないか
