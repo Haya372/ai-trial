@@ -87,6 +87,7 @@
 - タグが1つも作成されていない状態で「絞り込み」ボタンを押した場合: タグがない旨と「タグ管理」への導線を表示する
 - 絞り込み中のタグを持つ予定が表示範囲（月・週）に1件もない場合: 空のカレンダーを表示し、絞り込み中であることがわかる状態を維持する
 - 絞り込み中に予定を編集して、選択中のタグを外した場合: 保存後、その予定はカレンダーから非表示になる
+- 絞り込み中のタグが別のタブ・端末で削除された場合: カレンダーは空で表示し、タグ一覧（`GET /tags`）を再取得した時点で選択中のタグが含まれていなければ絞り込みを解除する
 - 絞り込み中は、タグが付与されていない予定と共有から追加した予定は表示しない
 - 先頭タグを外した場合: 次のタグが先頭になり、背景色もそのタグの色に切り替わる
 - 予定を削除した場合: その予定へのタグ付与も削除する（タグ自体は残る）
@@ -137,7 +138,7 @@
 | POST | `/tags` | セッション必須 | `CreateTagRequest`（`name` / `color` 必須） | 201 `TagResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 409 CONFLICT / 500 INTERNAL_ERROR |
 | PUT | `/tags/{id}` | セッション必須 | `UpdateTagRequest`（`name` / `color` 必須） | 200 `TagResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 409 CONFLICT / 500 INTERNAL_ERROR |
 | DELETE | `/tags/{id}` | セッション必須 | （なし） | 204 No Content | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 500 INTERNAL_ERROR |
-| GET | `/events`（SPEC-002 を拡張） | セッション必須 | クエリに `tagId`（任意）を追加 | 200 `{ events: EventResponse[] }`（各予定に `tags` を追加） | SPEC-002 のエラーに 400 / 404 を追加 |
+| GET | `/events`（SPEC-002 を拡張） | セッション必須 | クエリに `tagId`（任意）を追加 | 200 `{ events: EventResponse[] }`（各予定に `tags` を追加） | SPEC-002 のエラーに 400 を追加 |
 | POST | `/events`（SPEC-003 を拡張） | セッション必須 | `CreateEventRequest` に `tagIds`（任意）を追加 | 201 `EventResponse`（`tags` を追加） | SPEC-003 のエラーに 400 を追加 |
 | PUT | `/events/{id}`（SPEC-003 を拡張） | セッション必須 | `UpdateEventRequest` に `tagIds`（任意）を追加 | 200 `EventResponse`（`tags` を追加） | SPEC-003 のエラーに 400 を追加 |
 
@@ -265,7 +266,7 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
-| query | `tagId` | string (uuid) | 任意 | UUID 形式 | 指定した場合、このタグが付与された予定だけを返す。共有から追加した予定（`isSubscribed = true`）は返さない |
+| query | `tagId` | string (uuid) | 任意 | UUID 形式 | 指定した場合、このタグが付与された予定だけを返す。共有から追加した予定（`isSubscribed = true`）は返さない。タグが存在しない、または他ユーザーのタグの場合は空配列を返す（所有関係の有無を漏らさない） |
 
 ##### レスポンス（200 OK）
 
@@ -281,7 +282,6 @@
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
 | 400 | `VALIDATION_ERROR` | - | `tagId` が UUID としてパースできない |
-| 404 | `NOT_FOUND` | - | `tagId` のタグが存在しない、または他ユーザーのタグ |
 
 #### POST /events・PUT /events/{id}（SPEC-008で追加するフィールド）
 
