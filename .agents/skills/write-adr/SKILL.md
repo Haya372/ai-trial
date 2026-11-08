@@ -60,7 +60,7 @@ description: ADR（Architecture Decision Record）を作成・更新するとき
 
 ### ステップ 5: 参照元を更新する
 
-`grep -rn "ADR-YYY" docs .agents` で旧ADR（置き換えた場合）や関連ADRの参照箇所を探し、置き換え後のADRを参照すべき箇所を更新する。
+`git grep -n "ADR-YYY"` でリポジトリ全体（ドキュメント・スキル・Agent定義・コードコメント）から旧ADR（置き換えた場合）や関連ADRの参照箇所を探し、置き換え後のADRを参照すべき箇所を更新する。
 
 ### ステップ 6: lintを実行する
 
