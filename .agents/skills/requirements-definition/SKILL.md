@@ -109,7 +109,7 @@ PRDが「達成された」と判断できる定量的な指標を設定する�
 
 ## PRDの文書化
 
-ステップが完了したら、`docs/prd/template.md` に沿ってPRDを作成する。
+ステップが完了したら、`docs/prd/template.md` に沿い、`write-document` スキルに従ってPRDを作成する。
 
 保存先: `docs/prd/<feature-name>.md`
 
