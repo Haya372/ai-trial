@@ -28,6 +28,7 @@ Codex・Gemini CLIは `.agents/skills/` を自動で読み込む。Claude Code�
 | Issue起票 | `.agents/skills/create-issue/SKILL.md` |
 | 仕様定義 | `.agents/skills/specification/SKILL.md` |
 | 詳細設計 | `.agents/skills/detailed-design/SKILL.md` |
+| ADR作成 | `.agents/skills/write-adr/SKILL.md` |
 | テスト設計 | `.agents/skills/test-design/SKILL.md` |
 | TDD実装 | `.agents/skills/implementation/SKILL.md` |
 | リファクタリング | `.agents/skills/refactoring/SKILL.md` |
