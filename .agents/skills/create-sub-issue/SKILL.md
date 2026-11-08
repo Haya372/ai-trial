@@ -10,11 +10,15 @@ description: 大きすぎるIssueをsub-issueに分割するとき。「Issueが
 粒度が大きすぎるIssue（多くはPRDから直接起票された機能Issue）を、実装可能な単位のsub-issueに分割する。
 分割すべきかどうかの判断自体は `start-issue` スキルが行い、分割が必要と判断された場合にこのスキルを呼び出す。
 
+```text
+PRD作成 → Issue作成 → 仕様定義 → [sub-issue起票 ← 今ここ] → 詳細設計 → TDD実装 → PRレビュー → マージ
+```
+
 ---
 
 ## 手順
 
-### ステップ 1: 対象Issueと関連PRDを読む
+### ステップ 1: 対象Issue・関連PRD・仕様書を読む
 
 ```bash
 gh issue view <number>
@@ -22,6 +26,8 @@ gh issue view <number>
 
 - 受け入れ条件を洗い出し、どのレイヤー（DB / ドメイン / API / フロントエンド）にまたがるか整理する
 - 関連PRDがあれば読み、目標・非目標・制約を把握する
+- 仕様書がある場合は、「設計」セクションからドメインモデル（集約）・テーブル・APIエンドポイント・画面を一覧にする。これがsub-issueの単位の候補になる
+- 仕様書がない場合（関連PRDのないchore等）は、受け入れ条件をステップ3のレイヤーに対応づけて一覧にする
 
 ### ステップ 2: コードベースの構成を確認する
 
@@ -40,9 +46,15 @@ gh issue view <number>
 
 分割の粒度は `docs/guidelines/development-flow.md` の「PR分割ガイドライン」にある独立した関心事の単位（DBスキーマ/APIエンドポイント/フロントエンドUI）にも合わせる。
 
+各sub-issueは以下を満たすようにする。
+
+- 仕様書がある場合、各sub-issueが担当する設計要素（集約・テーブル・エンドポイント・画面）が明確で、すべての設計要素がいずれか1つのsub-issueに割り当てられていること（漏れ・重複がない）
+- 1つのsub-issueが2つ以上のレイヤーにまたがらないこと
+- 1つのsub-issueが1つのPR（`create-pr`）で完結する大きさであること
+
 **分割順序はADR-001のDependency Rule（依存の向きは常にDomain層へ）に従い、上表の順（Domain → Infrastructure → Usecase/Interface → Frontend）で着手する。**
 
-- Domain層は何にも依存しないため、まず設計・決定する
+- Domain層は何にも依存しないため、まず実装する
 - Infrastructure層はDomain層が定義したインターフェースを満たす実装でしかないため、後で着手する
 - 「DBスキーマ→ドメインモデル」の順にすると、ドメイン設計の結果によってDBスキーマを作り直す（マイグレーションのやり直し）が発生し得るため避ける
 - Usecase/Interface層はInfrastructure層の実装が揃ってから着手する（CRUDであれば操作ごとに1 Issueへ分割する）
@@ -50,7 +62,8 @@ gh issue view <number>
 
 ### ステップ 4: ADR相当の判断を洗い出す
 
-`detailed-design` スキルのステップ2.5と同様に、既存ADR（`docs/adr/`）でカバーされていない技術判断がないか確認する。
+仕様定義の段階で決めたADRは、該当するsub-issueの設計メモから参照する。
+それ以外に、`detailed-design` スキルのステップ2.5と同様に、既存ADR（`docs/adr/`）でカバーされていない技術判断がないか確認する。
 
 - 判断が必要な項目が見つかったら、**その判断が最初に確定するIssue**（多くはドメイン層のIssue）の設計メモに「実装前にADRを作成してから進める」と明記する
 - その判断に依存する後続Issue（多くはInfrastructure層のIssue）には「先行Issueで決定したADRに従う」と明記する
@@ -61,13 +74,13 @@ gh issue view <number>
 以下の形式で提示し、**承認を得るまでIssueを起票しない**（複数Issueの起票は取り消しコストが高いため、単一Issue作成時のような無確認起票はしない）。
 
 ```markdown
-| # | タイトル(案) | レイヤー | 依存 |
-|---|---|---|---|
-| 1 | ... | Domain | なし |
-| 2 | ... | Infrastructure | #1 |
+| # | タイトル(案) | レイヤー | 担当する設計要素 | 依存 |
+|---|---|---|---|---|
+| 1 | ... | Domain | `EventShare` 集約 | なし |
+| 2 | ... | Infrastructure | `event_shares` テーブル | #1 |
 ```
 
-ユーザーから粒度・順序の指摘があれば反映し、合意できるまで繰り返す。
+ユーザーから粒度・順序の指摘があれば反映し、合意できるまで繰り返す。承認後は確認を挟まずに起票まで進める。
 
 ### ステップ 6: 本文を組み立てて起票する
 
@@ -76,6 +89,7 @@ gh issue view <number>
 加えて「設計メモ」に以下を必ず含める。
 
 - 関連Issue: #親Issue番号（親Issue）
+- 仕様書: `docs/spec/SPEC-XXX-[機能名].md` の担当する設計要素（例: API設計の `POST /events/:id/shares`）（仕様書がない場合は省略）
 - 依存Issue: #NN（先行Issue）が完了していること（先行Issueがない場合は省略）
 - 後続Issue: #NN（後続Issue）はこの完了後に進める（後続Issueがない場合は省略）
 
@@ -89,8 +103,9 @@ gh issue view <number>
 
 ## チェックリスト
 
+- [ ] 仕様書がある場合、設計要素がすべてsub-issueに割り当てられているか
 - [ ] 分割案をユーザーに提示し承認を得たか
-- [ ] 各sub-issueに「関連Issue: #親Issue（親Issue）」があるか
+- [ ] 各sub-issueに「関連Issue: #親Issue（親Issue）」があるか（仕様書がある場合は仕様書の参照も）
 - [ ] 依存関係の順序がDependency Rule（Domain設計が先、Infrastructure実装が後）と整合しているか
 - [ ] ADR相当の判断がある場合、それを最初に確定するIssueの設計メモに明記したか
 - [ ] 前方参照（後続Issue）を実番号に更新したか
@@ -99,6 +114,7 @@ gh issue view <number>
 ## 参照ドキュメント
 
 - `create-issue` スキル — 個別Issueの起票規約
+- `specification` スキル — 分割の入力になる仕様書の設計
 - `detailed-design` スキル（ステップ2.5） — ADR要否の判断基準
 - `docs/adr/ADR-001-clean-architecture.md` — Dependency Rule
 - `docs/guidelines/development-flow.md` — PR分割ガイドライン（関心事の単位）
