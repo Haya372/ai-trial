@@ -13,6 +13,11 @@ const MaxTagsPerEvent = 5
 // EventTag is one tag attached to an event. Position orders the tags within
 // the event: ascending position is the order they were attached in, and gaps
 // left by deleted tags are allowed.
+//
+// EventTag has no event ID: it lives only inside its Event aggregate, so the
+// owning event is always the root that holds it (Event.ID()). Keeping a
+// separate event ID would allow an EventTag to point at a different event
+// than the one containing it.
 type EventTag struct {
 	tagID    uuid.UUID
 	position int
