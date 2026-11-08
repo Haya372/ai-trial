@@ -199,8 +199,8 @@
 | 400 | `VALIDATION_ERROR` | `TOO_LONG` | `name` が前後の空白除去後に 20 文字超（`details[].field = "name"`） |
 | 400 | `VALIDATION_ERROR` | `INVALID_FORMAT` | `color` がプリセット12色のいずれでもない（`details[].field = "color"`） |
 | 401 | `UNAUTHORIZED` | - | 認証未通過 |
-| 409 | `CONFLICT` | `TAG_NAME_TAKEN` | 同一ユーザー内に同名（大文字・小文字違いを含む）のタグがある（`details[].field = "name"`） |
-| 409 | `CONFLICT` | `TAG_LIMIT_EXCEEDED` | ユーザーのタグが既に50件ある（`details[].field = "name"`） |
+| 409 | `CONFLICT` | - | 同一ユーザー内に同名（大文字・小文字違いを含む）のタグがある |
+| 409 | `CONFLICT` | - | ユーザーのタグが既に50件ある（画面は50件で作成を阻止するため、同時に作成した場合だけ起こる） |
 | 500 | `INTERNAL_ERROR` | - | 永続化失敗などの予期しない内部エラー |
 
 #### PUT /tags/{id}
@@ -229,7 +229,7 @@
 | 400 | `VALIDATION_ERROR` | `INVALID_FORMAT` | `color` がプリセット12色のいずれでもない |
 | 401 | `UNAUTHORIZED` | - | 認証未通過 |
 | 404 | `NOT_FOUND` | - | タグが存在しない、または他ユーザーのタグ |
-| 409 | `CONFLICT` | `TAG_NAME_TAKEN` | 同一ユーザー内に同名（大文字・小文字違いを含む）の別のタグがある |
+| 409 | `CONFLICT` | - | 同一ユーザー内に同名（大文字・小文字違いを含む）の別のタグがある |
 | 500 | `INTERNAL_ERROR` | - | 永続化失敗などの予期しない内部エラー |
 
 #### DELETE /tags/{id}
@@ -319,15 +319,21 @@ sequenceDiagram
     UI->>API: GET /tags
     API-->>UI: 200 { tags: [{ id, name, color, eventCount }] }
     UI-->>User: タグ管理モーダルにタグ一覧を表示
+    Note over UI: tags が50件のときは「新しいタグ」を無効にし、上限に達した旨を表示する
     User->>UI: 「新しいタグ」でタグ名と色を入力して「保存」
     UI->>API: POST /tags { name, color }
     alt 201 Created
         API-->>UI: 201 TagResponse { id, name, color, eventCount }
         Note over UI: タグ一覧のキャッシュを無効化<br/>→ GET /tags が再取得される
         UI-->>User: タグ一覧に追加して表示
-    else 400 / 409
-        API-->>UI: 400 VALIDATION_ERROR / 409 CONFLICT { details[].code }
+    else 400 VALIDATION_ERROR
+        API-->>UI: 400 { details[].code }
         UI-->>User: details[].code に応じたエラーをモーダル内に表示（モーダルは閉じない）
+    else 409 CONFLICT
+        API-->>UI: 409
+        UI->>API: GET /tags
+        API-->>UI: 200 { tags: [...] }
+        UI-->>User: tags が50件なら上限、それ以外ならタグ名の重複のエラーをモーダル内に表示（モーダルは閉じない）
     end
 ```
 
