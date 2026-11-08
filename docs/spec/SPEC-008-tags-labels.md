@@ -100,7 +100,7 @@
 
 - `Tag`（エンティティ）— ユーザーが作成するタグ1件を表す集約ルート。`Event` 集約とは別集約で、`id` / `userId` / `name`（`TagName`）/ `color`（`TagColor`）を持つ。用語・ビジネスルール・エラーは [Tag ドメイン](../domain/tag.md) を参照する
   - `TagName`（値オブジェクト）— 前後の空白を除去したうえで 1〜20 文字
-  - `TagColor`（値オブジェクト）— プリセット12色の HEX 6 文字（大文字、`#` なし）のいずれか
+  - `TagColor`（値オブジェクト）— プリセット12色の色キー（例: `red`）のいずれか。色キーと表示色（HEX）の対応はフロントエンドのテーマ定義だけに置き、パレットの色味を調整しても保存データを移行しなくて済むようにする
 - `EventTag`（エンティティ）— 予定へのタグ付与1件を表す。`Event` 集約の配下に置き、`tagId` / `position`（付与順）を持つ。付与に関するルールは [Tag ドメイン](../domain/tag.md) を参照する
 - 本仕様で守る不変条件:
   - `TagName` は同一ユーザー内で一意（大文字・小文字を区別しない）
@@ -116,7 +116,7 @@
 | `tags` | `id` | `UUID` | PRIMARY KEY, DEFAULT `uuid_generate_v4()` | タグID |
 | `tags` | `user_id` | `UUID` | NOT NULL, REFERENCES `users(id)` ON DELETE CASCADE | 所有ユーザー。ユーザー削除でタグも削除 |
 | `tags` | `name` | `TEXT` | NOT NULL | タグ名。前後の空白を除去して保存する。文字数はドメイン層で検証 |
-| `tags` | `color` | `CHAR(6)` | NOT NULL | プリセット12色の HEX 6 文字。値域はアプリケーション層（OpenAPI の `TagColor` enum）で検証（ADR-019） |
+| `tags` | `color` | `VARCHAR` | NOT NULL | プリセット12色の色キー。値域はアプリケーション層（OpenAPI の `TagColor` enum から生成する Go 定数）で検証（ADR-019） |
 | `tags` | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 作成日時 |
 | `tags` | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()`, トリガー `update_tags_updated_at` で UPDATE 時に自動更新 | 更新日時 |
 | `tags` | （UNIQUEインデックス） | - | `idx_tags_user_id_lower_name` UNIQUE on (`user_id`, `LOWER(name)`) | 大文字・小文字を区別しないタグ名の一意制約。ユーザー単位のタグ一覧取得にも使う |
@@ -159,7 +159,7 @@
 | `tags` | `TagResponse[]` | no | タグ一覧。タグがない場合は空配列 |
 | `tags[].id` | string (uuid) | no | タグID |
 | `tags[].name` | string | no | タグ名 |
-| `tags[].color` | string (`TagColor`) | no | プリセット12色の HEX 6 文字 |
+| `tags[].color` | string (`TagColor`) | no | プリセット12色の色キー |
 | `tags[].eventCount` | integer | no | このタグが付与されている予定の件数。削除確認ダイアログに表示する |
 
 ##### エラー
@@ -407,7 +407,7 @@ sequenceDiagram
     User->>UI: カレンダーを開く／期間・ビューを切り替える
     UI->>API: GET /events?startDate=...&endDate=...（絞り込み中は &tagId=...）
     API-->>UI: 200 { events: [{ ..., tags: [{ id, name, color }] }] }
-    Note over UI: events[].tags[0].color を予定の背景色、<br/>tags[1] 以降を色ドットとして付与順に描画する
+    Note over UI: events[].tags[0].color の表示色を予定の背景色、<br/>tags[1] 以降を色ドットとして付与順に描画する<br/>（色キーから表示色への変換はテーマ定義で行う）
     User->>UI: 「絞り込み」をクリック
     UI->>API: GET /tags
     API-->>UI: 200 { tags: [{ id, name, color, eventCount }] }
