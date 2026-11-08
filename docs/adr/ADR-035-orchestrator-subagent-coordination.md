@@ -106,7 +106,7 @@ flowchart LR
 
 git/gh をラッパーにする理由は2つある。
 
-- **gitの設定・フック経由でのコード実行を防ぐため**: worktree内のファイルはコンテナから書き換えられる。素朴に `git -C <worktree>` を実行すると、worktree内の `.githooks/`（本リポジトリは `core.hooksPath=.githooks` の相対パス設定）や、書き換えられた `.git` ポインタが指す偽の設定（`core.fsmonitor` 等）を、ホスト上で実行してしまう。gitctl は常に `--git-dir=<本物のgitdir> --work-tree=<worktree> -c core.hooksPath=/dev/null -c core.fsmonitor=false` で実行し、worktree側の設定を一切信用しない。lint等のフック相当の処理はコンテナ内で実行する
+- **gitの設定・フック経由でのコード実行を防ぐため**: worktree内のファイルはコンテナから書き換えられる。素朴に `git -C <worktree>` を実行すると、worktree内を指すフック（`core.hooksPath` が `.githooks` のような相対パスの場合）や、書き換えられた `.git` ポインタが指す偽の設定（`core.fsmonitor` 等）を、ホスト上で実行してしまう。フックの置き場所は環境ごとの設定で変わりうるため、設定値に頼らず常に無効化する。gitctl は常に `--git-dir=<本物のgitdir> --work-tree=<worktree> -c core.hooksPath=/dev/null -c core.fsmonitor=false` で実行し、worktree側の設定を一切信用しない。lint等のフック相当の処理はコンテナ内で実行する
 - **git/gh には任意コマンド実行の抜け道があるため**: `-c alias.x='!sh ...'`、`-c core.pager=...`、`git config` 等。オーケストレーターはサブエージェントの出力（信頼できない入力）を読むため、プロンプトインジェクションで抜け道を使わされうる。許可ルールでgitのサブコマンドを絞るだけでは不十分
 
 GitHubの認証情報はホストにだけ置き、コンテナには渡さない。
