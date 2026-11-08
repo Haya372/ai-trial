@@ -4,17 +4,16 @@ FROM ubuntu:24.04
 
 ARG CLAUDE_CODE_VERSION=2.1.285
 
-# bubblewrap・socat は Claude Code 自身のサンドボックス用（コンテナ境界に重ねる多層防御）
+# bubblewrap は入れない。cap なし・既定の seccomp では名前空間を作れず Claude Code の
+# サンドボックスとして機能しないうえ、動かすにはコンテナの隔離を弱める必要があるため。
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    bubblewrap \
     ca-certificates \
     curl \
     dnsmasq \
     ipset \
     iptables \
     procps \
-    socat \
     util-linux \
     && rm -rf /var/lib/apt/lists/*
 
