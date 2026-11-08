@@ -24,6 +24,7 @@
 - 予定の参照は、作成したユーザーに加え、共有リンク（EventShare）経由の閲覧者、および自分のカレンダーに追加（EventSubscription）したユーザーにも開かれている
 - 説明・場所・URL は任意項目であり、空文字を許容する（バリデーションを行わない）
 - URL の形式（スキーム・ホスト等）はドメイン層では検証しない（入力境界での検証は将来のIssueで扱う）
+- 予定にはユーザーのタグ（Tag）を付与できる。付与は Event 集約配下の EventTag（`event_id` / `tag_id` / `position`）で表現し、1 Event につき最大 5 件、付与順（Position 1〜5）で保持する。Position の範囲・一意性、同一 Tag の重複付与禁止、付与可能 Tag の所有者一致などのルールは Tag ドメインを参照
 
 ## エラー
 
@@ -46,3 +47,4 @@
 - [User ドメイン](./user.md)
 - [EventShare ドメイン](./eventshare.md)
 - [EventSubscription ドメイン](./eventsubscription.md)
+- [Tag ドメイン](./tag.md)
