@@ -80,8 +80,11 @@
 
 ### ドメインモデル
 
-- [User ドメイン](../domain/user.md) — `User` 集約。`Email`・`Password`・`LoginPassword`・表示名を持つ
-- [Session ドメイン](../domain/session.md) — `Session` 集約。平文の `Token` をCookieで送り、DBには `TokenHash`（SHA-256、ADR-033）のみを保存する
+- [User ドメイン](../domain/user.md) — `User` 集約。`Email`・`Password`・表示名を持つ
+  - `LoginPassword`: ログイン照合に使う値オブジェクト。入力の形式チェックのみを行い bcrypt ハッシュ生成はしない。`Hash()` を持たないため、ユーザー作成経路に誤って渡されてもコンパイルエラーになる
+- [Session ドメイン](../domain/session.md) — `Session` 集約。ユーザーIDと有効期限を持つ
+  - `Token`: `crypto/rand` による 32 バイトのランダム値を base64url（パディングなし）でエンコードした平文トークン。Cookie で送受信する
+  - `TokenHash`: `Token` の SHA-256（16 進文字列）。DB にはこちらのみ保存する（ADR-033）
 
 ### DB設計
 
@@ -108,7 +111,107 @@
 | POST | /auth/logout | セッションCookie | なし | 204 | 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
 | GET | /auth/me | セッションCookie | なし | 200 `UserResponse` | 401 `UNAUTHORIZED` / 500 `INTERNAL_ERROR` |
 
-サインアップ・ログイン成功時のレスポンスには `Set-Cookie: session_id=<平文トークン>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`（30日）を付与する。ログアウト成功時は同じ属性で `Max-Age=-1` のCookieを返して失効させる。
+エラーレスポンス（`code` / `message` / `details`）の共通構造は ADR-013 を参照する。
+
+#### POST /auth/signup
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| body | email | string | 必須 | RFC 5322 準拠のメールアドレス形式 | メールアドレス |
+| body | password | string | 必須 | 8〜72 文字、ASCII 印字可能文字（0x20〜0x7E）のみ、英大文字・英小文字・数字・記号を各 1 文字以上 | パスワード |
+| body | displayName | string | 任意 | 最大 50 文字（文字数）。空欄時は `email` の `@` より前のローカルパートが設定される | 表示名 |
+
+##### レスポンス（201 Created）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| id | string（UUID v4） | 否 | 発行されたユーザーID |
+| email | string（email） | 否 | 登録メールアドレス |
+| displayName | string | 否 | 表示名 |
+| Set-Cookie: session_id | header | 否 | `<平文トークン>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`（30 日） |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した |
+| 400 | VALIDATION_ERROR | INVALID_FORMAT | `email` が RFC 5322 準拠の形式でない |
+| 400 | VALIDATION_ERROR | TOO_SHORT | `password` が 8 文字未満 |
+| 400 | VALIDATION_ERROR | TOO_LONG | `password` が 72 バイト超、または `displayName` が 50 文字超 |
+| 400 | VALIDATION_ERROR | INVALID_CHARACTER | `password` に ASCII 印字可能範囲外の文字が含まれる |
+| 400 | VALIDATION_ERROR | INSUFFICIENT_COMPLEXITY | `password` に英大文字・英小文字・数字・記号のいずれかが含まれない |
+| 409 | CONFLICT | - | `email` が既に登録済み |
+| 500 | INTERNAL_ERROR | - | DB 障害・bcrypt 生成失敗・レスポンスのマーシャリング失敗など内部エラー |
+
+#### POST /auth/login
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| body | email | string | 必須 | - | メールアドレス |
+| body | password | string | 必須 | - | パスワード |
+
+##### レスポンス（200 OK）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| id | string（UUID v4） | 否 | ユーザーID |
+| email | string（email） | 否 | メールアドレス |
+| displayName | string | 否 | 表示名 |
+| Set-Cookie: session_id | header | 否 | `<平文トークン>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=2592000`（30 日） |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した |
+| 401 | UNAUTHORIZED | - | `email` に該当するユーザーが存在しない、または `password` が不一致（識別情報はレスポンスで区別しない）。`password` の形式不正も同じ扱い |
+| 500 | INTERNAL_ERROR | - | DB 障害・bcrypt 比較失敗・レスポンスのマーシャリング失敗など内部エラー |
+
+#### POST /auth/logout
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | session_id | string | 必須 | 平文のセッショントークン | 認証対象のセッションを特定する |
+
+##### レスポンス（204 No Content）
+
+ボディなし。`Set-Cookie: session_id=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0` を付与して Cookie を失効させる。
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 401 | UNAUTHORIZED | - | `RequireAuth` がセッションを解決できない（Cookie 未送信・空・期限切れ・該当セッションなし・該当ユーザーなし）。`Set-Cookie` は付与しない |
+| 500 | INTERNAL_ERROR | - | `RequireAuth` のセッション参照失敗、またはセッション削除失敗。`Set-Cookie` は付与しない |
+
+#### GET /auth/me
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | session_id | string | 必須 | 平文のセッショントークン | 現在のユーザーを特定する |
+
+##### レスポンス（200 OK）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| id | string（UUID v4） | 否 | ユーザーID |
+| email | string（email） | 否 | メールアドレス |
+| displayName | string | 否 | 表示名 |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 401 | UNAUTHORIZED | - | `RequireAuth` がセッションを解決できない（Cookie 未送信・空・期限切れ・該当セッションなし・該当ユーザーなし） |
+| 500 | INTERNAL_ERROR | - | `RequireAuth` のセッション／ユーザー参照失敗、またはレスポンスのマーシャリング失敗 |
 
 #### API呼び出しシーケンス
 
@@ -149,8 +252,12 @@ sequenceDiagram
     participant API as /auth/logout
     User->>UI: ログアウトを実行
     UI->>API: POST /auth/logout（Cookie: session_id を自動送信）
-    API-->>UI: 204 または 401 + Set-Cookie: session_id Max-Age=-1
-    Note over UI: 認証ストアをクリア
+    alt セッション有効
+      API-->>UI: 204 + Set-Cookie: session_id Max-Age=0
+    else セッション無効（RequireAuth で 401）
+      API-->>UI: 401（Set-Cookie なし）
+    end
+    Note over UI: どちらの応答でも認証ストアをクリアする
     UI->>User: ログイン画面（/login）へ遷移
 ```
 

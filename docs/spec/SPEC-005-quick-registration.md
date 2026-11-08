@@ -62,6 +62,39 @@
 |---|---|---|---|---|---|
 | POST | /events | セッションCookie | `title`（入力値）、`startAt`（クリック位置の日時をISO 8601で指定）、`endAt`（`startAt` + 1時間をISO 8601で指定）、`description`/`location`/`url`（すべて `null`） | 201: `EventResponse`（登録した予定。`id` を含む） | 400（バリデーション）、401（未認証）、500（サーバーエラー） |
 
+#### POST /events
+
+I/Fの全体は SPEC-003 を参照する。エラーレスポンスの共通構造は ADR-013 を参照する。
+
+##### リクエスト（このパネルが送る値のみ）
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| body | `title` | string | ○ | minLength 1 | パネルで入力されたタイトル |
+| body | `startAt` | string（date-time, ISO 8601） | ○ | — | クリックしたセルの日時 |
+| body | `endAt` | string（date-time, ISO 8601） | ○ | `startAt` より厳密に未来 | パネルが `startAt + 1時間` で自動設定する |
+| body | `description` | string または null | ○ | — | 固定で `null`（パネルでは扱わない） |
+| body | `location` | string または null | ○ | — | 固定で `null`（パネルでは扱わない） |
+| body | `url` | string または null | ○ | — | 固定で `null`（パネルでは扱わない） |
+
+##### レスポンス（201 Created、このパネルが使うフィールドのみ）
+
+全体は SPEC-003 を参照する。
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| `id` | string（UUID） | 不可 | 作成した予定のID。「詳細を編集」から SPEC-003 の編集フォームモーダルを `edit` モードで開く際に渡す |
+
+##### エラー（このパネルの入力で起こりうるもの）
+
+`endAt` は `startAt + 1時間` で自動設定するため、日時の逆転による `INVALID_DATE_RANGE` はこのパネルからは発生しない。
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | `VALIDATION_ERROR` | `REQUIRED`（`details[].field = "title"`） | 空のタイトルが送信された場合（通常はクライアント側バリデーションで防ぐ） |
+| 401 | `UNAUTHORIZED` | — | セッションCookieが未設定または無効な場合 |
+| 500 | `INTERNAL_ERROR` | — | DB書き込み失敗・レスポンスのJSONエンコード失敗など、サーバー側の予期しないエラー |
+
 #### API呼び出しシーケンス
 
 ```mermaid

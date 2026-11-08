@@ -95,9 +95,43 @@
 |---|---|---|---|---|---|
 | GET | `/events` | セッションCookie必須 | クエリ: `startDate` (`YYYY-MM-DD`, 必須)、`endDate` (`YYYY-MM-DD`, 必須) | 200: `{ events: EventResponse[] }` — ログイン中ユーザーに紐づく期間内の予定一覧 | 400: クエリ不正 / 401: 未認証 / 500: 内部エラー |
 
-- `EventResponse` の正本は `packages/schema/components/schemas/EventResponse.yaml` を参照する。SPEC-002 のレンダリングで使うフィールド: `id` / `title` / `startAt` / `endAt` / `description`。
-- `location` / `url` フィールドの追加は SPEC-003、`isSubscribed` / `subscriptionId` フィールドおよびレスポンスに購読予定を含める挙動の追加は SPEC-004 を参照する。
+- エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照する。
 - 予定の作成・更新・削除 API は SPEC-003、共有関連 API は SPEC-004 を参照する。
+
+#### GET /events
+
+ログイン中ユーザーに紐づく期間内の予定一覧を返す。
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | セッションCookie | string | ○ | - | ログインセッション。`RequireAuth` ミドルウェアが検証する |
+| query | `startDate` | string | ○ | `YYYY-MM-DD` 形式 | 検索範囲の開始日 |
+| query | `endDate` | string | ○ | `YYYY-MM-DD` 形式 | 検索範囲の終了日（この日を含む）。ハンドラ側で `endDate + 1 日` を排他的な上限として下位層に渡す |
+
+##### レスポンス（200 OK）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| `events` | `EventResponse[]` | no | 期間内の予定一覧。該当なしの場合は空配列 |
+| `events[].id` | string (uuid) | no | 予定ID |
+| `events[].title` | string | no | タイトル |
+| `events[].startAt` | string (date-time, RFC3339) | no | 開始日時 |
+| `events[].endAt` | string (date-time, RFC3339) | no | 終了日時 |
+| `events[].description` | string | no（空の場合はフィールド自体をレスポンスから省略する） | メモ |
+| `events[].location` | string | no（空の場合はフィールド自体をレスポンスから省略する） | 場所（SPEC-003で追加） |
+| `events[].url` | string | no（空の場合はフィールド自体をレスポンスから省略する） | 関連URL（SPEC-003で追加） |
+| `events[].isSubscribed` | boolean | no | 共有リンク経由で追加された購読予定なら `true`。`true` の予定は閲覧専用（SPEC-004で追加） |
+| `events[].subscriptionId` | string (uuid) | yes（`isSubscribed = false` のとき `null`） | 購読レコードID。`DELETE /subscriptions/{id}` に渡して自分のカレンダーから外す用途（SPEC-004で追加） |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | `VALIDATION_ERROR` | - | `startDate` または `endDate` が未指定、または `YYYY-MM-DD` として解釈できない |
+| 401 | `UNAUTHORIZED` | - | セッションCookieが無い、無効、または対応するユーザーを解決できない |
+| 500 | `INTERNAL_ERROR` | - | 下位層のクエリ実行失敗、またはレスポンスのJSONエンコードに失敗 |
 
 #### API呼び出しシーケンス
 

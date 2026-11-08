@@ -114,14 +114,135 @@
 
 ### API設計
 
+エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照。
+
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
-| POST | /events/{id}/shares | セッションCookie（必須） | `expiresAt`（ISO 8601、省略可。省略時は予定終了日時） | 201: `{ url: "/share/{token}", expiresAt }` | 400（バリデーション: `BEFORE_EVENT_START`・`NOT_IN_FUTURE`）、401、404（予定が存在しない／他ユーザーの予定）、500 |
+| POST | /events/{id}/shares | セッションCookie（必須） | `expiresAt`（ISO 8601、省略可。省略時は予定終了日時） | 201: `{ url: "/share/{token}", expiresAt }` | 400（バリデーション: `BEFORE_EVENT_START`・`NOT_IN_FUTURE`、無効なpath id、リクエストボディ不正）、401、404（予定が存在しない／他ユーザーの予定）、500 |
 | GET | /shares/{token} | 任意（[ADR-030](../adr/ADR-030-optional-auth-middleware.md) の `OptionalAuth`） | - | 200: `{ title, description?, startAt, endAt, location?, url?, isOwnEvent, isSubscribed }`。`isOwnEvent`・`isSubscribed` は未認証時は `false` | 404（トークン不一致・予定削除済み）、410（有効期限切れ）、500 |
 | POST | /shares/{token}/subscriptions | セッションCookie（必須） | - | 201: `{ id, eventId, createdAt }`（新規作成）/ 200: 同じ形（既存を返す冪等呼び出し） | 401、403（作成者本人による自分の予定の追加）、404、410、500 |
-| DELETE | /subscriptions/{id} | セッションCookie（必須） | - | 204: ボディ無し | 401、403（他ユーザーのサブスクリプション）、404、500 |
+| DELETE | /subscriptions/{id} | セッションCookie（必須） | - | 204: ボディ無し | 400（無効なpath id）、401、403（他ユーザーのサブスクリプション）、404、500 |
 
-カレンダー一覧API `GET /events`（SPEC-002）は本機能の実装に合わせ、自分で作成した予定に加え、自分が追加したサブスクリプション経由の予定も合わせて返す。レスポンスの各要素は `isSubscribed`（追加経由か）と `subscriptionId`（追加経由のときのみ非null、DELETE `/subscriptions/{id}` のパラメータに使う）を持つ。
+#### POST /events/{id}/shares
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| path | id | string(uuid) | 必須 | UUID形式 | 共有リンクを発行する予定のID |
+| body | expiresAt | string(date-time) \| null | 任意 | ISO 8601、`BEFORE_EVENT_START`（予定の開始日時以降）と `NOT_IN_FUTURE`（現在時刻より後）の両方を満たすこと。省略／null時は予定終了日時を使い、この2バリデーションはスキップされる | 共有リンクの有効期限 |
+
+リクエストボディ全体の省略も許容する（その場合は `expiresAt` 省略と同じ扱い）。
+
+##### レスポンス（201 Created）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| url | string | no | 共有リンクのパス（`/share/{token}` 形式）。クライアントは `window.location.origin` を前置して完全URLを組み立てる |
+| expiresAt | string(date-time) | no | 発行された共有リンクの有効期限（ISO 8601） |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | VALIDATION_ERROR | - | path `id` がUUIDとしてパースできない |
+| 400 | VALIDATION_ERROR | - | リクエストボディがJSONとしてデコードできない |
+| 400 | VALIDATION_ERROR | BEFORE_EVENT_START | `expiresAt` が予定の開始日時より前 |
+| 400 | VALIDATION_ERROR | NOT_IN_FUTURE | `expiresAt` が現在時刻以前 |
+| 401 | UNAUTHORIZED | - | 未認証（セッションCookieが無い／無効） |
+| 404 | NOT_FOUND | - | 指定したIDの予定が存在しない、または他ユーザーの予定（情報漏洩防止のため区別しない） |
+| 500 | INTERNAL_ERROR | - | 想定外のサーバーエラー |
+
+#### GET /shares/{token}
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| path | token | string | 必須 | - | 共有リンクのトークン（平文） |
+| cookie | sessionId | string(uuid) | 任意 | - | 認証任意（[ADR-030](../adr/ADR-030-optional-auth-middleware.md) の `OptionalAuth`）。Cookieが無い／無効でも 401 にはならず、未認証として処理する |
+
+##### レスポンス（200 OK）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| title | string | no | 予定のタイトル |
+| description | string | yes | 予定のメモ。null または省略 |
+| startAt | string(date-time) | no | 開始日時 |
+| endAt | string(date-time) | no | 終了日時 |
+| location | string | yes | 場所。null または省略 |
+| url | string | yes | 予定のURL。null または省略 |
+| isOwnEvent | boolean | no | 認証済みの閲覧者が予定作成者本人のとき `true`。未認証時は `false` |
+| isSubscribed | boolean | no | 認証済みの閲覧者が既に自分のカレンダーに追加済みのとき `true`。未認証時は `false` |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 404 | NOT_FOUND | - | path `token` に一致する共有リンクが存在しない（`EVENT_SHARE_NOT_FOUND`）、または共有リンク取得後のロード直前で予定が削除されている（`EVENT_NOT_FOUND`。ON DELETE CASCADE により通常は起き得ないレアケース） |
+| 410 | GONE | - | 共有リンクの有効期限が過ぎている（`EVENT_SHARE_EXPIRED`） |
+| 500 | INTERNAL_ERROR | - | 想定外のサーバーエラー |
+
+#### POST /shares/{token}/subscriptions
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| path | token | string | 必須 | - | 共有リンクのトークン（平文） |
+| body | - | - | - | - | なし |
+
+##### レスポンス（201 Created: 新規追加 / 200 OK: 既存を返す冪等呼び出し）
+
+201・200 どちらも同じボディを返す。
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| id | string(uuid) | no | サブスクリプションID。クライアントは「追加の取り消し」で `DELETE /subscriptions/{id}` に渡す |
+| eventId | string(uuid) | no | 追加した予定のID |
+| createdAt | string(date-time) | no | 追加日時 |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 401 | UNAUTHORIZED | - | 未認証（本エンドポイントは必須認証） |
+| 403 | FORBIDDEN | - | 予定作成者本人が自分の予定を追加しようとした（`EVENT_SUBSCRIPTION_OWN_EVENT`） |
+| 404 | NOT_FOUND | - | path `token` に一致する共有リンクが存在しない、または予定が削除されている |
+| 410 | GONE | - | 共有リンクの有効期限が過ぎている |
+| 500 | INTERNAL_ERROR | - | 想定外のサーバーエラー |
+
+#### DELETE /subscriptions/{id}
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| path | id | string(uuid) | 必須 | UUID形式 | 削除対象のサブスクリプションID |
+| body | - | - | - | - | なし |
+
+##### レスポンス（204 No Content）
+
+ボディなし。
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | VALIDATION_ERROR | - | path `id` がUUIDとしてパースできない |
+| 401 | UNAUTHORIZED | - | 未認証 |
+| 403 | FORBIDDEN | - | 他ユーザーのサブスクリプションを削除しようとした（`EVENT_SUBSCRIPTION_NOT_OWNER`） |
+| 404 | NOT_FOUND | - | 指定したIDのサブスクリプションが存在しない（`EVENT_SUBSCRIPTION_NOT_FOUND`） |
+| 500 | INTERNAL_ERROR | - | 想定外のサーバーエラー |
+
+#### GET /events（SPEC-004で追加したフィールド）
+
+エンドポイント全体の仕様はSPEC-002を参照。SPEC-004の実装で各要素に追加したフィールドは以下。
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| events[].isSubscribed | boolean | no | 共有リンク経由で追加した予定なら `true`、自分で作成した予定なら `false` |
+| events[].subscriptionId | string(uuid) | yes | `isSubscribed=true` のときのみ非null。`DELETE /subscriptions/{id}` のパスパラメータに使う |
 
 #### API呼び出しシーケンス
 
@@ -198,8 +319,8 @@ sequenceDiagram
 
     User->>UI: カレンダーページを開く／期間を切り替える
     UI->>API: GET /events?startDate=...&endDate=...（SPEC-002）
-    API-->>UI: 200 [{ id, title, ..., isSubscribed, subscriptionId }]
-    Note over UI: isSubscribed=true のエントリは追加済み予定として描画し、編集・削除UIは出さない。subscriptionId は「追加の取り消し」で使う
+    API-->>UI: 200 { events: [{ id, title, ..., isSubscribed, subscriptionId }] }
+    Note over UI: events[] のうち isSubscribed=true のエントリは追加済み予定として描画し、編集・削除UIは出さない。subscriptionId は「追加の取り消し」で使う
     UI-->>User: 自分の予定と追加済み予定を同じビューに表示
 ```
 

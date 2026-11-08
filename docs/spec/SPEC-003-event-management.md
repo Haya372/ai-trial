@@ -97,13 +97,104 @@
 
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
-| POST | `/events` | セッション必須 | `CreateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 201 `EventResponse` | 400 ValidationError（タイトル空・日時逆転等）/ 401 Unauthorized / 500 InternalError |
-| PUT | `/events/{id}` | セッション必須 | `UpdateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 200 `EventResponse` | 400 ValidationError / 401 Unauthorized / 404 NotFound（存在しない or 他ユーザーの予定）/ 500 InternalError |
-| DELETE | `/events/{id}` | セッション必須 | （なし） | 204 No Content | 401 Unauthorized / 404 NotFound（存在しない or 他ユーザーの予定）/ 500 InternalError |
+| POST | `/events` | セッション必須 | `CreateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 201 `EventResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 500 INTERNAL_ERROR |
+| PUT | `/events/{id}` | セッション必須 | `UpdateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 200 `EventResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 500 INTERNAL_ERROR |
+| DELETE | `/events/{id}` | セッション必須 | （なし） | 204 No Content | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 500 INTERNAL_ERROR |
 
-404 は他ユーザーの予定にアクセスした場合もまとめて返し、所有関係の有無を漏らさない。
+エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照する。404 は予定が存在しない場合と他ユーザーの予定にアクセスした場合をまとめて返し、所有関係の有無を漏らさない。
 
-リクエスト・レスポンスの各フィールドの型・形式は `packages/schema/components/schemas/CreateEventRequest.yaml` / `UpdateEventRequest.yaml` / `EventResponse.yaml` を参照する。
+#### POST /events
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | セッションCookie | string | ◯ | 認証ミドルウェアで検証 | 認証に用いるセッションCookie |
+| body | `title` | string | ◯ | `minLength: 1`（OpenAPI）、ドメイン層でも空文字を拒否 | 予定タイトル |
+| body | `startAt` | string (date-time, RFC3339) | ◯ | - | 開始日時 |
+| body | `endAt` | string (date-time, RFC3339) | ◯ | `startAt` より厳密に後（同時刻不可。ドメイン層で検証） | 終了日時 |
+| body | `description` | string \| null | - | - | メモ |
+| body | `location` | string \| null | - | - | 場所 |
+| body | `url` | string \| null | - | - | 関連URL。形式検証なし |
+
+##### レスポンス（201 Created）
+
+| フィールド | 型 | null許容 | 説明 |
+|---|---|---|---|
+| `id` | string (uuid) | - | 作成された予定のID |
+| `title` | string | - | タイトル |
+| `description` | string | ◯ | メモ。実装は空文字のとき `omitempty` によりフィールド自体を省略する |
+| `startAt` | string (date-time) | - | 開始日時 |
+| `endAt` | string (date-time) | - | 終了日時 |
+| `location` | string | ◯ | 場所。実装は空文字のとき `omitempty` によりフィールド自体を省略する |
+| `url` | string | ◯ | 関連URL。実装は空文字のとき `omitempty` によりフィールド自体を省略する |
+| `isSubscribed` | boolean | - | SPEC-004で追加。作成系は自ユーザーが所有する予定しか扱わないため常に `false` を返す |
+| `subscriptionId` | string (uuid) | ◯ | SPEC-004で追加。作成系は常に `null` を返す |
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | `VALIDATION_ERROR` | - | リクエストボディのJSONパースに失敗した場合（`details` は返さない） |
+| 400 | `VALIDATION_ERROR` | `REQUIRED` | `title` が空文字（`details[].field = "title"`） |
+| 400 | `VALIDATION_ERROR` | `INVALID_DATE_RANGE` | `endAt` が `startAt` 以前または同時刻（`details[].field = "endAt"`） |
+| 401 | `UNAUTHORIZED` | - | 認証未通過（セッションCookieが無効または欠落） |
+| 500 | `INTERNAL_ERROR` | - | 永続化失敗・レスポンスシリアライズ失敗などの予期しない内部エラー |
+
+#### PUT /events/{id}
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | セッションCookie | string | ◯ | 認証ミドルウェアで検証 | 認証に用いるセッションCookie |
+| path | `id` | string (uuid) | ◯ | UUID 形式 | 更新対象の予定ID |
+| body | `title` | string | ◯ | ドメイン層で空文字を拒否（OpenAPIは `minLength` 未宣言） | 予定タイトル |
+| body | `startAt` | string (date-time, RFC3339) | ◯ | - | 開始日時 |
+| body | `endAt` | string (date-time, RFC3339) | ◯ | `startAt` より厳密に後 | 終了日時 |
+| body | `description` | string \| null | - | - | メモ |
+| body | `location` | string \| null | - | - | 場所 |
+| body | `url` | string \| null | - | - | 関連URL |
+
+##### レスポンス（200 OK）
+
+フィールドは `POST /events` の 201 レスポンスと同一（`isSubscribed` は常に `false`、`subscriptionId` は常に `null`）。
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | `VALIDATION_ERROR` | - | パスの `id` が UUID としてパースできない |
+| 400 | `VALIDATION_ERROR` | - | リクエストボディのJSONパースに失敗した場合 |
+| 400 | `VALIDATION_ERROR` | `REQUIRED` | `title` が空文字 |
+| 400 | `VALIDATION_ERROR` | `INVALID_DATE_RANGE` | `endAt` が `startAt` 以前または同時刻 |
+| 401 | `UNAUTHORIZED` | - | 認証未通過 |
+| 404 | `NOT_FOUND` | - | 予定が存在しない、または呼び出しユーザーが所有していない（存在の有無を区別せず同一レスポンス） |
+| 500 | `INTERNAL_ERROR` | - | 永続化失敗などの予期しない内部エラー |
+
+#### DELETE /events/{id}
+
+##### リクエスト
+
+| 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
+|---|---|---|---|---|---|
+| cookie | セッションCookie | string | ◯ | 認証ミドルウェアで検証 | 認証に用いるセッションCookie |
+| path | `id` | string (uuid) | ◯ | UUID 形式 | 削除対象の予定ID |
+
+リクエストボディ: なし。
+
+##### レスポンス（204 No Content）
+
+ボディなし。
+
+##### エラー
+
+| HTTPステータス | code | details[].code | 発生条件 |
+|---|---|---|---|
+| 400 | `VALIDATION_ERROR` | - | パスの `id` が UUID としてパースできない |
+| 401 | `UNAUTHORIZED` | - | 認証未通過 |
+| 404 | `NOT_FOUND` | - | 予定が存在しない、または呼び出しユーザーが所有していない（存在の有無を区別せず同一レスポンス） |
+| 500 | `INTERNAL_ERROR` | - | 永続化失敗などの予期しない内部エラー |
 
 #### API呼び出しシーケンス
 
