@@ -51,6 +51,8 @@ flowchart LR
     end
 
     subgraph c2["タスクB コンテナ"]
+        dns2["dnsmasq"]
+        fw2["iptables"]
         sub2["claude -p"]
         wt2[/"/workspace = worktree B"/]
     end
@@ -66,12 +68,18 @@ flowchart LR
     docker --> c2
     gitctl --> repo
     gitctl -. "--work-tree で参照のみ" .-> wt1
+    gitctl -. "--work-tree で参照のみ" .-> wt2
     sub1 --> wt1
     sub2 --> wt2
     sub1 --> fw1 --> api
+    sub2 --> fw2 --> api
     fw1 -. 遮断 .-> evil
+    fw2 -. 遮断 .-> evil
     sub1 -. 名前解決 .-> dns1
+    sub2 -. 名前解決 .-> dns2
 ```
+
+すべてのタスクコンテナは同一構成で起動する（図ではタスクBの詳細ラベルを省略）。
 
 ### 1. サブエージェントはタスクごとのコンテナ内で別プロセスの `claude` として動かす
 
