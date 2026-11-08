@@ -77,7 +77,17 @@ flowchart LR
 
 - タスクごとにworktreeを1つ作り、そのworktreeだけを `/workspace` としてマウントした常駐コンテナを起動する
 - サブエージェントは、コンテナ内で `claude -p` として実行する。オーケストレーターと同じプロセス内で動く `Agent` ツールのサブエージェントは使わない
-- コンテナは `--cap-drop ALL` と `--security-opt no-new-privileges` で起動する。ファイアウォール設定のために root で起動した後、`claude` は `setpriv` で一般ユーザー（`dev`）に切り替え、capabilityをすべて落として実行する
+- コンテナは `--cap-drop ALL` と `--security-opt no-new-privileges` で起動し、ファイアウォール設定に必要な capability だけを `--cap-add` で戻す
+
+  | capability | 用途 |
+  |---|---|
+  | `NET_ADMIN`・`NET_RAW` | iptables / ipset の設定、dnsmasq による ipset への登録 |
+  | `NET_BIND_SERVICE` | dnsmasq の53番ポートへの bind |
+  | `SETUID`・`SETGID` | dnsmasq の専用ユーザーへの降格、`setpriv` による `dev` への切り替え |
+  | `SETPCAP` | `setpriv` による bounding set の破棄 |
+
+- エントリポイントは root でファイアウォールを設定し、**設定に1つでも失敗したらコンテナを終了する**（`claude` を実行しない）。通信制限なしでサブエージェントが動く状態を作らないため
+- `claude` は `setpriv --reuid=dev --regid=dev --init-groups --inh-caps=-all --bounding-set=-all` で一般ユーザー（`dev`）に切り替え、上記の capability をすべて落として実行する
 - Docker socket・ホストのホームディレクトリ・`.git` 本体は、コンテナにマウントしない
 
 ### 2. コンテナの通信は「許可ドメインの443番のみ」に制限する
@@ -237,7 +247,7 @@ worktreeに加えて `.git` 本体をマウントし、コンテナ内でコミ�
 
 ### 選択肢1のコンテナ隔離
 
-worktreeだけをマウントし、`--cap-drop ALL`・`no-new-privileges`・一般ユーザーで起動したコンテナから確認した。
+worktreeだけをマウントし、`--cap-drop ALL`・`no-new-privileges`・一般ユーザーで起動したコンテナから確認した（この確認ではファイアウォールを設定していないため、capability は追加していない）。
 
 | 操作 | 結果 |
 |---|---|
