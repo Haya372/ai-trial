@@ -42,6 +42,7 @@
 | `ErrEventTagLimitExceeded` | 1 Event に付与しようとした Tag が 5 件を超える |
 | `ErrEventTagDuplicated` | 1 Event への付与指定で同一 Tag ID が複数回現れた |
 | `ErrEventTagForeign` | Event の所有者と異なるユーザーの Tag を付与しようとした |
+| `ErrEventTagPositionInvalid` | EventTag の Position が 1〜5 の範囲外、または 1 Event 内で重複している |
 
 ## 関連ドキュメント
 
