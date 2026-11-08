@@ -105,7 +105,7 @@
   - `TagName` は同一ユーザー内で一意（大文字・小文字を区別しない）
   - 1ユーザーが保有する `Tag` は最大50件
   - 1件の `Event` に付与する `EventTag` は最大5件で、同一 `Tag` を重複して付与できない
-  - `position` は 1 から始まる連番で、1件の `Event` 内で一意
+  - `position` は 1〜5 の範囲で、1件の `Event` 内で一意。`position` の昇順を付与順とする（タグの削除で欠番が生じても順序は保たれる）
   - `EventTag` が参照する `Tag` の所有ユーザーは、`Event` の所有ユーザーと一致する
 
 ### DB設計
@@ -121,7 +121,7 @@
 | `tags` | （UNIQUEインデックス） | - | `idx_tags_user_id_lower_name` UNIQUE on (`user_id`, `LOWER(name)`) | 大文字・小文字を区別しないタグ名の一意制約。ユーザー単位のタグ一覧取得にも使う |
 | `event_tags` | `event_id` | `UUID` | NOT NULL, REFERENCES `events(id)` ON DELETE CASCADE | 付与先の予定。予定削除で付与も削除 |
 | `event_tags` | `tag_id` | `UUID` | NOT NULL, REFERENCES `tags(id)` ON DELETE CASCADE | 付与するタグ。タグ削除で付与も削除（予定は残る） |
-| `event_tags` | `position` | `SMALLINT` | NOT NULL | 付与順（1〜5）。範囲・連番はドメイン層で検証 |
+| `event_tags` | `position` | `SMALLINT` | NOT NULL | 付与順（1〜5）。範囲はドメイン層で検証 |
 | `event_tags` | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 付与日時 |
 | `event_tags` | （主キー） | - | PRIMARY KEY (`event_id`, `tag_id`) | 同一予定への同一タグの重複付与を防ぐ |
 | `event_tags` | （複合UNIQUE） | - | UNIQUE (`event_id`, `position`) | 1予定内で付与順を一意にする。予定ごとのタグを付与順で取得するときにも使う |
