@@ -160,7 +160,7 @@
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
 | path | token | string | 必須 | - | 共有リンクのトークン（平文） |
-| cookie | sessionId | string(uuid) | 任意 | - | 認証任意（[ADR-030](../adr/ADR-030-optional-auth-middleware.md) の `OptionalAuth`）。Cookieが無い／無効でも 401 にはならず、未認証として処理する |
+| cookie | session_id | string | 任意 | - | 認証任意（[ADR-030](../adr/ADR-030-optional-auth-middleware.md) の `OptionalAuth`）。Cookieが無い／無効でも 401 にはならず、未認証として処理する |
 
 ##### レスポンス（200 OK）
 

@@ -169,7 +169,7 @@
 |---|---|---|---|
 | 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した |
 | 401 | UNAUTHORIZED | - | `email` に該当するユーザーが存在しない、または `password` が不一致（識別情報はレスポンスで区別しない）。`password` の形式不正も同じ扱い |
-| 500 | INTERNAL_ERROR | - | DB 障害・bcrypt 比較失敗・レスポンスのマーシャリング失敗など内部エラー |
+| 500 | INTERNAL_ERROR | - | `email` がJSONとしては文字列だがドメインの形式チェックに通らない（例: `a@b`。`user.NewEmail` の `INVALID_FORMAT` を handler が分岐しないため）、DB 障害・bcrypt 比較失敗・レスポンスのマーシャリング失敗など内部エラー |
 
 #### POST /auth/logout
 
@@ -187,8 +187,8 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 401 | UNAUTHORIZED | - | `RequireAuth` がセッションを解決できない（Cookie 未送信・空・期限切れ・該当セッションなし・該当ユーザーなし）。`Set-Cookie` は付与しない |
-| 500 | INTERNAL_ERROR | - | `RequireAuth` のセッション参照失敗、またはセッション削除失敗。`Set-Cookie` は付与しない |
+| 401 | UNAUTHORIZED | - | `RequireAuth` がセッションを解決できない（Cookie 未送信・空・期限切れ・該当セッションなし・該当ユーザーなし・DB 障害などによる参照失敗）。`Set-Cookie` は付与しない |
+| 500 | INTERNAL_ERROR | - | セッション削除失敗。`Set-Cookie` は付与しない |
 
 #### GET /auth/me
 
@@ -210,8 +210,8 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 401 | UNAUTHORIZED | - | `RequireAuth` がセッションを解決できない（Cookie 未送信・空・期限切れ・該当セッションなし・該当ユーザーなし） |
-| 500 | INTERNAL_ERROR | - | `RequireAuth` のセッション／ユーザー参照失敗、またはレスポンスのマーシャリング失敗 |
+| 401 | UNAUTHORIZED | - | `RequireAuth` がセッションを解決できない（Cookie 未送信・空・期限切れ・該当セッションなし・該当ユーザーなし・DB 障害などによる参照失敗） |
+| 500 | INTERNAL_ERROR | - | レスポンスのマーシャリング失敗 |
 
 #### API呼び出しシーケンス
 

@@ -109,13 +109,13 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
-| cookie | セッションCookie | string | ◯ | 認証ミドルウェアで検証 | 認証に用いるセッションCookie |
-| body | `title` | string | ◯ | `minLength: 1`（OpenAPI）、ドメイン層でも空文字を拒否 | 予定タイトル |
-| body | `startAt` | string (date-time, RFC3339) | ◯ | - | 開始日時 |
-| body | `endAt` | string (date-time, RFC3339) | ◯ | `startAt` より厳密に後（同時刻不可。ドメイン層で検証） | 終了日時 |
-| body | `description` | string \| null | - | - | メモ |
-| body | `location` | string \| null | - | - | 場所 |
-| body | `url` | string \| null | - | - | 関連URL。形式検証なし |
+| cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
+| body | `title` | string | 必須 | `minLength: 1`（OpenAPI）、ドメイン層でも空文字を拒否 | 予定タイトル |
+| body | `startAt` | string (date-time, RFC3339) | 必須 | - | 開始日時 |
+| body | `endAt` | string (date-time, RFC3339) | 必須 | `startAt` より厳密に後（同時刻不可。ドメイン層で検証） | 終了日時 |
+| body | `description` | string \| null | 任意 | - | メモ |
+| body | `location` | string \| null | 任意 | - | 場所 |
+| body | `url` | string \| null | 任意 | - | 関連URL。形式検証なし |
 
 ##### レスポンス（201 Created）
 
@@ -147,14 +147,14 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
-| cookie | セッションCookie | string | ◯ | 認証ミドルウェアで検証 | 認証に用いるセッションCookie |
-| path | `id` | string (uuid) | ◯ | UUID 形式 | 更新対象の予定ID |
-| body | `title` | string | ◯ | ドメイン層で空文字を拒否（OpenAPIは `minLength` 未宣言） | 予定タイトル |
-| body | `startAt` | string (date-time, RFC3339) | ◯ | - | 開始日時 |
-| body | `endAt` | string (date-time, RFC3339) | ◯ | `startAt` より厳密に後 | 終了日時 |
-| body | `description` | string \| null | - | - | メモ |
-| body | `location` | string \| null | - | - | 場所 |
-| body | `url` | string \| null | - | - | 関連URL |
+| cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
+| path | `id` | string (uuid) | 必須 | UUID 形式 | 更新対象の予定ID |
+| body | `title` | string | 必須 | ドメイン層で空文字を拒否（OpenAPIは `minLength` 未宣言） | 予定タイトル |
+| body | `startAt` | string (date-time, RFC3339) | 必須 | - | 開始日時 |
+| body | `endAt` | string (date-time, RFC3339) | 必須 | `startAt` より厳密に後 | 終了日時 |
+| body | `description` | string \| null | 任意 | - | メモ |
+| body | `location` | string \| null | 任意 | - | 場所 |
+| body | `url` | string \| null | 任意 | - | 関連URL |
 
 ##### レスポンス（200 OK）
 
@@ -178,8 +178,8 @@
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
-| cookie | セッションCookie | string | ◯ | 認証ミドルウェアで検証 | 認証に用いるセッションCookie |
-| path | `id` | string (uuid) | ◯ | UUID 形式 | 削除対象の予定ID |
+| cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
+| path | `id` | string (uuid) | 必須 | UUID 形式 | 削除対象の予定ID |
 
 リクエストボディ: なし。
 

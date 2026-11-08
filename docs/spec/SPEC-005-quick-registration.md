@@ -70,12 +70,12 @@ I/Fの全体は SPEC-003 を参照する。エラーレスポンスの共通構�
 
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
-| body | `title` | string | ○ | minLength 1 | パネルで入力されたタイトル |
-| body | `startAt` | string（date-time, ISO 8601） | ○ | — | クリックしたセルの日時 |
-| body | `endAt` | string（date-time, ISO 8601） | ○ | `startAt` より厳密に未来 | パネルが `startAt + 1時間` で自動設定する |
-| body | `description` | string または null | ○ | — | 固定で `null`（パネルでは扱わない） |
-| body | `location` | string または null | ○ | — | 固定で `null`（パネルでは扱わない） |
-| body | `url` | string または null | ○ | — | 固定で `null`（パネルでは扱わない） |
+| body | `title` | string | 必須 | minLength 1 | パネルで入力されたタイトル |
+| body | `startAt` | string（date-time, ISO 8601） | 必須 | — | クリックしたセルの日時 |
+| body | `endAt` | string（date-time, ISO 8601） | 必須 | `startAt` より厳密に未来 | パネルが `startAt + 1時間` で自動設定する |
+| body | `description` | string または null | 任意 | — | 固定で `null`（パネルでは扱わない） |
+| body | `location` | string または null | 任意 | — | 固定で `null`（パネルでは扱わない） |
+| body | `url` | string または null | 任意 | — | 固定で `null`（パネルでは扱わない） |
 
 ##### レスポンス（201 Created、このパネルが使うフィールドのみ）
 
