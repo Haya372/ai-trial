@@ -116,7 +116,12 @@
       "Bash(git reset --hard *)",
       "Bash(git clean -f *)",
       "Bash(rm -rf *)",
-      "Bash(sudo *)"
+      "Bash(sudo *)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm i *)",
+      "Bash(pnpm update *)",
+      "Bash(pnpm up *)",
+      "Bash(mise install *)"
     ],
     "disableBypassPermissionsMode": "disable"
   }
