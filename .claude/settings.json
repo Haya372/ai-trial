@@ -121,6 +121,10 @@
       "Bash(pnpm i *)",
       "Bash(pnpm update *)",
       "Bash(pnpm up *)",
+      "Bash(mise exec -- pnpm install *)",
+      "Bash(mise exec -- pnpm i *)",
+      "Bash(mise exec -- pnpm update *)",
+      "Bash(mise exec -- pnpm up *)",
       "Bash(mise install *)"
     ],
     "disableBypassPermissionsMode": "disable"
