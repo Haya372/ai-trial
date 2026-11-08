@@ -17,3 +17,8 @@ allowBuilds:
   lefthook: true
   protobufjs: true
 auditLevel: moderate
+overrides:
+  # GHSA-g3hv-75wg-m249: 依存元（ts-morph・typedoc・glob）が ^10 を要求したままのため強制する
+  minimatch@10: 11.0.5
+  # GHSA-3g3m-2fjr-6pw4: 依存元（@joshwooding/vite-plugin-react-docgen-typescript）が ^13 を要求したままのため強制する
+  glob@13: 14.0.4
