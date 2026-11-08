@@ -84,18 +84,7 @@ PRD作成 → Issue作成 → 仕様定義 → sub-issue起票 → [詳細設計
 
 ### ステップ 6: ADR作成
 
-重要な技術的意思決定が生じたら `docs/adr/template.md` に沿ってADRを作成する。
-
-保存先: `docs/adr/ADR-XXX-[タイトル].md`
-
-#### ADR作成時の注意事項
-
-- **ステータス**: セッション内で議論・合意した内容は「承認済」にする。「提案中」はまだ合意が取れていない場合のみ使う
-- **コンテキスト**: 現在の実装状態（「現時点では〜のみ」）は時間が経つと陳腐化するため書かない。意思決定が必要な背景・課題を書く
-- **設計決定 vs 運用ルール**: ADRには「なぜその構造を選んだか」を書く。「どのステータスコードをいつ使うか」などの運用ルール・対応表は `docs/guidelines/` に書く
-- **ドキュメント内の言語**: 「SSoT」などの技術ジャーゴンは使わない。「参照」「定義」など平易な表現にする
-- **書く内容の絞り込み**: `write-document` スキルに従う
-- **参照先の完全性**: gitignore対象・未コミットのファイルをADRから参照しない（他の環境でリンク切れになる）
+重要な技術的意思決定が生じたら `write-adr` スキルでADRを作成する。
 
 ## 完了チェックリスト
 
@@ -114,7 +103,6 @@ PRD作成 → Issue作成 → 仕様定義 → sub-issue起票 → [詳細設計
 - `docs/guidelines/guidelines.md` — 設計原則（SOLID・DRY・YAGNI・KISS）
 - `docs/guidelines/design-guidelines.md` — バックエンド・フロントエンド設計指針
 - `docs/guidelines/document-review-criteria.md` — ドキュメント作成時の観点（正確性・完全性・明瞭さ等）
-- `docs/adr/template.md` — ADRテンプレート
 - `docs/spec/template.md` — 仕様書テンプレート（入力確認用。ドメインモデル・DB設計・API設計を含む）
 - `docs/prd/template.md` — PRDテンプレート（入力確認用）
 - `docs/guidelines/development-flow.md` — 開発フロー全体像

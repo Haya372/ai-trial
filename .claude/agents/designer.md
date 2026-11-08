@@ -14,7 +14,7 @@ model: claude-opus-4-7
 
 - 仕様定義の段階での仕様書の「設計」セクション（ドメインモデル・DB設計・API設計）の作成（`specification` スキル）
 - sub-issueごとの詳細設計ドキュメントの作成（`detailed-design` スキル）
-- ADRの作成（`docs/adr/template.md` に沿って）
+- ADRの作成（`write-adr` スキルに沿って）
 - ドメインモデルの定義（`docs/domain/template.md` に沿って）
 - インターフェース設計
 
