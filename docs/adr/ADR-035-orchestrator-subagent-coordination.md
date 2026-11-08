@@ -106,7 +106,12 @@ flowchart LR
 4. ユーザーの回答は `taskctl answer <task> <回答>` で渡す。taskctl は保存しておいた `session_id` で `claude -p --resume <session_id>` を実行し、サブエージェントは文脈を保ったまま作業を再開する
 5. タスクは taskctl がタスク名と `session_id` の対応で管理する。複数タスクが同時に質問しても、回答は対応するタスクにだけ届く
 
-サブエージェントの権限モードは `--permission-mode acceptEdits` とする。本プロジェクトの設定では `--dangerously-skip-permissions` が無効化されているため（`permissions.disableBypassPermissionsMode`）。
+サブエージェントは `--permission-mode acceptEdits --allowedTools Bash` で実行し、ファイル編集とBashをすべて許可する。
+
+- `--dangerously-skip-permissions` は使えない。本プロジェクトの設定で無効化されているため（`permissions.disableBypassPermissionsMode`）
+- `acceptEdits` だけでは、headless実行で許可プロンプトに答える人がいないためBashが拒否され、テスト・lintが実行できない。プロジェクト設定の `autoAllowBashIfSandboxed` も、コンテナ内ではClaude Code自身のサンドボックスが無効なので効かない
+- Bashを細かく絞らないのは、境界をコンテナ（ファイル・ネットワーク）で確保しているため。絞るとTDDの作業が許可待ちで止まる
+- `--allowedTools` は値を複数受け取るオプションのため、プロンプトは引数ではなく標準入力で渡す
 
 ### 4. ホスト側の操作は固定コマンドのラッパー経由に限定する
 
@@ -302,6 +307,8 @@ worktree内に悪意あるフック（`.githooks/pre-commit`）と偽の `.git` 
 | 並行時に回答を取り違えない | 各worktreeにそれぞれの回答の文言が書き込まれた |
 | `claude` 実行中も許可外ホストへ出られない | 名前解決できず失敗 |
 | 認証トークンが常駐プロセスに残らない | `docker exec` で渡した実行時のみ存在 |
+| `--allowedTools Bash` でテストを実行できる | `node:test` のテストを作成・実行し pass 2 / fail 0。`permission_denials` なし |
+| サブエージェントのBashからも許可外ホストへ出られない | `curl https://example.com` は名前解決できず失敗 |
 
 ## 結果
 
