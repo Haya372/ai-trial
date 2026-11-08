@@ -67,3 +67,17 @@ RETURNING id, user_id, title, description, start_at, end_at, location, url, crea
 -- name: DeleteEvent :exec
 DELETE FROM events
 WHERE id = $1;
+
+-- name: ListEventTagsByEventID :many
+SELECT tag_id, position
+FROM event_tags
+WHERE event_id = $1
+ORDER BY position;
+
+-- name: InsertEventTag :exec
+INSERT INTO event_tags (event_id, tag_id, position)
+VALUES ($1, $2, $3);
+
+-- name: DeleteEventTagsByEventID :exec
+DELETE FROM event_tags
+WHERE event_id = $1;
