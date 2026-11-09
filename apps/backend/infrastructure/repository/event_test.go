@@ -302,6 +302,9 @@ func TestEventRepository_FindByID_ReturnsEvent(t *testing.T) {
 	if e.UserID() != u.ID() {
 		t.Errorf("userID mismatch: got %v, want %v", e.UserID(), u.ID())
 	}
+	if len(e.Tags()) != 0 {
+		t.Errorf("expected no tags, got %d", len(e.Tags()))
+	}
 }
 
 func TestEventRepository_FindByID_NotFound_ReturnsErrEventNotFound(t *testing.T) {

@@ -38,11 +38,16 @@ VALUES (
 )
 RETURNING id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at;
 
--- name: FindEventByID :one
-SELECT id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at
-FROM events
-WHERE id = $1
-LIMIT 1;
+-- name: FindEventWithTagsByID :many
+-- One row per tag (or one row with NULL tag columns when the event has
+-- none). Reading the event and its tags in one statement gives them the same
+-- snapshot, so a concurrent edit cannot be seen half applied.
+SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
+       e.created_at, e.updated_at, et.tag_id, et.position
+FROM events e
+LEFT JOIN event_tags et ON et.event_id = e.id
+WHERE e.id = $1
+ORDER BY et.position;
 
 -- name: FindEventReadModelByID :one
 -- Read-side counterpart of FindEventByID (ADR-022 logical CQRS): same table,

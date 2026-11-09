@@ -164,40 +164,41 @@ func eventFromRow(row query.InsertEventRow, tags []domainevent.EventTag) (domain
 
 func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
-	row, err := r.querier(spanCtx).FindEventByID(spanCtx, toPgUUID(id))
-	endDBSpanNotFound(span, err)
-	if notFound, wasNoRows, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
-		if wasNoRows {
-			return nil, mappedErr
+	rows, err := r.querier(spanCtx).FindEventWithTagsByID(spanCtx, toPgUUID(id))
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("find event by id query failed", "error", err)
+		return nil, fmt.Errorf("find event by id: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, domainevent.ErrEventNotFound
+	}
+
+	tags := make([]domainevent.EventTag, 0, len(rows))
+	for _, row := range rows {
+		// A row with no tag columns is the LEFT JOIN's row for an untagged event.
+		if !row.TagID.Valid {
+			continue
 		}
-		r.logger.Error("find event by id query failed", "error", mappedErr)
-		return nil, fmt.Errorf("find event by id: %w", mappedErr)
+		t, err := domainevent.NewEventTag(uuid.UUID(row.TagID.Bytes), int(row.Position.Int16))
+		if err != nil {
+			return nil, fmt.Errorf("reconstruct event tag: %w", err)
+		}
+		tags = append(tags, t)
 	}
-
-	var desc, location, url string
-	if row.Description.Valid {
-		desc = row.Description.String
-	}
-	if row.Location.Valid {
-		location = row.Location.String
-	}
-	if row.Url.Valid {
-		url = row.Url.String
-	}
-
-	e, err := domainevent.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes),
-		row.Title, desc, row.StartAt.Time, row.EndAt.Time, location, url,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	tags, err := r.findTags(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return e.WithTags(tags)
+	first := rows[0]
+	return eventFromRow(query.InsertEventRow{
+		ID:          first.ID,
+		UserID:      first.UserID,
+		Title:       first.Title,
+		Description: first.Description,
+		StartAt:     first.StartAt,
+		EndAt:       first.EndAt,
+		Location:    first.Location,
+		Url:         first.Url,
+		CreatedAt:   first.CreatedAt,
+		UpdatedAt:   first.UpdatedAt,
+	}, tags)
 }
 
 func (r *eventRepository) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
