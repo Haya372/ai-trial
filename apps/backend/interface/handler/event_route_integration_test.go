@@ -31,6 +31,7 @@ func buildEventTestRouter() *chi.Mux {
 	sessRepo := repository.NewSessionRepository(routeTestPool, testTracerProvider)
 	eventQueryRepo := repository.NewEventQueryRepository(routeTestPool, logger, testTracerProvider)
 	eventRepo := repository.NewEventRepository(routeTestPool, logger, testTracerProvider)
+	tagRepo := repository.NewTagRepository(routeTestPool, logger, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr, usecase.RealClock{})
@@ -38,7 +39,7 @@ func buildEventTestRouter() *chi.Mux {
 	logout := authuc.NewLogoutCommand(sessRepo)
 	listEvents := eventuc.NewListEventsQuery(eventQueryRepo)
 	createEvent := eventuc.NewCreateEventCommand(eventRepo, txMgr)
-	updateEvent := eventuc.NewUpdateEventCommand(eventRepo, txMgr, logger)
+	updateEvent := eventuc.NewUpdateEventCommand(eventRepo, tagRepo, txMgr, logger)
 	deleteEvent := eventuc.NewDeleteEventCommand(eventRepo, logger)
 
 	auth := handler.NewAuthHandler(signup, login, logout, logger)

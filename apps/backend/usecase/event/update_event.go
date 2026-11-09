@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	"github.com/Haya372/ai-trial/backend/domain/tag"
 	"github.com/Haya372/ai-trial/backend/usecase"
 )
 
@@ -24,24 +25,29 @@ type UpdateEventInput struct {
 
 type UpdateEventCommand struct {
 	repo      domainevent.Repository
+	tagRepo   tag.Repository
 	txManager usecase.TransactionManager
 	logger    *slog.Logger
 }
 
 func NewUpdateEventCommand(
-	r domainevent.Repository, tx usecase.TransactionManager, logger *slog.Logger,
+	r domainevent.Repository, tr tag.Repository, tx usecase.TransactionManager, logger *slog.Logger,
 ) *UpdateEventCommand {
-	return &UpdateEventCommand{repo: r, txManager: tx, logger: logger}
+	return &UpdateEventCommand{repo: r, tagRepo: tr, txManager: tx, logger: logger}
 }
 
 func (c *UpdateEventCommand) Execute(
 	ctx context.Context, userID uuid.UUID, in UpdateEventInput,
 ) (domainevent.Event, error) {
-	// Read and write in one transaction so the carried-over tags are the ones
-	// still stored when Update writes the event and its tags (ADR-024).
 	var updated domainevent.Event
 	err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
-		existing, err := domainevent.FindOwned(ctx, c.repo, c.logger, in.ID, userID)
+		// Lock the event so a concurrent edit cannot change its tags between
+		// this read and the write below.
+		existing, err := domainevent.FindOwnedForUpdate(ctx, c.repo, c.logger, in.ID, userID)
+		if err != nil {
+			return err
+		}
+		kept, err := c.lockKeptTags(ctx, existing.Tags())
 		if err != nil {
 			return err
 		}
@@ -54,7 +60,7 @@ func (c *UpdateEventCommand) Execute(
 		}
 		// Update replaces the stored tags with updated.Tags(), so carry them
 		// over or editing the event would drop its tags.
-		updated, err = updated.WithTags(existing.Tags())
+		updated, err = updated.WithTags(kept)
 		if err != nil {
 			return err
 		}
@@ -68,4 +74,36 @@ func (c *UpdateEventCommand) Execute(
 		return nil, err
 	}
 	return updated, nil
+}
+
+// lockKeptTags locks the rows of the tags being carried over (FOR SHARE) so
+// they cannot be deleted before Update writes them back, and drops any tag
+// already deleted since the event was read: writing it back would fail the
+// event_tags foreign key.
+func (c *UpdateEventCommand) lockKeptTags(
+	ctx context.Context, tags []domainevent.EventTag,
+) ([]domainevent.EventTag, error) {
+	if len(tags) == 0 {
+		return tags, nil
+	}
+	ids := make([]uuid.UUID, len(tags))
+	for i, t := range tags {
+		ids[i] = t.TagID()
+	}
+	locked, err := c.tagRepo.FindByIDsForShare(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("lock event tags: %w", err)
+	}
+
+	present := make(map[uuid.UUID]struct{}, len(locked))
+	for _, t := range locked {
+		present[t.ID()] = struct{}{}
+	}
+	kept := make([]domainevent.EventTag, 0, len(tags))
+	for _, t := range tags {
+		if _, ok := present[t.TagID()]; ok {
+			kept = append(kept, t)
+		}
+	}
+	return kept, nil
 }
