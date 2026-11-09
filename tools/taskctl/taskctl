@@ -76,7 +76,7 @@ wait_ready() {
       docker logs "$name" >&2 || true
       return 1
     fi
-    if docker exec "$name" test -f /run/taskctl/ready; then
+    if docker exec "$name" /usr/bin/test -f /run/taskctl/ready; then
       return 0
     fi
     sleep 1
@@ -132,6 +132,8 @@ cmd_status() {
 # コンテナ内で一般ユーザー dev に切り替え、capability をすべて落としてコマンドを実行する。
 # setpriv は環境変数を引き継ぐため、docker exec の -e で渡したものだけが追加される。
 # docker exec のオプションは mode ごとに固定し、呼び出し側からは渡せないようにしている。
+# コンテナの PATH は dev が書き込めるディレクトリから始まるため、root で実行するコマンド
+# （setpriv や wait_ready の test）はフルパスで指定する。
 run_as_dev() {
   local task="$1" mode="$2"
   shift 2
@@ -145,7 +147,7 @@ run_as_dev() {
   docker exec ${mode_opts[@]+"${mode_opts[@]}"} -u root -w /workspace \
     -e HOME=/home/dev -e USER=dev \
     "$(container_name "$task")" \
-    setpriv --reuid=dev --regid=dev --init-groups --inh-caps=-all --bounding-set=-all \
+    /usr/bin/setpriv --reuid=dev --regid=dev --init-groups --inh-caps=-all --bounding-set=-all \
     -- "$@"
 }
 

@@ -31,7 +31,7 @@ case "$1" in
   exec)
     for a in "$@"; do
       if [ "$a" = "-i" ]; then cat >"$FAKE_STDIN"; fi
-      if [ "$a" = "test" ]; then exit "$FAKE_READY"; fi
+      if [ "$a" = "/usr/bin/test" ]; then exit "$FAKE_READY"; fi
     done
     ;;
 esac
@@ -231,6 +231,14 @@ test_start_runs_container_with_fixed_security_options() {
   refute_contains "$args" "CLAUDE_CODE_OAUTH_TOKEN"
 }
 
+# root で実行するコマンドを PATH で解決すると、dev が書き込めるディレクトリの偽物が実行される
+test_start_checks_readiness_with_absolute_path() {
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  local args
+  args="$(docker_call exec)" || fail "docker exec not called"
+  assert_sequence "$args" taskctl-t1 /usr/bin/test -f /run/taskctl/ready
+}
+
 test_start_does_not_pass_token_to_docker_run() {
   CLAUDE_CODE_OAUTH_TOKEN=secret-token bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
   refute_contains "$(cat "$FAKE_LOG")" "secret-token"
@@ -287,7 +295,7 @@ test_exec_drops_to_dev_without_capabilities() {
   local args
   args="$(docker_call exec)" || fail "docker exec not called"
   assert_sequence "$args" exec -u root -w /workspace
-  assert_sequence "$args" taskctl-t1 setpriv --reuid=dev --regid=dev --init-groups \
+  assert_sequence "$args" taskctl-t1 /usr/bin/setpriv --reuid=dev --regid=dev --init-groups \
     --inh-caps=-all --bounding-set=-all -- echo hello
   [ "$(tail -n1 <<<"$args")" = hello ] || fail "command is not at the end"
 }
