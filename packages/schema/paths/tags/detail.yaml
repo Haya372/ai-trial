@@ -1,0 +1,55 @@
+put:
+  operationId: updateTag
+  summary: Update the name and color of an existing tag
+  tags:
+    - tags
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/UpdateTagRequest.yaml"
+  responses:
+    "200":
+      description: Updated tag
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/TagResponse.yaml"
+    "400":
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "404":
+      description: Tag not found (also returned when the tag belongs to another user)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
+    "409":
+      description: Another tag of the user has the same name (case-insensitive)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ConflictErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
