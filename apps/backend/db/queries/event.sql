@@ -50,7 +50,7 @@ WHERE e.id = $1
 ORDER BY et.position;
 
 -- name: FindEventReadModelByID :one
--- Read-side counterpart of FindEventByID (ADR-022 logical CQRS): same table,
+-- Read-side counterpart of FindEventWithTagsByID (ADR-022 logical CQRS): same table,
 -- kept as its own query so the read path can diverge independently later.
 SELECT id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at
 FROM events
