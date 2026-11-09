@@ -50,6 +50,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		repository.NewSessionRepository,
 		repository.NewEventQueryRepository,
 		repository.NewEventRepository,
+		repository.NewTagQueryRepository,
 		repository.NewTagRepository,
 		repository.NewEventShareRepository,
 		repository.NewEventSubscriptionRepository,
@@ -65,6 +66,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newUpdateEventExecutor,
 		newDeleteEventExecutor,
 		newCreateShareExecutor,
+		newListTagsExecutor,
 		newCreateTagExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
@@ -156,6 +158,10 @@ func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.Del
 	return eventuc.NewDeleteEventCommand(r, logger)
 }
 
+func newListTagsExecutor(s taguc.QueryService) handler.ListTagsExecutor {
+	return taguc.NewListTagsQuery(s)
+}
+
 func newCreateTagExecutor(r tag.Repository, tx usecase.TransactionManager) handler.CreateTagExecutor {
 	return taguc.NewCreateTagCommand(r, tx)
 }
@@ -224,6 +230,7 @@ func newRouter(
 	r.With(mw.OptionalAuth(sessRepo, userRepo, logger)).Get("/shares/{token}", share.GetShareByToken)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/shares/{token}/subscriptions", sub.SubscribeToShare)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/subscriptions/{id}", sub.DeleteSubscription)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/tags", tg.ListTags)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/tags", tg.CreateTag)
 	return r
 }
