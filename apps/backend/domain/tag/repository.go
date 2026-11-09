@@ -14,8 +14,9 @@ type Repository interface {
 	Create(ctx context.Context, t Tag) (Tag, error)
 	// FindByID returns the tag with the given ID, or ErrTagNotFound if it does not exist.
 	FindByID(ctx context.Context, id uuid.UUID) (Tag, error)
-	// Update returns ErrTagNameTaken if another tag of the owner has the same
-	// name, compared case-insensitively.
+	// Update returns ErrTagNotFound if the tag no longer exists, and
+	// ErrTagNameTaken if another tag of the owner has the same name, compared
+	// case-insensitively.
 	Update(ctx context.Context, t Tag) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	// CountByUserID returns how many tags userID owns, for the MaxTagsPerUser check.

@@ -9,7 +9,7 @@ FROM tags
 WHERE id = $1
 LIMIT 1;
 
--- name: UpdateTag :exec
+-- name: UpdateTag :execrows
 UPDATE tags
 SET name = $2,
     color = $3

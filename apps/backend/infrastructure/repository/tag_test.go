@@ -164,6 +164,17 @@ func TestTagRepository_Update_PersistsChanges(t *testing.T) {
 	}
 }
 
+func TestTagRepository_Update_NotFound_ReturnsErrTagNotFound(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	repo := repository.NewTagRepository(testPool, testLogger, testTracerProvider)
+
+	err := repo.Update(context.Background(), newTestTag(t, u.ID(), "Work", "red"))
+	if !errors.Is(err, tag.ErrTagNotFound) {
+		t.Errorf("expected ErrTagNotFound, got %v", err)
+	}
+}
+
 func TestTagRepository_Update_OwnNameWithDifferentCase_Succeeds(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)

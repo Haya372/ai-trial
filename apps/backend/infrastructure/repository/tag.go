@@ -82,7 +82,7 @@ func (r *tagRepository) FindByID(ctx context.Context, id uuid.UUID) (tag.Tag, er
 
 func (r *tagRepository) Update(ctx context.Context, t tag.Tag) error {
 	spanCtx, span := r.startDBSpan(ctx, "UPDATE", tagsTable)
-	err := r.querier(spanCtx).UpdateTag(spanCtx, query.UpdateTagParams{
+	rows, err := r.querier(spanCtx).UpdateTag(spanCtx, query.UpdateTagParams{
 		ID:    toPgUUID(t.ID()),
 		Name:  string(t.Name()),
 		Color: string(t.Color()),
@@ -94,6 +94,10 @@ func (r *tagRepository) Update(ctx context.Context, t tag.Tag) error {
 		}
 		r.logger.Error("update tag query failed", "error", err)
 		return fmt.Errorf("update tag: %w", err)
+	}
+	// The tag may have been deleted after the caller checked it exists.
+	if rows == 0 {
+		return tag.ErrTagNotFound
 	}
 	return nil
 }
