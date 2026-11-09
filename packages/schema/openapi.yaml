@@ -25,6 +25,8 @@ paths:
     $ref: "./paths/shares/subscriptions.yaml"
   /subscriptions/{id}:
     $ref: "./paths/subscriptions/detail.yaml"
+  /tags:
+    $ref: "./paths/tags/index.yaml"
 components:
   schemas:
     HealthResponse:
@@ -67,3 +69,9 @@ components:
       $ref: "./components/schemas/EventSubscriptionResponse.yaml"
     ForbiddenErrorResponse:
       $ref: "./components/schemas/ForbiddenErrorResponse.yaml"
+    TagColor:
+      $ref: "./components/schemas/TagColor.yaml"
+    CreateTagRequest:
+      $ref: "./components/schemas/CreateTagRequest.yaml"
+    TagResponse:
+      $ref: "./components/schemas/TagResponse.yaml"

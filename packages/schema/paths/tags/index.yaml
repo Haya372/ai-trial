@@ -1,0 +1,44 @@
+post:
+  operationId: createTag
+  summary: Create a new tag
+  tags:
+    - tags
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../components/schemas/CreateTagRequest.yaml"
+  responses:
+    "201":
+      description: Tag created successfully
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/TagResponse.yaml"
+    "400":
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ValidationErrorResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "409":
+      description: >-
+        A tag with the same name (case-insensitive) already exists, or the
+        user already owns the maximum number of tags (50)
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/ConflictErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
