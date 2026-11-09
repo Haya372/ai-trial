@@ -462,3 +462,71 @@ func countRows(t *testing.T, sql string, args ...any) int {
 	}
 	return n
 }
+
+func setTagCreatedAt(t *testing.T, id uuid.UUID, createdAt time.Time) {
+	t.Helper()
+	if _, err := testPool.Exec(context.Background(),
+		"UPDATE tags SET created_at = $1 WHERE id = $2", createdAt, id); err != nil {
+		t.Fatalf("set tag created_at: %v", err)
+	}
+}
+
+func TestTagQueryRepository_ListByUserID_ReturnsOwnTagsInCreationOrderWithEventCount(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	other := createTestUser(t)
+	now := time.Now().UTC()
+	// Names are inserted in reverse alphabetical order and created_at is set
+	// explicitly, so the assertion fails if the query sorts by name or id.
+	newer := createTestTag(t, u.ID(), "Alpha")
+	older := createTestTag(t, u.ID(), "Beta")
+	setTagCreatedAt(t, newer.ID(), now)
+	setTagCreatedAt(t, older.ID(), now.Add(-time.Hour))
+	othersTag := createTestTag(t, other.ID(), "Other")
+
+	ev1 := insertEvent(t, u.ID(), "Meeting", now, now.Add(time.Hour))
+	ev2 := insertEvent(t, u.ID(), "Lunch", now, now.Add(time.Hour))
+	insertEventTag(t, ev1, older.ID(), 1)
+	insertEventTag(t, ev2, older.ID(), 1)
+	insertEventTag(t, ev1, newer.ID(), 2)
+	otherEv := insertEvent(t, other.ID(), "Other", now, now.Add(time.Hour))
+	insertEventTag(t, otherEv, othersTag.ID(), 1)
+
+	q := repository.NewTagQueryRepository(testPool, testLogger, testTracerProvider)
+	got, err := q.ListByUserID(context.Background(), u.ID())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("expected 2 tags, got %d: %+v", len(got), got)
+	}
+	want := []struct {
+		id         uuid.UUID
+		name       string
+		eventCount int
+	}{
+		{older.ID(), "Beta", 2},
+		{newer.ID(), "Alpha", 1},
+	}
+	for i, w := range want {
+		if got[i].ID != w.id || got[i].Name != w.name || got[i].Color != "red" || got[i].EventCount != w.eventCount {
+			t.Errorf("tags[%d] mismatch: got %+v, want id=%v name=%q color=red eventCount=%d",
+				i, got[i], w.id, w.name, w.eventCount)
+		}
+	}
+}
+
+func TestTagQueryRepository_ListByUserID_NoTags_ReturnsEmpty(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+
+	q := repository.NewTagQueryRepository(testPool, testLogger, testTracerProvider)
+	got, err := q.ListByUserID(context.Background(), u.ID())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil || len(got) != 0 {
+		t.Errorf("expected empty non-nil slice, got %#v", got)
+	}
+}
