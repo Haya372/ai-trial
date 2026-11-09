@@ -9,13 +9,13 @@ import (
 )
 
 type Repository interface {
-	// Create saves the whole aggregate, including e.Tags(), atomically. It
-	// joins the caller's transaction if there is one.
+	// Create saves the whole aggregate, including e.Tags(). It writes several
+	// rows, so call it inside a transaction (ADR-024).
 	Create(ctx context.Context, e Event) (Event, error)
 	// FindByID returns the event with the given ID, or ErrEventNotFound if it does not exist.
 	FindByID(ctx context.Context, id uuid.UUID) (Event, error)
-	// Update saves the whole aggregate atomically, replacing the stored tags
-	// with e.Tags(). It joins the caller's transaction if there is one.
+	// Update saves the whole aggregate, replacing the stored tags with
+	// e.Tags(). It writes several rows, so call it inside a transaction (ADR-024).
 	Update(ctx context.Context, e Event) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }

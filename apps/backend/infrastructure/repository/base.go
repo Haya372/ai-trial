@@ -59,16 +59,6 @@ func (r *baseRepository) querier(ctx context.Context) *query.Queries {
 	return query.New(r.pool)
 }
 
-// inTx runs fn in the caller's transaction if ctx carries one, and in a new
-// transaction otherwise, so that saving an aggregate that spans several
-// tables is atomic whether or not the caller started a transaction.
-func (r *baseRepository) inTx(ctx context.Context, fn func(ctx context.Context) error) error {
-	if _, ok := db.GetTx(ctx); ok {
-		return fn(ctx)
-	}
-	return db.NewPgxTxManager(r.pool).RunInTx(ctx, fn)
-}
-
 // startDBSpan starts a "db.query" span per the observability guidelines'
 // naming and attribute rules (db.system/db.operation/db.table; SQL text is
 // never attached). The caller must end the span via endDBSpan.

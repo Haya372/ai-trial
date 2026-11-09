@@ -645,65 +645,6 @@ func TestEventRepository_Update_WithNoTags_RemovesAllTags(t *testing.T) {
 	}
 }
 
-func TestEventRepository_Create_TagInsertFails_SavesNothing(t *testing.T) {
-	setupTest(t)
-	u := createTestUser(t)
-	work := createTestTag(t, u.ID(), "Work")
-	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
-
-	// A tag ID with no row fails the event_tags foreign key after the event
-	// row has been inserted.
-	id := uuid.New()
-	_, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(),
-		[]event.EventTag{mustEventTag(t, work.ID(), 1), mustEventTag(t, uuid.New(), 2)},
-	))
-	if err == nil {
-		t.Fatal("expected an error for a missing tag")
-	}
-
-	if n := countRows(t, "SELECT COUNT(*) FROM events WHERE id = $1", id); n != 0 {
-		t.Errorf("expected the event not to be saved, got %d rows", n)
-	}
-	if n := countRows(t, "SELECT COUNT(*) FROM event_tags WHERE event_id = $1", id); n != 0 {
-		t.Errorf("expected no tags to be saved, got %d rows", n)
-	}
-}
-
-func TestEventRepository_Update_TagInsertFails_KeepsStoredEvent(t *testing.T) {
-	setupTest(t)
-	u := createTestUser(t)
-	work := createTestTag(t, u.ID(), "Work")
-	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
-
-	id := uuid.New()
-	stored := []event.EventTag{mustEventTag(t, work.ID(), 1)}
-	if _, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(), stored)); err != nil {
-		t.Fatalf("create event: %v", err)
-	}
-
-	now := time.Now().UTC().Truncate(time.Second)
-	changed, err := event.New(id, u.ID(), "Changed", "", now, now.Add(time.Hour), "", "")
-	if err != nil {
-		t.Fatalf("build event: %v", err)
-	}
-	changed, err = changed.WithTags([]event.EventTag{mustEventTag(t, uuid.New(), 1)})
-	if err != nil {
-		t.Fatalf("attach tags: %v", err)
-	}
-	if err := eventRepo.Update(context.Background(), changed); err == nil {
-		t.Fatal("expected an error for a missing tag")
-	}
-
-	got, err := eventRepo.FindByID(context.Background(), id)
-	if err != nil {
-		t.Fatalf("find event: %v", err)
-	}
-	if got.Title() != "Tagged" {
-		t.Errorf("expected the title to stay unchanged, got %q", got.Title())
-	}
-	assertEventTags(t, got.Tags(), stored)
-}
-
 func TestEventRepository_Update_InCallerTx_RollsBackWithCaller(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)

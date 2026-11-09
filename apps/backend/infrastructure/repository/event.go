@@ -126,25 +126,16 @@ func NewEventRepository(pool *pgxpool.Pool, logger *slog.Logger, tp trace.Tracer
 	return &eventRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}, logger}
 }
 
-// Create saves the whole aggregate: the event row and its tags are written
-// in one transaction.
+// Create saves the whole aggregate: the event row and its tags.
 func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
-	var saved domainevent.Event
-	err := r.inTx(ctx, func(ctx context.Context) error {
-		row, err := r.insertEvent(ctx, e)
-		if err != nil {
-			return err
-		}
-		if err := r.saveTags(ctx, e); err != nil {
-			return err
-		}
-		saved, err = eventFromRow(row, e.Tags())
-		return err
-	})
+	row, err := r.insertEvent(ctx, e)
 	if err != nil {
 		return nil, err
 	}
-	return saved, nil
+	if err := r.saveTags(ctx, e); err != nil {
+		return nil, err
+	}
+	return eventFromRow(row, e.Tags())
 }
 
 // eventFromRow reconstructs the event from the persisted row so the caller
@@ -208,27 +199,25 @@ func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domaineve
 	return e.WithTags(tags)
 }
 
-// Update saves the whole aggregate: the event row and its tags are written
-// in one transaction, and the stored tags are replaced by e.Tags().
+// Update saves the whole aggregate: the event row and its tags, replacing
+// the stored tags with e.Tags().
 func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error {
-	return r.inTx(ctx, func(ctx context.Context) error {
-		spanCtx, span := r.startDBSpan(ctx, "UPDATE", eventsTable)
-		_, err := r.querier(spanCtx).UpdateEvent(spanCtx, query.UpdateEventParams{
-			ID:          toPgUUID(e.ID()),
-			Title:       e.Title(),
-			Description: textOrNull(e.Description()),
-			StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
-			EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
-			Location:    textOrNull(e.Location()),
-			Url:         textOrNull(e.URL()),
-		})
-		endDBSpan(span, err)
-		if err != nil {
-			r.logger.Error("update event query failed", "error", err)
-			return fmt.Errorf("update event: %w", err)
-		}
-		return r.saveTags(ctx, e)
+	spanCtx, span := r.startDBSpan(ctx, "UPDATE", eventsTable)
+	_, err := r.querier(spanCtx).UpdateEvent(spanCtx, query.UpdateEventParams{
+		ID:          toPgUUID(e.ID()),
+		Title:       e.Title(),
+		Description: textOrNull(e.Description()),
+		StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
+		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
+		Location:    textOrNull(e.Location()),
+		Url:         textOrNull(e.URL()),
 	})
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("update event query failed", "error", err)
+		return fmt.Errorf("update event: %w", err)
+	}
+	return r.saveTags(ctx, e)
 }
 
 func (r *eventRepository) Delete(ctx context.Context, id uuid.UUID) error {
