@@ -14,7 +14,7 @@
 | レイヤー | 役割 |
 |---|---|
 | UseCase（Command） | `TransactionManager.RunInTx` を呼び出してトランザクション境界を定義する |
-| Repository | Contextからトランザクション接続を取り出して使用する。なければプール接続を使う |
+| Repository | Contextからトランザクション接続を取り出して使用する。なければプール接続を使う（複数テーブルにまたがる集約の保存は例外。下記参照） |
 | Infrastructure | `TransactionManager` の実装・コンテキストへの接続格納を担う |
 
 ## Repository実装
@@ -62,6 +62,8 @@ func (r *EventRepository) Create(ctx context.Context, params sqlc.CreateEventPar
     return &event, nil
 }
 ```
+
+1つの集約を複数テーブルに保存するメソッド（例: `events` と `event_tags` に書き込む Event の `Create` / `Update`）は、Contextにトランザクションがあればそれを使い、なければ自前でトランザクションを張って集約を丸ごと保存する（`baseRepository.inTx`）。呼び出し側のUseCaseがトランザクションを張り忘れても、集約が中途半端に保存されないようにするため。
 
 ## UseCase（Command）の実装
 
