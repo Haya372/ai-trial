@@ -29,6 +29,7 @@ import (
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 	eventshareuc "github.com/Haya372/ai-trial/backend/usecase/eventshare"
 	eventsubscriptionuc "github.com/Haya372/ai-trial/backend/usecase/eventsubscription"
+	taguc "github.com/Haya372/ai-trial/backend/usecase/tag"
 )
 
 const serviceName = "ai-trial-backend"
@@ -64,12 +65,14 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newUpdateEventExecutor,
 		newDeleteEventExecutor,
 		newCreateShareExecutor,
+		newCreateTagExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
 		handler.NewEventHandler,
 		handler.NewEventShareHandler,
 		handler.NewShareHandler,
 		handler.NewEventSubscriptionHandler,
+		handler.NewTagHandler,
 		newRouter,
 	} {
 		if err := c.Provide(p); err != nil {
@@ -153,6 +156,10 @@ func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.Del
 	return eventuc.NewDeleteEventCommand(r, logger)
 }
 
+func newCreateTagExecutor(r tag.Repository, tx usecase.TransactionManager) handler.CreateTagExecutor {
+	return taguc.NewCreateTagCommand(r, tx)
+}
+
 func newCreateShareExecutor(
 	er event.Repository, sr eventshare.Repository, tx usecase.TransactionManager, logger *slog.Logger,
 ) handler.CreateShareExecutor {
@@ -190,6 +197,7 @@ func newRouter(
 	es *handler.EventShareHandler,
 	share *handler.ShareHandler,
 	sub *handler.EventSubscriptionHandler,
+	tg *handler.TagHandler,
 	sessRepo session.Repository,
 	userRepo user.Repository,
 	logger *slog.Logger,
@@ -216,5 +224,6 @@ func newRouter(
 	r.With(mw.OptionalAuth(sessRepo, userRepo, logger)).Get("/shares/{token}", share.GetShareByToken)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/shares/{token}/subscriptions", sub.SubscribeToShare)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/subscriptions/{id}", sub.DeleteSubscription)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/tags", tg.CreateTag)
 	return r
 }
