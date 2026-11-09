@@ -206,3 +206,55 @@ func TestUpdateEventCommand_Execute_RepoUpdateError_ReturnsError(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 }
+
+func TestUpdateEventCommand_Execute_KeepsExistingTags(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	start := time.Now().UTC()
+	end := start.Add(time.Hour)
+
+	tags, err := domainevent.NewEventTags([]uuid.UUID{uuid.New(), uuid.New()})
+	if err != nil {
+		t.Fatalf("build tags: %v", err)
+	}
+	existing, _ := domainevent.New(eventID, userID, "Old title", "", start, end, "", "")
+	existing, err = existing.WithTags(tags)
+	if err != nil {
+		t.Fatalf("attach tags: %v", err)
+	}
+
+	assertTags := func(got []domainevent.EventTag) {
+		t.Helper()
+		if len(got) != len(tags) {
+			t.Fatalf("expected %d tags, got %d", len(tags), len(got))
+		}
+		for i := range tags {
+			if got[i] != tags[i] {
+				t.Errorf("tag[%d] mismatch: got %v, want %v", i, got[i], tags[i])
+			}
+		}
+	}
+
+	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, e domainevent.Event) error {
+			assertTags(e.Tags())
+			return nil
+		},
+	)
+
+	cmd := eventuc.NewUpdateEventCommand(repo, testLogger)
+	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID:      eventID,
+		Title:   newTitle,
+		StartAt: start,
+		EndAt:   end,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertTags(out.Tags())
+}

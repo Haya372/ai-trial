@@ -33,11 +33,18 @@ func NewUpdateEventCommand(r domainevent.Repository, logger *slog.Logger) *Updat
 func (c *UpdateEventCommand) Execute(
 	ctx context.Context, userID uuid.UUID, in UpdateEventInput,
 ) (domainevent.Event, error) {
-	if _, err := domainevent.FindOwned(ctx, c.repo, c.logger, in.ID, userID); err != nil {
+	existing, err := domainevent.FindOwned(ctx, c.repo, c.logger, in.ID, userID)
+	if err != nil {
 		return nil, err
 	}
 
 	updated, err := domainevent.New(in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL)
+	if err != nil {
+		return nil, err
+	}
+	// Update replaces the stored tags with updated.Tags(), so carry them over
+	// or editing the event would drop its tags.
+	updated, err = updated.WithTags(existing.Tags())
 	if err != nil {
 		return nil, err
 	}
