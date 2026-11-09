@@ -140,9 +140,16 @@ check "token is absent from resident processes" refute token_in_resident_process
 check "token is absent from container config" refute token_in_container_config
 
 echo "# ビルド・テストが実行できる"
-check "go test (backend domain)" in_container bash -c 'cd apps/backend && go test ./domain/...'
 check "pnpm install" in_container pnpm install --frozen-lockfile
 check "pnpm test (packages/ui)" in_container pnpm --filter @repo/ui test
+# 生成コードは git 管理外のため、backend-ci.yml と同じ順で生成してからテストする
+check "backend code generation" in_container bash -c '
+  set -e
+  pnpm --filter @ai-trial/schema bundle
+  cd apps/backend
+  make sqlc-generate oapi-codegen-generate
+  go generate ./...'
+check "backend make test" in_container make -C apps/backend test
 
 echo "# claude -p"
 if [ -n "$REAL_TOKEN" ]; then
