@@ -131,21 +131,28 @@ cmd_status() {
 
 # コンテナ内で一般ユーザー dev に切り替え、capability をすべて落としてコマンドを実行する。
 # setpriv は環境変数を引き継ぐため、docker exec の -e で渡したものだけが追加される。
-taskctl_exec() {
-  local task="$1"
-  shift
+# docker exec のオプションは mode ごとに固定し、呼び出し側からは渡せないようにしている。
+run_as_dev() {
+  local task="$1" mode="$2"
+  shift 2
   validate_task "$task"
-  local exec_opts=()
-  while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
-    exec_opts+=("$1")
-    shift
-  done
-  [ "${1:-}" = "--" ] && shift
-  docker exec ${exec_opts[@]+"${exec_opts[@]}"} -u root -w /workspace \
+  local mode_opts
+  case "$mode" in
+    plain) mode_opts=() ;;
+    with-token) mode_opts=(-i -e CLAUDE_CODE_OAUTH_TOKEN) ;;
+    *) die "unknown exec mode: $mode" ;;
+  esac
+  docker exec ${mode_opts[@]+"${mode_opts[@]}"} -u root -w /workspace \
     -e HOME=/home/dev -e USER=dev \
     "$(container_name "$task")" \
     setpriv --reuid=dev --regid=dev --init-groups --inh-caps=-all --bounding-set=-all \
     -- "$@"
+}
+
+taskctl_exec() {
+  local task="$1"
+  shift
+  run_as_dev "$task" plain "$@"
 }
 
 # プロンプトは標準入力で渡す（--allowedTools が複数の値を取るため、後続の引数が吸い込まれる）。
@@ -154,8 +161,7 @@ taskctl_claude() {
   local task="$1"
   shift
   [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || die "CLAUDE_CODE_OAUTH_TOKEN is not set"
-  taskctl_exec "$task" -i -e CLAUDE_CODE_OAUTH_TOKEN -- \
-    claude -p --permission-mode acceptEdits --allowedTools Bash "$@"
+  run_as_dev "$task" with-token claude -p --permission-mode acceptEdits --allowedTools Bash "$@"
 }
 
 main() {

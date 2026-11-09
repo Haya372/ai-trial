@@ -32,7 +32,7 @@ refute() {
 }
 
 in_container() {
-  taskctl_exec "$TASK" -- "$@"
+  taskctl_exec "$TASK" "$@"
 }
 
 output_is() {
@@ -74,8 +74,8 @@ exits_without_net_admin() {
 }
 
 token_visible_during_exec() {
-  CLAUDE_CODE_OAUTH_TOKEN="dummy-token-$$" taskctl_exec "$TASK" -e CLAUDE_CODE_OAUTH_TOKEN -- \
-    printenv CLAUDE_CODE_OAUTH_TOKEN | grep -qx "dummy-token-$$"
+  CLAUDE_CODE_OAUTH_TOKEN="dummy-token-$$" run_as_dev "$TASK" with-token \
+    printenv CLAUDE_CODE_OAUTH_TOKEN </dev/null | grep -qx "dummy-token-$$"
 }
 
 token_in_resident_processes() {

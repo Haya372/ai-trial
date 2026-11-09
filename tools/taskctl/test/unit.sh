@@ -106,6 +106,24 @@ assert_pair() {
     <<<"$haystack" || fail "missing pair: $opt $val"
 }
 
+# 引数の並び全体が連続して現れることを検証する（grep -F に改行入りのパターンを渡すと
+# 行ごとの OR になり並びを検証できないため、awk で照合する）
+assert_sequence() {
+  local haystack="$1"
+  shift
+  awk -v seq="$(printf '%s\037' "$@")" '
+    BEGIN { n = split(seq, e, "\037") - 1 }
+    { l[NR] = $0 }
+    END {
+      for (i = 1; i + n - 1 <= NR; i++) {
+        ok = 1
+        for (j = 1; j <= n; j++) if (l[i + j - 1] != e[j]) { ok = 0; break }
+        if (ok) exit 0
+      }
+      exit 1
+    }' <<<"$haystack" || fail "missing sequence: $*"
+}
+
 count_pairs() {
   local haystack="$1" opt="$2"
   grep -cxF -- "$opt" <<<"$haystack"
@@ -126,6 +144,17 @@ run_test() {
     echo "FAIL $name"
   fi
   teardown
+}
+
+# ---- テスト用ヘルパー ----
+
+test_assert_sequence_detects_order_and_gaps() {
+  local lines
+  lines="$(printf '%s\n' a b c d)"
+  assert_sequence "$lines" b c
+  ! (assert_sequence "$lines" c b 2>/dev/null) || fail "accepted reversed order"
+  ! (assert_sequence "$lines" a c 2>/dev/null) || fail "accepted non-adjacent lines"
+  ! (assert_sequence "$lines" d e 2>/dev/null) || fail "accepted a sequence past the end"
 }
 
 # ---- start ----
@@ -257,12 +286,30 @@ test_exec_drops_to_dev_without_capabilities() {
   taskctl_exec t1 echo hello || fail "taskctl_exec failed"
   local args
   args="$(docker_call exec)" || fail "docker exec not called"
-  assert_pair "$args" "-u" "root"
-  assert_pair "$args" "-w" "/workspace"
-  local expected
-  expected="$(printf '%s\n' taskctl-t1 setpriv --reuid=dev --regid=dev --init-groups \
-    --inh-caps=-all --bounding-set=-all -- echo hello)"
-  grep -qzF -- "$expected" <<<"$args" || fail "setpriv invocation mismatch"
+  assert_sequence "$args" exec -u root -w /workspace
+  assert_sequence "$args" taskctl-t1 setpriv --reuid=dev --regid=dev --init-groups \
+    --inh-caps=-all --bounding-set=-all -- echo hello
+  [ "$(tail -n1 <<<"$args")" = hello ] || fail "command is not at the end"
+}
+
+test_exec_does_not_accept_docker_options() {
+  # shellcheck source=/dev/null
+  source "$TASKCTL"
+  taskctl_exec t1 --privileged -e LD_PRELOAD=x id || fail "taskctl_exec failed"
+  local args
+  args="$(docker_call exec)" || fail "docker exec not called"
+  assert_sequence "$args" exec -u root
+  assert_sequence "$args" -- --privileged -e LD_PRELOAD=x id
+  [ "$(grep -cxF -- --privileged <<<"$args")" -eq 1 ] || fail "--privileged passed to docker"
+}
+
+test_exec_rejects_invalid_task_name() {
+  # shellcheck source=/dev/null
+  source "$TASKCTL"
+  if (taskctl_exec "../x" id 2>/dev/null); then
+    fail "accepted invalid name"
+  fi
+  [ ! -s "$FAKE_LOG" ] || fail "docker was called"
 }
 
 # シェルに展開されないことを確かめるため、あえて展開されうる文字列を single quote で渡す
@@ -296,13 +343,11 @@ test_claude_passes_token_by_name_and_prompt_by_stdin() {
   echo "do the task" | taskctl_claude t1 --output-format json || fail "taskctl_claude failed"
   local args
   args="$(docker_call exec)" || fail "docker exec not called"
-  assert_line "$args" "-i"
-  assert_pair "$args" "-e" "CLAUDE_CODE_OAUTH_TOKEN"
+  assert_sequence "$args" exec -i -e CLAUDE_CODE_OAUTH_TOKEN -u root
   refute_contains "$(cat "$FAKE_LOG")" "secret-token"
-  local expected
-  expected="$(printf '%s\n' -- claude -p --permission-mode acceptEdits --allowedTools Bash \
-    --output-format json)"
-  grep -qzF -- "$expected" <<<"$args" || fail "claude invocation mismatch"
+  assert_sequence "$args" -- claude -p --permission-mode acceptEdits --allowedTools Bash \
+    --output-format json
+  [ "$(tail -n1 <<<"$args")" = json ] || fail "extra arguments are not at the end"
   [ "$(cat "$FAKE_STDIN")" = "do the task" ] || fail "prompt was not passed via stdin"
 }
 
