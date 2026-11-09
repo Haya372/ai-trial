@@ -160,6 +160,17 @@ func (r *tagRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (in
 	return int(count), nil
 }
 
+func (r *tagRepository) CountEventsByTagID(ctx context.Context, tagID uuid.UUID) (int, error) {
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventTagsTable)
+	count, err := r.querier(spanCtx).CountEventsByTagID(spanCtx, toPgUUID(tagID))
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("count tag events query failed", "error", err)
+		return 0, fmt.Errorf("count tag events: %w", err)
+	}
+	return int(count), nil
+}
+
 func (r *tagRepository) LockOwner(ctx context.Context, userID uuid.UUID) error {
 	if _, ok := db.GetTx(ctx); !ok {
 		return fmt.Errorf("lock tag owner: %w", errNoTransaction)

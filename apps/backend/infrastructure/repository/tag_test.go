@@ -344,6 +344,43 @@ func TestTagRepository_CountByUserID_CountsOnlyOwnTags(t *testing.T) {
 	}
 }
 
+func TestTagRepository_CountEventsByTagID_CountsOnlyEventsWithTheTag(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	private := createTestTag(t, u.ID(), "Private")
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	ev1 := insertEvent(t, u.ID(), "Meeting", now, now.Add(time.Hour))
+	ev2 := insertEvent(t, u.ID(), "Lunch", now, now.Add(time.Hour))
+	insertEventTag(t, ev1, work.ID(), 1)
+	insertEventTag(t, ev2, work.ID(), 1)
+	insertEventTag(t, ev2, private.ID(), 2)
+	repo := repository.NewTagRepository(testPool, testLogger, testTracerProvider)
+
+	got, err := repo.CountEventsByTagID(context.Background(), work.ID())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != 2 {
+		t.Errorf("expected 2, got %d", got)
+	}
+}
+
+func TestTagRepository_CountEventsByTagID_NoEvents_ReturnsZero(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	created := createTestTag(t, u.ID(), "Work")
+	repo := repository.NewTagRepository(testPool, testLogger, testTracerProvider)
+
+	got, err := repo.CountEventsByTagID(context.Background(), created.ID())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("expected 0, got %d", got)
+	}
+}
+
 func TestTagRepository_LockOwner_LocksUserRowUntilTxEnds(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
