@@ -22,7 +22,7 @@ func TestListTagsQuery_Execute_ReturnsTagsOfUser(t *testing.T) {
 	userID := uuid.New()
 	want := []taguc.TagReadModel{
 		{ID: uuid.New(), Name: "work", Color: "red", EventCount: 3},
-		{ID: uuid.New(), Name: "private", Color: "blue", EventCount: 0},
+		{ID: uuid.New(), Name: "private", Color: otherColor, EventCount: 0},
 	}
 	stub := &stubQueryService{
 		fn: func(_ context.Context, gotUserID uuid.UUID) ([]taguc.TagReadModel, error) {
