@@ -41,7 +41,12 @@ EOF
 #!/usr/bin/env bash
 { echo "== git"; printf '%s\n' "$@"; } >>"$FAKE_LOG"
 for a in "$@"; do
-  if [ "$a" = "list" ]; then printf '%s' "$FAKE_WORKTREES"; exit 0; fi
+  if [ "$a" = "list" ]; then
+    printf '%s' "$FAKE_WORKTREES"
+    # 本物の git と同じく、SIGPIPE で書き込みに失敗したら非0で終了する
+    if [ -n "${FAKE_WORKTREES_TAIL:-}" ]; then cat "$FAKE_WORKTREES_TAIL" || exit; fi
+    exit 0
+  fi
   # 引数の最後から2番目がパス（... add -b <branch> <path> <commit>）
   if [ "$a" = "add" ]; then mkdir -p "${@: -2:1}"; fi
 done
@@ -197,6 +202,17 @@ test_start_reuses_registered_worktree() {
   local wt="$HOME/.taskctl/worktrees/t1"
   mkdir -p "$wt"
   export FAKE_WORKTREES="worktree $wt"$'\n'
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  refute_line "$(call_args git 2)" "add"
+}
+
+# 一致した行の後に出力が続くと、grep -q が先に終了して git が SIGPIPE で落ちうる
+test_start_reuses_worktree_listed_before_long_output() {
+  local wt="$HOME/.taskctl/worktrees/t1" i
+  mkdir -p "$wt"
+  export FAKE_WORKTREES="worktree $wt"$'\n'
+  export FAKE_WORKTREES_TAIL="$WORK/tail.txt"
+  for ((i = 0; i < 20000; i++)); do echo "worktree /other/path-$i"; done >"$FAKE_WORKTREES_TAIL"
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
   refute_line "$(call_args git 2)" "add"
 }

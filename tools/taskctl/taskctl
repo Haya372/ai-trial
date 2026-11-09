@@ -44,8 +44,12 @@ host_git() {
   git -C "$REPO_ROOT" -c core.hooksPath=/dev/null -c core.fsmonitor=false "$@"
 }
 
+# パイプで grep -q に渡すと、一致後に grep が先に終了して git が SIGPIPE で落ち、
+# pipefail により未登録と誤判定しうるため、出力をいったん変数に受ける
 is_registered_worktree() {
-  host_git worktree list --porcelain | grep -qxF "worktree $1"
+  local list
+  list="$(host_git worktree list --porcelain)"
+  grep -qxF "worktree $1" <<<"$list"
 }
 
 ensure_worktree() {
