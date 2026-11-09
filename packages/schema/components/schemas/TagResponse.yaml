@@ -1,0 +1,17 @@
+type: object
+required:
+  - id
+  - name
+  - color
+  - eventCount
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  color:
+    $ref: "./TagColor.yaml"
+  eventCount:
+    type: integer
+    description: Number of events this tag is attached to.

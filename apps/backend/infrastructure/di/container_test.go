@@ -24,7 +24,7 @@ func newMetricsTestRouter(t *testing.T, token string) http.Handler {
 	reader := sdkmetric.NewManualReader()
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
 	return newRouter(
-		nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil,
 		nil, nil,
 		slog.New(slog.DiscardHandler),
 		tracenoop.NewTracerProvider(),

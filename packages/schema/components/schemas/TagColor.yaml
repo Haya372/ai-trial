@@ -1,0 +1,17 @@
+type: string
+description: >-
+  Preset color key of a tag, listed in palette display order. The display
+  color (HEX) for each key lives only in the frontend theme.
+enum:
+  - red
+  - orange
+  - yellow
+  - green
+  - teal
+  - cyan
+  - blue
+  - indigo
+  - purple
+  - pink
+  - brown
+  - gray
