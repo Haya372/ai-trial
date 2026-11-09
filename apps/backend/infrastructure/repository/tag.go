@@ -15,6 +15,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/tag"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
+	taguc "github.com/Haya372/ai-trial/backend/usecase/tag"
 )
 
 const tagsTable = "tags"
@@ -35,6 +36,41 @@ func tagFromRow(row query.Tag) (tag.Tag, error) {
 	}
 	return tag.New(uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes), name, color), nil
 }
+
+// --- read side ---
+
+type tagQueryRepository struct {
+	baseRepository
+
+	logger *slog.Logger
+}
+
+func NewTagQueryRepository(pool *pgxpool.Pool, logger *slog.Logger, tp trace.TracerProvider) taguc.QueryService {
+	return &tagQueryRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}, logger}
+}
+
+func (r *tagQueryRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]taguc.TagReadModel, error) {
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", tagsTable)
+	rows, err := r.querier(spanCtx).ListTagsWithEventCountByUserID(spanCtx, toPgUUID(userID))
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("list tags query failed", "error", err)
+		return nil, fmt.Errorf("list tags: %w", err)
+	}
+
+	result := make([]taguc.TagReadModel, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, taguc.TagReadModel{
+			ID:         uuid.UUID(row.ID.Bytes),
+			Name:       row.Name,
+			Color:      row.Color,
+			EventCount: int(row.EventCount),
+		})
+	}
+	return result, nil
+}
+
+// --- write side ---
 
 type tagRepository struct {
 	baseRepository

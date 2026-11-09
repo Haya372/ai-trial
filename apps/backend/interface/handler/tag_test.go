@@ -78,7 +78,7 @@ func TestTagHandler_CreateTag_Success_Returns201(t *testing.T) {
 			return domaintag.New(tagID, userID, domaintag.TagName(testTagName), domaintag.ColorTeal), nil
 		},
 	}
-	h := handler.NewTagHandler(stub, testLogger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, stub, testLogger)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":" Work ","color":"teal"}`, &userID))
@@ -104,7 +104,7 @@ func TestTagHandler_CreateTag_Success_Returns201(t *testing.T) {
 }
 
 func TestTagHandler_CreateTag_Unauthorized_Returns401(t *testing.T) {
-	h := handler.NewTagHandler(&stubCreateTagExec{}, testLogger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, testLogger)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"red"}`, nil))
@@ -116,7 +116,7 @@ func TestTagHandler_CreateTag_Unauthorized_Returns401(t *testing.T) {
 
 func TestTagHandler_CreateTag_InvalidJSON_Returns400WithoutDetails(t *testing.T) {
 	userID := uuid.New()
-	h := handler.NewTagHandler(&stubCreateTagExec{}, testLogger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, testLogger)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":`, &userID))
@@ -142,7 +142,7 @@ func TestTagHandler_CreateTag_ValidationError_Returns400WithDetails(t *testing.T
 			}}
 		},
 	}
-	h := handler.NewTagHandler(stub, testLogger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, stub, testLogger)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"black"}`, &userID))
@@ -168,7 +168,7 @@ func TestTagHandler_CreateTag_Conflict_Returns409WithoutDetails(t *testing.T) {
 					return nil, domainErr
 				},
 			}
-			h := handler.NewTagHandler(stub, testLogger)
+			h := handler.NewTagHandler(&stubListTagsExec{}, stub, testLogger)
 			w := httptest.NewRecorder()
 
 			h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"red"}`, &userID))
@@ -195,10 +195,144 @@ func TestTagHandler_CreateTag_InternalError_Returns500(t *testing.T) {
 		},
 	}
 	logger, logs := newBufferLogger()
-	h := handler.NewTagHandler(stub, logger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, stub, logger)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"red"}`, &userID))
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+	if !strings.Contains(logs.String(), errInternal.Error()) {
+		t.Errorf("expected the internal error to be logged, got:\n%s", logs.String())
+	}
+}
+
+type stubListTagsExec struct {
+	fn func(ctx context.Context, userID uuid.UUID) ([]taguc.TagReadModel, error)
+}
+
+func (s *stubListTagsExec) Execute(ctx context.Context, userID uuid.UUID) ([]taguc.TagReadModel, error) {
+	if s.fn == nil {
+		return nil, errUnexpected
+	}
+	return s.fn(ctx, userID)
+}
+
+func listTagsRequest(t *testing.T, userID *uuid.UUID) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/tags", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if userID != nil {
+		req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(*userID, "u@ex.com", "U")))
+	}
+	return req
+}
+
+type tagsListBody struct {
+	Tags []struct {
+		ID         uuid.UUID `json:"id"`
+		Name       string    `json:"name"`
+		Color      string    `json:"color"`
+		EventCount *int      `json:"eventCount"`
+	} `json:"tags"`
+}
+
+func TestTagHandler_ListTags_Success_Returns200InGivenOrder(t *testing.T) {
+	userID := uuid.New()
+	first, second := uuid.New(), uuid.New()
+	stub := &stubListTagsExec{
+		fn: func(_ context.Context, uid uuid.UUID) ([]taguc.TagReadModel, error) {
+			if uid != userID {
+				t.Errorf("userID: got %v, want %v", uid, userID)
+			}
+			return []taguc.TagReadModel{
+				{ID: first, Name: testTagName, Color: "green", EventCount: 3},
+				{ID: second, Name: "Private", Color: "red", EventCount: 0},
+			}, nil
+		},
+	}
+	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, testLogger)
+	w := httptest.NewRecorder()
+
+	h.ListTags(w, listTagsRequest(t, &userID))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type: got %q", ct)
+	}
+	var body tagsListBody
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Tags) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(body.Tags))
+	}
+	want := []struct {
+		id         uuid.UUID
+		name       string
+		color      string
+		eventCount int
+	}{
+		{first, testTagName, "green", 3},
+		{second, "Private", "red", 0},
+	}
+	for i, wt := range want {
+		got := body.Tags[i]
+		if got.ID != wt.id || got.Name != wt.name || got.Color != wt.color ||
+			got.EventCount == nil || *got.EventCount != wt.eventCount {
+			t.Errorf("tags[%d]: got %+v, want %+v", i, got, wt)
+		}
+	}
+}
+
+func TestTagHandler_ListTags_NoTags_ReturnsEmptyArray(t *testing.T) {
+	userID := uuid.New()
+	stub := &stubListTagsExec{
+		fn: func(context.Context, uuid.UUID) ([]taguc.TagReadModel, error) {
+			return nil, nil
+		},
+	}
+	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, testLogger)
+	w := httptest.NewRecorder()
+
+	h.ListTags(w, listTagsRequest(t, &userID))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if got := strings.TrimSpace(w.Body.String()); got != `{"tags":[]}` {
+		t.Errorf("body: got %s, want {\"tags\":[]}", got)
+	}
+}
+
+func TestTagHandler_ListTags_Unauthorized_Returns401(t *testing.T) {
+	h := handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, testLogger)
+	w := httptest.NewRecorder()
+
+	h.ListTags(w, listTagsRequest(t, nil))
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestTagHandler_ListTags_InternalError_Returns500(t *testing.T) {
+	userID := uuid.New()
+	stub := &stubListTagsExec{
+		fn: func(context.Context, uuid.UUID) ([]taguc.TagReadModel, error) {
+			return nil, errInternal
+		},
+	}
+	logger, logs := newBufferLogger()
+	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, logger)
+	w := httptest.NewRecorder()
+
+	h.ListTags(w, listTagsRequest(t, &userID))
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", w.Code)

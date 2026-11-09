@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -37,11 +38,16 @@ func buildTagTestRouter() *chi.Mux {
 	logout := authuc.NewLogoutCommand(sessRepo)
 
 	auth := handler.NewAuthHandler(signup, login, logout, logger)
-	tg := handler.NewTagHandler(taguc.NewCreateTagCommand(tagRepo, txMgr), logger)
+	tg := handler.NewTagHandler(
+		taguc.NewListTagsQuery(repository.NewTagQueryRepository(routeTestPool, logger, testTracerProvider)),
+		taguc.NewCreateTagCommand(tagRepo, txMgr),
+		logger,
+	)
 
 	r := chi.NewRouter()
 	r.Post("/auth/signup", auth.Signup)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/auth/me", auth.GetMe)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/tags", tg.ListTags)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/tags", tg.CreateTag)
 	return r
 }
@@ -241,5 +247,119 @@ func TestRoute_CreateTag_concurrentCreates_doNotExceedLimit(t *testing.T) {
 	}
 	if got := tagRowCount(t, userID); got != domaintag.MaxTagsPerUser {
 		t.Errorf("tag count: got %d, want %d", got, domaintag.MaxTagsPerUser)
+	}
+}
+
+func getTags(t *testing.T, router *chi.Mux, cookie *http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/tags", nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+func insertRouteTestTag(t *testing.T, userID, name, color string, createdAt time.Time) string {
+	t.Helper()
+	var id string
+	if err := routeTestPool.QueryRow(context.Background(),
+		"INSERT INTO tags (user_id, name, color, created_at) VALUES ($1, $2, $3, $4) RETURNING id",
+		userID, name, color, createdAt,
+	).Scan(&id); err != nil {
+		t.Fatalf("insert tag: %v", err)
+	}
+	return id
+}
+
+func insertRouteTestEventTag(t *testing.T, eventID, tagID string, position int) {
+	t.Helper()
+	if _, err := routeTestPool.Exec(context.Background(),
+		"INSERT INTO event_tags (event_id, tag_id, position) VALUES ($1, $2, $3)",
+		eventID, tagID, position,
+	); err != nil {
+		t.Fatalf("insert event tag: %v", err)
+	}
+}
+
+func TestRoute_ListTags_unauthenticated_returns401(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+
+	rec := getTags(t, router, nil)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRoute_ListTags_noTags_returnsEmptyArray(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+	cookie := signupAndGetCookie(t, router, "tag-list-empty@ex.com")
+
+	rec := getTags(t, router, cookie)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := strings.TrimSpace(rec.Body.String()); got != `{"tags":[]}` {
+		t.Errorf("body: got %s, want {\"tags\":[]}", got)
+	}
+}
+
+func TestRoute_ListTags_returnsOwnTagsInCreationOrderWithEventCount(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+	cookie := signupAndGetCookie(t, router, "tag-list@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+	otherCookie := signupAndGetCookie(t, router, "tag-list-other@ex.com")
+	otherID := getUserIDFromCookie(t, router, otherCookie)
+
+	now := time.Now().UTC()
+	// Inserted newest first so that insertion order alone cannot pass.
+	newer := insertRouteTestTag(t, userID, "Alpha", "blue", now)
+	older := insertRouteTestTag(t, userID, "Beta", "red", now.Add(-time.Hour))
+	othersTag := insertRouteTestTag(t, otherID, "Other", "green", now.Add(-2*time.Hour))
+	ev1 := insertRouteTestEvent(t, userID, "Meeting", now, now.Add(time.Hour))
+	ev2 := insertRouteTestEvent(t, userID, "Lunch", now, now.Add(time.Hour))
+	insertRouteTestEventTag(t, ev1, older, 1)
+	insertRouteTestEventTag(t, ev2, older, 1)
+	insertRouteTestEventTag(t, ev1, newer, 2)
+	otherEv := insertRouteTestEvent(t, otherID, "Other", now, now.Add(time.Hour))
+	insertRouteTestEventTag(t, otherEv, othersTag, 1)
+
+	rec := getTags(t, router, cookie)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Tags []struct {
+			ID         string `json:"id"`
+			Name       string `json:"name"`
+			Color      string `json:"color"`
+			EventCount int    `json:"eventCount"`
+		} `json:"tags"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	want := []struct {
+		id, name, color string
+		eventCount      int
+	}{
+		{older, "Beta", "red", 2},
+		{newer, "Alpha", "blue", 1},
+	}
+	if len(body.Tags) != len(want) {
+		t.Fatalf("expected %d tags, got %d: %+v", len(want), len(body.Tags), body.Tags)
+	}
+	for i, w := range want {
+		got := body.Tags[i]
+		if got.ID != w.id || got.Name != w.name || got.Color != w.color || got.EventCount != w.eventCount {
+			t.Errorf("tags[%d]: got %+v, want %+v", i, got, w)
+		}
 	}
 }

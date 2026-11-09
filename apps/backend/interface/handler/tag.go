@@ -22,13 +22,55 @@ type CreateTagExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in taguc.CreateTagInput) (domaintag.Tag, error)
 }
 
+// ListTagsExecutor is satisfied by taguc.ListTagsQuery.
+type ListTagsExecutor interface {
+	Execute(ctx context.Context, userID uuid.UUID) ([]taguc.TagReadModel, error)
+}
+
 type TagHandler struct {
+	listTags  ListTagsExecutor
 	createTag CreateTagExecutor
 	logger    *slog.Logger
 }
 
-func NewTagHandler(c CreateTagExecutor, logger *slog.Logger) *TagHandler {
-	return &TagHandler{createTag: c, logger: logger}
+func NewTagHandler(l ListTagsExecutor, c CreateTagExecutor, logger *slog.Logger) *TagHandler {
+	return &TagHandler{listTags: l, createTag: c, logger: logger}
+}
+
+// ListTags handles GET /tags.
+func (h *TagHandler) ListTags(w http.ResponseWriter, r *http.Request) {
+	u, ok := r.Context().Value(ctxkey.User).(user.User)
+	if !ok || u == nil {
+		h.logger.Warn("unauthorized access to GET /tags", "path", route.Pattern(r))
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
+		return
+	}
+
+	tags, err := h.listTags.Execute(r.Context(), u.ID())
+	if err != nil {
+		h.logger.Error("failed to list tags", "error", err, "userID", u.ID())
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
+		return
+	}
+
+	resp := api.TagsListResponse{Tags: make([]api.TagResponse, len(tags))}
+	for i, tg := range tags {
+		resp.Tags[i] = api.TagResponse{
+			Id:         tg.ID,
+			Name:       tg.Name,
+			Color:      api.TagColor(tg.Color),
+			EventCount: tg.EventCount,
+		}
+	}
+
+	out, err := json.Marshal(resp)
+	if err != nil {
+		h.logger.Error("failed to marshal list tags response", "error", err)
+		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(out)
 }
 
 // CreateTag handles POST /tags.
