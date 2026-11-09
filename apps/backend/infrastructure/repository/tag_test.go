@@ -315,39 +315,6 @@ func TestEventTagsTable_HasTagIDIndex(t *testing.T) {
 	}
 }
 
-func TestTagRepository_ExistsByName(t *testing.T) {
-	setupTest(t)
-	u := createTestUser(t)
-	other := createTestUser(t)
-	work := createTestTag(t, u.ID(), "Work")
-	repo := repository.NewTagRepository(testPool, testLogger, testTracerProvider)
-
-	tests := []struct {
-		name      string
-		userID    uuid.UUID
-		tagName   string
-		excludeID uuid.UUID
-		want      bool
-	}{
-		{"same name", u.ID(), "Work", uuid.Nil, true},
-		{"different case", u.ID(), "wORK", uuid.Nil, true},
-		{"different name", u.ID(), "Private", uuid.Nil, false},
-		{"another user's tag", other.ID(), "Work", uuid.Nil, false},
-		{"own tag excluded", u.ID(), "work", work.ID(), false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := repo.ExistsByName(context.Background(), tt.userID, mustTagName(t, tt.tagName), tt.excludeID)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestTagRepository_CountByUserID_CountsOnlyOwnTags(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)

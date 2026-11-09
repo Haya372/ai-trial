@@ -19,17 +19,6 @@ WHERE id = $1;
 DELETE FROM tags
 WHERE id = $1;
 
--- name: ExistsTagByName :one
--- LOWER(name) matches idx_tags_user_id_lower_name, so the check uses the
--- same case-insensitive comparison as the unique index.
-SELECT EXISTS (
-    SELECT 1
-    FROM tags
-    WHERE user_id = sqlc.arg('user_id')
-      AND LOWER(name) = LOWER(sqlc.arg('name'))
-      AND id <> sqlc.arg('exclude_id')
-);
-
 -- name: CountTagsByUserID :one
 SELECT COUNT(*)
 FROM tags

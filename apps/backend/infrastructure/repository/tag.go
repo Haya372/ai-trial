@@ -109,23 +109,6 @@ func (r *tagRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *tagRepository) ExistsByName(
-	ctx context.Context, userID uuid.UUID, name tag.TagName, excludeID uuid.UUID,
-) (bool, error) {
-	spanCtx, span := r.startDBSpan(ctx, "SELECT", tagsTable)
-	exists, err := r.querier(spanCtx).ExistsTagByName(spanCtx, query.ExistsTagByNameParams{
-		UserID:    toPgUUID(userID),
-		Name:      string(name),
-		ExcludeID: toPgUUID(excludeID),
-	})
-	endDBSpan(span, err)
-	if err != nil {
-		r.logger.Error("exists tag by name query failed", "error", err)
-		return false, fmt.Errorf("exists tag by name: %w", err)
-	}
-	return exists, nil
-}
-
 func (r *tagRepository) CountByUserID(ctx context.Context, userID uuid.UUID) (int, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", tagsTable)
 	count, err := r.querier(spanCtx).CountTagsByUserID(spanCtx, toPgUUID(userID))
