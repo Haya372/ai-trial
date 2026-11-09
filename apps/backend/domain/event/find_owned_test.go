@@ -70,3 +70,39 @@ func TestFindOwned_NotOwner_ReturnsEventNotFoundError(t *testing.T) {
 		t.Errorf("expected ErrEventNotFound, got %v", err)
 	}
 }
+
+func TestFindOwnedForUpdate_Owner_ReturnsEventFromLockingRead(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	start := time.Now().UTC()
+	ev, _ := event.New(eventID, userID, "Meeting", "", start, start.Add(time.Hour), "", "")
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(ev, nil)
+
+	got, err := event.FindOwnedForUpdate(context.Background(), repo, testLogger, eventID, userID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.ID() != eventID {
+		t.Errorf("ID mismatch: got %v, want %v", got.ID(), eventID)
+	}
+}
+
+func TestFindOwnedForUpdate_NotOwner_ReturnsEventNotFoundError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
+	eventID := uuid.New()
+	start := time.Now().UTC()
+	ev, _ := event.New(eventID, uuid.New(), "Meeting", "", start, start.Add(time.Hour), "", "")
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(ev, nil)
+
+	_, err := event.FindOwnedForUpdate(context.Background(), repo, testLogger, eventID, uuid.New())
+	if !errors.Is(err, event.ErrEventNotFound) {
+		t.Errorf("expected ErrEventNotFound, got %v", err)
+	}
+}

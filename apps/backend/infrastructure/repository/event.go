@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
@@ -197,6 +198,31 @@ func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domaineve
 		return nil, err
 	}
 	return e.WithTags(tags)
+}
+
+func (r *eventRepository) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
+	if _, ok := db.GetTx(ctx); !ok {
+		return nil, fmt.Errorf("find event for update: %w", errNoTransaction)
+	}
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
+	row, err := r.querier(spanCtx).FindEventByIDForUpdate(spanCtx, toPgUUID(id))
+	endDBSpanNotFound(span, err)
+	if notFound, wasNoRows, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
+		if wasNoRows {
+			return nil, mappedErr
+		}
+		r.logger.Error("find event for update query failed", "error", mappedErr)
+		return nil, fmt.Errorf("find event for update: %w", mappedErr)
+	}
+
+	// Read the tags after locking the event row: under READ COMMITTED this
+	// statement sees the tags committed by the writer that held the lock.
+	tags, err := r.findTags(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// The generated row types are identical structs, one per query.
+	return eventFromRow(query.InsertEventRow(row), tags)
 }
 
 // Update saves the whole aggregate: the event row and its tags, replacing

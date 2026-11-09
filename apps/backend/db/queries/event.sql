@@ -81,3 +81,9 @@ VALUES ($1, $2, $3);
 -- name: DeleteEventTagsByEventID :exec
 DELETE FROM event_tags
 WHERE event_id = $1;
+
+-- name: FindEventByIDForUpdate :one
+SELECT id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at
+FROM events
+WHERE id = $1
+FOR UPDATE;

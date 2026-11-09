@@ -669,3 +669,55 @@ func TestEventRepository_Update_InCallerTx_RollsBackWithCaller(t *testing.T) {
 	}
 	assertEventTags(t, got.Tags(), stored)
 }
+
+func TestEventRepository_FindByIDForUpdate_ReturnsEventAndLocksRowUntilTxEnds(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	id := uuid.New()
+	stored := []event.EventTag{mustEventTag(t, work.ID(), 1)}
+	if _, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(), stored)); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	runInTestTx(t, func(ctx context.Context) {
+		got, err := eventRepo.FindByIDForUpdate(ctx, id)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.ID() != id || got.Title() != "Tagged" {
+			t.Errorf("event mismatch: got %v %q", got.ID(), got.Title())
+		}
+		assertEventTags(t, got.Tags(), stored)
+
+		_, err = testPool.Exec(context.Background(), "SELECT id FROM events WHERE id = $1 FOR UPDATE NOWAIT", id)
+		if !isLockNotAvailable(err) {
+			t.Errorf("expected the event row to be locked, got %v", err)
+		}
+	})
+}
+
+func TestEventRepository_FindByIDForUpdate_NotFound_ReturnsErrEventNotFound(t *testing.T) {
+	setupTest(t)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	runInTestTx(t, func(ctx context.Context) {
+		if _, err := eventRepo.FindByIDForUpdate(ctx, uuid.New()); !errors.Is(err, event.ErrEventNotFound) {
+			t.Errorf("expected ErrEventNotFound, got %v", err)
+		}
+	})
+}
+
+func TestEventRepository_FindByIDForUpdate_OutsideTx_ReturnsError(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	now := time.Now().UTC()
+	id := insertEvent(t, u.ID(), "Meeting", now, now.Add(time.Hour))
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	if _, err := eventRepo.FindByIDForUpdate(context.Background(), id); err == nil {
+		t.Error("expected an error outside a transaction")
+	}
+}
