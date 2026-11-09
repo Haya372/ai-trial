@@ -1,3 +1,27 @@
+get:
+  operationId: listTags
+  summary: List the current user's tags in creation order
+  tags:
+    - tags
+  responses:
+    "200":
+      description: List of tags
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/TagsListResponse.yaml"
+    "401":
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/UnauthorizedErrorResponse.yaml"
+    "500":
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "../../components/schemas/InternalErrorResponse.yaml"
 post:
   operationId: createTag
   summary: Create a new tag

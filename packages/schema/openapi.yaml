@@ -75,3 +75,5 @@ components:
       $ref: "./components/schemas/CreateTagRequest.yaml"
     TagResponse:
       $ref: "./components/schemas/TagResponse.yaml"
+    TagsListResponse:
+      $ref: "./components/schemas/TagsListResponse.yaml"
