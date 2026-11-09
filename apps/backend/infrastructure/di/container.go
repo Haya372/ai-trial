@@ -137,12 +137,14 @@ func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
 	return eventuc.NewListEventsQuery(s)
 }
 
-func newCreateEventExecutor(r event.Repository) handler.CreateEventExecutor {
-	return eventuc.NewCreateEventCommand(r)
+func newCreateEventExecutor(r event.Repository, tx usecase.TransactionManager) handler.CreateEventExecutor {
+	return eventuc.NewCreateEventCommand(r, tx)
 }
 
-func newUpdateEventExecutor(r event.Repository, logger *slog.Logger) handler.UpdateEventExecutor {
-	return eventuc.NewUpdateEventCommand(r, logger)
+func newUpdateEventExecutor(
+	r event.Repository, tx usecase.TransactionManager, logger *slog.Logger,
+) handler.UpdateEventExecutor {
+	return eventuc.NewUpdateEventCommand(r, tx, logger)
 }
 
 func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.DeleteEventExecutor {
