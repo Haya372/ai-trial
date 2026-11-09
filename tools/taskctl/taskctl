@@ -98,6 +98,13 @@ cmd_start() {
   ensure_worktree "$task"
   ensure_image
 
+  # Docker やホストの再起動後は、停止した同名コンテナが残り docker run が名前の衝突で失敗する
+  case "$(docker ps -a --filter "name=^${name}\$" --format '{{.State}}')" in
+    "") ;;
+    running) die "'$task' is already running (run 'taskctl stop $task' first to recreate it)" ;;
+    *) docker rm -f "$name" >/dev/null ;;
+  esac
+
   docker run -d --init \
     --name "$name" \
     --label "taskctl.task=$task" \

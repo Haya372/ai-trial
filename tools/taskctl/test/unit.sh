@@ -27,6 +27,7 @@ setup() {
 { echo "== docker"; printf '%s\n' "$@"; } >>"$FAKE_LOG"
 case "$1" in
   image) exit 0 ;;
+  ps) printf '%s' "${FAKE_STATE:-}" ;;
   inspect) echo "$FAKE_RUNNING" ;;
   exec)
     for a in "$@"; do
@@ -269,6 +270,32 @@ test_start_fails_and_removes_container_when_entrypoint_exits() {
   local args
   args="$(docker_call rm)" || fail "docker rm not called"
   assert_line "$args" "taskctl-t1"
+}
+
+# docker の呼び出しを、第1引数（サブコマンド）の並びとして返す
+docker_subcommands() {
+  awk '/^== / { take = ($0 == "== docker"); next } take { print; take = 0 }' "$FAKE_LOG"
+}
+
+test_start_removes_leftover_stopped_container_before_run() {
+  export FAKE_STATE=exited
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  local args
+  args="$(docker_call rm)" || fail "docker rm not called"
+  assert_sequence "$args" rm -f taskctl-t1
+  assert_sequence "$(docker_subcommands | grep -xE 'rm|run')" rm run
+}
+
+test_start_fails_when_task_is_already_running() {
+  export FAKE_STATE=running
+  local err
+  if err="$(bash "$TASKCTL" start t1 2>&1 >/dev/null)"; then
+    fail "start succeeded although the task is running"
+  fi
+  grep -q "already running" <<<"$err" || fail "unclear error: $err"
+  docker_call run >/dev/null && fail "docker run was called"
+  docker_call rm >/dev/null && fail "docker rm was called"
+  true
 }
 
 # ---- stop / status ----

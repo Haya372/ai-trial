@@ -97,6 +97,16 @@ claude_runs_without_denials() {
   test -f "$WT/claude-check.txt" && grep -q '"permission_denials":\[\]' <<<"$result"
 }
 
+recreates_leftover_container() {
+  docker stop -t 1 "$(container_name "$TASK")" &&
+    bash "$TASKCTL" start "$TASK" &&
+    in_container test -f /run/taskctl/ready
+}
+
+refuses_running_task() {
+  ! bash "$TASKCTL" start "$TASK"
+}
+
 cleanup() {
   docker rm -f "$(container_name "$TASK")" >/dev/null 2>&1
   host_git worktree remove --force "$(worktree_path "$TASK")" >/dev/null 2>&1
@@ -108,6 +118,8 @@ echo "# build & start"
 bash "$TASKCTL" build >/dev/null || { echo "FAIL build"; exit 1; }
 bash "$TASKCTL" start "$TASK" || { echo "FAIL start"; exit 1; }
 WT="$(worktree_path "$TASK")"
+check "start refuses a running task" refuses_running_task
+check "start recreates a leftover stopped container" recreates_leftover_container
 
 echo "# ホストのファイル・Docker socket が見えない"
 check "host home is absent" in_container test ! -e "$HOME"
