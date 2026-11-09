@@ -13,6 +13,7 @@ import (
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	eventmock "github.com/Haya372/ai-trial/backend/domain/event/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
+	"github.com/Haya372/ai-trial/backend/usecase/testutil"
 )
 
 const testCreateTitle = "Meeting"
@@ -34,7 +35,7 @@ func TestCreateEventCommand_Execute_Success(t *testing.T) {
 		},
 	)
 
-	cmd := eventuc.NewCreateEventCommand(repo)
+	cmd := eventuc.NewCreateEventCommand(repo, &testutil.StubTxManager{})
 	result, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:       testCreateTitle,
 		Description: "Team sync",
@@ -81,7 +82,7 @@ func TestCreateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 	userID := uuid.New()
 	now := time.Now().UTC()
 
-	cmd := eventuc.NewCreateEventCommand(repo)
+	cmd := eventuc.NewCreateEventCommand(repo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   "",
 		StartAt: now,
@@ -111,7 +112,7 @@ func TestCreateEventCommand_Execute_EndAtEqualStartAt_ReturnsValidationError(t *
 	userID := uuid.New()
 	now := time.Now().UTC()
 
-	cmd := eventuc.NewCreateEventCommand(repo)
+	cmd := eventuc.NewCreateEventCommand(repo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -141,7 +142,7 @@ func TestCreateEventCommand_Execute_RepositoryError_WrapsError(t *testing.T) {
 	now := time.Now().UTC()
 	repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, errDBFailure)
 
-	cmd := eventuc.NewCreateEventCommand(repo)
+	cmd := eventuc.NewCreateEventCommand(repo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -153,5 +154,29 @@ func TestCreateEventCommand_Execute_RepositoryError_WrapsError(t *testing.T) {
 	}
 	if !errors.Is(err, errDBFailure) {
 		t.Errorf("expected wrapped errDBFailure, got %v", err)
+	}
+}
+
+func TestCreateEventCommand_Execute_CreatesInsideTransaction(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
+	repo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
+			if !inTx(ctx) {
+				t.Error("expected Create to be called inside a transaction")
+			}
+			return e, nil
+		},
+	)
+
+	now := time.Now().UTC()
+	cmd := eventuc.NewCreateEventCommand(repo, markingTxManager{})
+	if _, err := cmd.Execute(context.Background(), uuid.New(), eventuc.CreateEventInput{
+		Title:   testCreateTitle,
+		StartAt: now,
+		EndAt:   now.Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

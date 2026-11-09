@@ -14,14 +14,11 @@ type Repository interface {
 	Create(ctx context.Context, t Tag) (Tag, error)
 	// FindByID returns the tag with the given ID, or ErrTagNotFound if it does not exist.
 	FindByID(ctx context.Context, id uuid.UUID) (Tag, error)
-	// Update returns ErrTagNameTaken if another tag of the owner has the same
-	// name, compared case-insensitively.
+	// Update returns ErrTagNotFound if the tag no longer exists, and
+	// ErrTagNameTaken if another tag of the owner has the same name, compared
+	// case-insensitively.
 	Update(ctx context.Context, t Tag) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	// ExistsByName reports whether userID owns a tag named name, compared
-	// case-insensitively. A tag whose ID is excludeID is ignored, so an update
-	// can keep its own name; pass uuid.Nil to check every tag.
-	ExistsByName(ctx context.Context, userID uuid.UUID, name TagName, excludeID uuid.UUID) (bool, error)
 	// CountByUserID returns how many tags userID owns, for the MaxTagsPerUser check.
 	CountByUserID(ctx context.Context, userID uuid.UUID) (int, error)
 	// LockOwner locks the owner's user row (SELECT ... FOR UPDATE) so that

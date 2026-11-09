@@ -302,6 +302,9 @@ func TestEventRepository_FindByID_ReturnsEvent(t *testing.T) {
 	if e.UserID() != u.ID() {
 		t.Errorf("userID mismatch: got %v, want %v", e.UserID(), u.ID())
 	}
+	if len(e.Tags()) != 0 {
+		t.Errorf("expected no tags, got %d", len(e.Tags()))
+	}
 }
 
 func TestEventRepository_FindByID_NotFound_ReturnsErrEventNotFound(t *testing.T) {
@@ -512,5 +515,212 @@ func TestEventRepository_Create_NullableFieldsStoredAsNull(t *testing.T) {
 	}
 	if saved.URL() != "" {
 		t.Errorf("expected empty url, got %q", saved.URL())
+	}
+}
+
+func newEventWithTags(t *testing.T, id, userID uuid.UUID, tags []event.EventTag) event.Event {
+	t.Helper()
+	now := time.Now().UTC().Truncate(time.Second)
+	e, err := event.New(id, userID, "Tagged", "", now, now.Add(time.Hour), "", "")
+	if err != nil {
+		t.Fatalf("build event: %v", err)
+	}
+	e, err = e.WithTags(tags)
+	if err != nil {
+		t.Fatalf("attach tags: %v", err)
+	}
+	return e
+}
+
+func mustEventTag(t *testing.T, tagID uuid.UUID, position int) event.EventTag {
+	t.Helper()
+	et, err := event.NewEventTag(tagID, position)
+	if err != nil {
+		t.Fatalf("build event tag: %v", err)
+	}
+	return et
+}
+
+func assertEventTags(t *testing.T, got []event.EventTag, want []event.EventTag) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("expected %d tags, got %d", len(want), len(got))
+	}
+	for i := range want {
+		if got[i].TagID() != want[i].TagID() || got[i].Position() != want[i].Position() {
+			t.Errorf("tag[%d] mismatch: got %v@%d, want %v@%d",
+				i, got[i].TagID(), got[i].Position(), want[i].TagID(), want[i].Position())
+		}
+	}
+}
+
+func TestEventRepository_Create_PersistsTags(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	private := createTestTag(t, u.ID(), "Private")
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	want := []event.EventTag{mustEventTag(t, private.ID(), 1), mustEventTag(t, work.ID(), 2)}
+	saved, err := eventRepo.Create(context.Background(), newEventWithTags(t, uuid.New(), u.ID(), want))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertEventTags(t, saved.Tags(), want)
+
+	got, err := eventRepo.FindByID(context.Background(), saved.ID())
+	if err != nil {
+		t.Fatalf("find created event: %v", err)
+	}
+	assertEventTags(t, got.Tags(), want)
+}
+
+func TestEventRepository_FindByID_RestoresTagsInPositionOrderWithGaps(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	private := createTestTag(t, u.ID(), "Private")
+	now := time.Now().UTC()
+	eventID := insertEvent(t, u.ID(), "Meeting", now, now.Add(time.Hour))
+	insertEventTag(t, eventID, work.ID(), 4)
+	insertEventTag(t, eventID, private.ID(), 2)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	got, err := eventRepo.FindByID(context.Background(), eventID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertEventTags(t, got.Tags(), []event.EventTag{mustEventTag(t, private.ID(), 2), mustEventTag(t, work.ID(), 4)})
+}
+
+func TestEventRepository_Update_ReplacesTags(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	private := createTestTag(t, u.ID(), "Private")
+	travel := createTestTag(t, u.ID(), "Travel")
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	id := uuid.New()
+	if _, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(),
+		[]event.EventTag{mustEventTag(t, work.ID(), 1), mustEventTag(t, private.ID(), 2)},
+	)); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	// Moving work to another position checks that the old rows are gone
+	// before the new ones go in, or UNIQUE (event_id, position) would fail.
+	want := []event.EventTag{mustEventTag(t, travel.ID(), 1), mustEventTag(t, work.ID(), 2)}
+	if err := eventRepo.Update(context.Background(), newEventWithTags(t, id, u.ID(), want)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := eventRepo.FindByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("find updated event: %v", err)
+	}
+	assertEventTags(t, got.Tags(), want)
+}
+
+func TestEventRepository_Update_WithNoTags_RemovesAllTags(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	id := uuid.New()
+	if _, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(),
+		[]event.EventTag{mustEventTag(t, work.ID(), 1)},
+	)); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	if err := eventRepo.Update(context.Background(), newEventWithTags(t, id, u.ID(), nil)); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got, err := eventRepo.FindByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("find updated event: %v", err)
+	}
+	if len(got.Tags()) != 0 {
+		t.Errorf("expected no tags, got %d", len(got.Tags()))
+	}
+}
+
+func TestEventRepository_Update_InCallerTx_RollsBackWithCaller(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	id := uuid.New()
+	stored := []event.EventTag{mustEventTag(t, work.ID(), 1)}
+	if _, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(), stored)); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	runInTestTx(t, func(ctx context.Context) {
+		if err := eventRepo.Update(ctx, newEventWithTags(t, id, u.ID(), nil)); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	got, err := eventRepo.FindByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("find event: %v", err)
+	}
+	assertEventTags(t, got.Tags(), stored)
+}
+
+func TestEventRepository_FindByIDForUpdate_ReturnsEventAndLocksRowUntilTxEnds(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	id := uuid.New()
+	stored := []event.EventTag{mustEventTag(t, work.ID(), 1)}
+	if _, err := eventRepo.Create(context.Background(), newEventWithTags(t, id, u.ID(), stored)); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	runInTestTx(t, func(ctx context.Context) {
+		got, err := eventRepo.FindByIDForUpdate(ctx, id)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got.ID() != id || got.Title() != "Tagged" {
+			t.Errorf("event mismatch: got %v %q", got.ID(), got.Title())
+		}
+		assertEventTags(t, got.Tags(), stored)
+
+		_, err = testPool.Exec(context.Background(), "SELECT id FROM events WHERE id = $1 FOR UPDATE NOWAIT", id)
+		if !isLockNotAvailable(err) {
+			t.Errorf("expected the event row to be locked, got %v", err)
+		}
+	})
+}
+
+func TestEventRepository_FindByIDForUpdate_NotFound_ReturnsErrEventNotFound(t *testing.T) {
+	setupTest(t)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	runInTestTx(t, func(ctx context.Context) {
+		if _, err := eventRepo.FindByIDForUpdate(ctx, uuid.New()); !errors.Is(err, event.ErrEventNotFound) {
+			t.Errorf("expected ErrEventNotFound, got %v", err)
+		}
+	})
+}
+
+func TestEventRepository_FindByIDForUpdate_OutsideTx_ReturnsError(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	now := time.Now().UTC()
+	id := insertEvent(t, u.ID(), "Meeting", now, now.Add(time.Hour))
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	if _, err := eventRepo.FindByIDForUpdate(context.Background(), id); err == nil {
+		t.Error("expected an error outside a transaction")
 	}
 }

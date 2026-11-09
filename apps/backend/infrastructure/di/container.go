@@ -17,6 +17,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
 	"github.com/Haya372/ai-trial/backend/domain/session"
+	"github.com/Haya372/ai-trial/backend/domain/tag"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	"github.com/Haya372/ai-trial/backend/infrastructure/repository"
@@ -48,6 +49,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		repository.NewSessionRepository,
 		repository.NewEventQueryRepository,
 		repository.NewEventRepository,
+		repository.NewTagRepository,
 		repository.NewEventShareRepository,
 		repository.NewEventSubscriptionRepository,
 		newShareTokenLoader,
@@ -137,12 +139,14 @@ func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
 	return eventuc.NewListEventsQuery(s)
 }
 
-func newCreateEventExecutor(r event.Repository) handler.CreateEventExecutor {
-	return eventuc.NewCreateEventCommand(r)
+func newCreateEventExecutor(r event.Repository, tx usecase.TransactionManager) handler.CreateEventExecutor {
+	return eventuc.NewCreateEventCommand(r, tx)
 }
 
-func newUpdateEventExecutor(r event.Repository, logger *slog.Logger) handler.UpdateEventExecutor {
-	return eventuc.NewUpdateEventCommand(r, logger)
+func newUpdateEventExecutor(
+	r event.Repository, tr tag.Repository, tx usecase.TransactionManager, logger *slog.Logger,
+) handler.UpdateEventExecutor {
+	return eventuc.NewUpdateEventCommand(r, tr, tx, logger)
 }
 
 func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.DeleteEventExecutor {

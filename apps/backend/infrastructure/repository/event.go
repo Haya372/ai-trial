@@ -12,11 +12,15 @@ import (
 	"github.com/google/uuid"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	"github.com/Haya372/ai-trial/backend/infrastructure/db"
 	query "github.com/Haya372/ai-trial/backend/infrastructure/db/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
 )
 
-const eventsTable = "events"
+const (
+	eventsTable    = "events"
+	eventTagsTable = "event_tags"
+)
 
 // --- read side ---
 
@@ -123,25 +127,21 @@ func NewEventRepository(pool *pgxpool.Pool, logger *slog.Logger, tp trace.Tracer
 	return &eventRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}, logger}
 }
 
+// Create saves the whole aggregate: the event row and its tags.
 func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (domainevent.Event, error) {
-	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventsTable)
-	row, err := r.querier(spanCtx).InsertEvent(spanCtx, query.InsertEventParams{
-		ID:          toPgUUID(e.ID()),
-		UserID:      toPgUUID(e.UserID()),
-		Title:       e.Title(),
-		Description: textOrNull(e.Description()),
-		StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
-		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
-		Location:    textOrNull(e.Location()),
-		Url:         textOrNull(e.URL()),
-	})
-	endDBSpan(span, err)
+	row, err := r.insertEvent(ctx, e)
 	if err != nil {
-		r.logger.Error("insert event query failed", "error", err)
-		return nil, fmt.Errorf("insert event: %w", err)
+		return nil, err
 	}
+	if err := r.saveTags(ctx, e); err != nil {
+		return nil, err
+	}
+	return eventFromRow(row, e.Tags())
+}
 
-	// Reconstruct from the persisted row so the caller gets the exact stored values.
+// eventFromRow reconstructs the event from the persisted row so the caller
+// gets the exact stored values.
+func eventFromRow(row query.InsertEventRow, tags []domainevent.EventTag) (domainevent.Event, error) {
 	var desc, location, url string
 	if row.Description.Valid {
 		desc = row.Description.String
@@ -152,51 +152,82 @@ func (r *eventRepository) Create(ctx context.Context, e domainevent.Event) (doma
 	if row.Url.Valid {
 		url = row.Url.String
 	}
-	saved, err := domainevent.New(
-		uuid.UUID(row.ID.Bytes),
-		uuid.UUID(row.UserID.Bytes),
-		row.Title,
-		desc,
-		row.StartAt.Time,
-		row.EndAt.Time,
-		location,
-		url,
+	e, err := domainevent.New(
+		uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes),
+		row.Title, desc, row.StartAt.Time, row.EndAt.Time, location, url,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("reconstruct saved event: %w", err)
+		return nil, fmt.Errorf("reconstruct event: %w", err)
 	}
-	return saved, nil
+	return e.WithTags(tags)
 }
 
 func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
-	row, err := r.querier(spanCtx).FindEventByID(spanCtx, toPgUUID(id))
+	rows, err := r.querier(spanCtx).FindEventWithTagsByID(spanCtx, toPgUUID(id))
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("find event by id query failed", "error", err)
+		return nil, fmt.Errorf("find event by id: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, domainevent.ErrEventNotFound
+	}
+
+	tags := make([]domainevent.EventTag, 0, len(rows))
+	for _, row := range rows {
+		// A row with no tag columns is the LEFT JOIN's row for an untagged event.
+		if !row.TagID.Valid {
+			continue
+		}
+		t, err := domainevent.NewEventTag(uuid.UUID(row.TagID.Bytes), int(row.Position.Int16))
+		if err != nil {
+			return nil, fmt.Errorf("reconstruct event tag: %w", err)
+		}
+		tags = append(tags, t)
+	}
+	first := rows[0]
+	return eventFromRow(query.InsertEventRow{
+		ID:          first.ID,
+		UserID:      first.UserID,
+		Title:       first.Title,
+		Description: first.Description,
+		StartAt:     first.StartAt,
+		EndAt:       first.EndAt,
+		Location:    first.Location,
+		Url:         first.Url,
+		CreatedAt:   first.CreatedAt,
+		UpdatedAt:   first.UpdatedAt,
+	}, tags)
+}
+
+func (r *eventRepository) FindByIDForUpdate(ctx context.Context, id uuid.UUID) (domainevent.Event, error) {
+	if _, ok := db.GetTx(ctx); !ok {
+		return nil, fmt.Errorf("find event for update: %w", errNoTransaction)
+	}
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
+	row, err := r.querier(spanCtx).FindEventByIDForUpdate(spanCtx, toPgUUID(id))
 	endDBSpanNotFound(span, err)
 	if notFound, wasNoRows, mappedErr := checkNotFound(err, domainevent.ErrEventNotFound); notFound {
 		if wasNoRows {
 			return nil, mappedErr
 		}
-		r.logger.Error("find event by id query failed", "error", mappedErr)
-		return nil, fmt.Errorf("find event by id: %w", mappedErr)
+		r.logger.Error("find event for update query failed", "error", mappedErr)
+		return nil, fmt.Errorf("find event for update: %w", mappedErr)
 	}
 
-	var desc, location, url string
-	if row.Description.Valid {
-		desc = row.Description.String
+	// Read the tags after locking the event row: under READ COMMITTED this
+	// statement sees the tags committed by the writer that held the lock.
+	tags, err := r.findTags(ctx, id)
+	if err != nil {
+		return nil, err
 	}
-	if row.Location.Valid {
-		location = row.Location.String
-	}
-	if row.Url.Valid {
-		url = row.Url.String
-	}
-
-	return domainevent.New(
-		uuid.UUID(row.ID.Bytes), uuid.UUID(row.UserID.Bytes),
-		row.Title, desc, row.StartAt.Time, row.EndAt.Time, location, url,
-	)
+	// The generated row types are identical structs, one per query.
+	return eventFromRow(query.InsertEventRow(row), tags)
 }
 
+// Update saves the whole aggregate: the event row and its tags, replacing
+// the stored tags with e.Tags().
 func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error {
 	spanCtx, span := r.startDBSpan(ctx, "UPDATE", eventsTable)
 	_, err := r.querier(spanCtx).UpdateEvent(spanCtx, query.UpdateEventParams{
@@ -213,7 +244,7 @@ func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error
 		r.logger.Error("update event query failed", "error", err)
 		return fmt.Errorf("update event: %w", err)
 	}
-	return nil
+	return r.saveTags(ctx, e)
 }
 
 func (r *eventRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -225,6 +256,75 @@ func (r *eventRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("delete event: %w", err)
 	}
 	return nil
+}
+
+func (r *eventRepository) insertEvent(ctx context.Context, e domainevent.Event) (query.InsertEventRow, error) {
+	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventsTable)
+	row, err := r.querier(spanCtx).InsertEvent(spanCtx, query.InsertEventParams{
+		ID:          toPgUUID(e.ID()),
+		UserID:      toPgUUID(e.UserID()),
+		Title:       e.Title(),
+		Description: textOrNull(e.Description()),
+		StartAt:     pgtype.Timestamptz{Time: e.StartAt(), Valid: true},
+		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
+		Location:    textOrNull(e.Location()),
+		Url:         textOrNull(e.URL()),
+	})
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("insert event query failed", "error", err)
+		return query.InsertEventRow{}, fmt.Errorf("insert event: %w", err)
+	}
+	return row, nil
+}
+
+// saveTags makes the stored tags of e match e.Tags(). It deletes before
+// inserting because a kept tag may move to a position another tag still
+// holds, which would trip UNIQUE (event_id, position).
+func (r *eventRepository) saveTags(ctx context.Context, e domainevent.Event) error {
+	spanCtx, span := r.startDBSpan(ctx, "DELETE", eventTagsTable)
+	err := r.querier(spanCtx).DeleteEventTagsByEventID(spanCtx, toPgUUID(e.ID()))
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("delete event tags query failed", "error", err)
+		return fmt.Errorf("delete event tags: %w", err)
+	}
+
+	for _, t := range e.Tags() {
+		spanCtx, span := r.startDBSpan(ctx, "INSERT", eventTagsTable)
+		err := r.querier(spanCtx).InsertEventTag(spanCtx, query.InsertEventTagParams{
+			EventID: toPgUUID(e.ID()),
+			TagID:   toPgUUID(t.TagID()),
+			//nolint:gosec // position is validated to be 1..MaxTagsPerEvent by the domain
+			Position: int16(t.Position()),
+		})
+		endDBSpan(span, err)
+		if err != nil {
+			r.logger.Error("insert event tag query failed", "error", err)
+			return fmt.Errorf("insert event tag: %w", err)
+		}
+	}
+	return nil
+}
+
+func (r *eventRepository) findTags(ctx context.Context, eventID uuid.UUID) ([]domainevent.EventTag, error) {
+	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventTagsTable)
+	rows, err := r.querier(spanCtx).ListEventTagsByEventID(spanCtx, toPgUUID(eventID))
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("list event tags query failed", "error", err)
+		return nil, fmt.Errorf("list event tags: %w", err)
+	}
+
+	tags := make([]domainevent.EventTag, 0, len(rows))
+	for _, row := range rows {
+		t, err := domainevent.NewEventTag(uuid.UUID(row.TagID.Bytes), int(row.Position))
+		if err != nil {
+			return nil, fmt.Errorf("reconstruct event tag: %w", err)
+		}
+		tags = append(tags, t)
+	}
+	return tags, nil
 }
 
 func textOrNull(s string) pgtype.Text {
