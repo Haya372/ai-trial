@@ -16,11 +16,13 @@ import (
 )
 
 const (
-	fieldName    = "name"
-	fieldColor   = "color"
-	codeRequired = "REQUIRED"
-	validName    = "work"
-	validColor   = "red"
+	fieldName         = "name"
+	fieldColor        = "color"
+	codeRequired      = "REQUIRED"
+	codeInvalidFormat = "INVALID_FORMAT"
+	validName         = "work"
+	validColor        = "red"
+	otherColor        = "blue"
 )
 
 var errDBFailure = errors.New("db error")
@@ -78,7 +80,7 @@ func TestCreateTagCommand_Execute_Success(t *testing.T) {
 	)
 
 	cmd := taguc.NewCreateTagCommand(repo, markingTxManager{})
-	got, err := cmd.Execute(context.Background(), userID, taguc.CreateTagInput{Name: "  Work ", Color: "blue"})
+	got, err := cmd.Execute(context.Background(), userID, taguc.CreateTagInput{Name: "  Work ", Color: otherColor})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -124,14 +126,14 @@ func TestCreateTagCommand_Execute_ValidationErrors(t *testing.T) {
 		{
 			name:  "unknown color",
 			in:    taguc.CreateTagInput{Name: validName, Color: "black"},
-			wants: []domain.ValidationDetail{{Field: fieldColor, Code: "INVALID_FORMAT"}},
+			wants: []domain.ValidationDetail{{Field: fieldColor, Code: codeInvalidFormat}},
 		},
 		{
 			name: "name and color both invalid",
 			in:   taguc.CreateTagInput{Name: "", Color: ""},
 			wants: []domain.ValidationDetail{
 				{Field: fieldName, Code: codeRequired},
-				{Field: fieldColor, Code: "INVALID_FORMAT"},
+				{Field: fieldColor, Code: codeInvalidFormat},
 			},
 		},
 	}

@@ -68,6 +68,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		newCreateShareExecutor,
 		newListTagsExecutor,
 		newCreateTagExecutor,
+		newUpdateTagExecutor,
 		handler.NewHealthHandler,
 		handler.NewAuthHandler,
 		handler.NewEventHandler,
@@ -166,6 +167,10 @@ func newCreateTagExecutor(r tag.Repository, tx usecase.TransactionManager) handl
 	return taguc.NewCreateTagCommand(r, tx)
 }
 
+func newUpdateTagExecutor(r tag.Repository, tx usecase.TransactionManager) handler.UpdateTagExecutor {
+	return taguc.NewUpdateTagCommand(r, tx)
+}
+
 func newCreateShareExecutor(
 	er event.Repository, sr eventshare.Repository, tx usecase.TransactionManager, logger *slog.Logger,
 ) handler.CreateShareExecutor {
@@ -232,5 +237,6 @@ func newRouter(
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/subscriptions/{id}", sub.DeleteSubscription)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/tags", tg.ListTags)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/tags", tg.CreateTag)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/tags/{id}", tg.UpdateTag)
 	return r
 }

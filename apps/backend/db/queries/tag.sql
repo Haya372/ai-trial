@@ -43,3 +43,8 @@ LEFT JOIN event_tags et ON et.tag_id = t.id
 WHERE t.user_id = $1
 GROUP BY t.id
 ORDER BY t.created_at, t.id;
+
+-- name: CountEventsByTagID :one
+SELECT COUNT(*)
+FROM event_tags
+WHERE tag_id = $1;

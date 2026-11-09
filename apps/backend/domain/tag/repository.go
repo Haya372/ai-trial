@@ -21,6 +21,9 @@ type Repository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	// CountByUserID returns how many tags userID owns, for the MaxTagsPerUser check.
 	CountByUserID(ctx context.Context, userID uuid.UUID) (int, error)
+	// CountEventsByTagID returns how many events the tag is attached to, so a
+	// command can answer with the same eventCount that GET /tags reports.
+	CountEventsByTagID(ctx context.Context, tagID uuid.UUID) (int, error)
 	// LockOwner locks the owner's user row (SELECT ... FOR UPDATE) so that
 	// concurrent creates by the same user serialize their MaxTagsPerUser check.
 	// It must be called inside a transaction (ADR-024).

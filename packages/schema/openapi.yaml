@@ -27,6 +27,8 @@ paths:
     $ref: "./paths/subscriptions/detail.yaml"
   /tags:
     $ref: "./paths/tags/index.yaml"
+  /tags/{id}:
+    $ref: "./paths/tags/detail.yaml"
 components:
   schemas:
     HealthResponse:
@@ -73,6 +75,8 @@ components:
       $ref: "./components/schemas/TagColor.yaml"
     CreateTagRequest:
       $ref: "./components/schemas/CreateTagRequest.yaml"
+    UpdateTagRequest:
+      $ref: "./components/schemas/UpdateTagRequest.yaml"
     TagResponse:
       $ref: "./components/schemas/TagResponse.yaml"
     TagsListResponse:
