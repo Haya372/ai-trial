@@ -14,26 +14,9 @@ import type { EventFormMode } from '../../event/types'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
 import EventDetailModal from '../components/EventDetailModal'
-import { CALENDAR_VIEW, type CalendarView } from '../constants'
+import { CALENDAR_VIEW } from '../constants'
 import { navigateDate } from '../navigateDate'
-
-function getViewDateRange(
-  view: CalendarView,
-  date: Date,
-): { startDate: Date; endDate: Date } {
-  if (view === CALENDAR_VIEW.MONTH) {
-    const startDate = new Date(date.getFullYear(), date.getMonth(), 1)
-    const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-    return { startDate, endDate }
-  }
-  // 週ビュー: 日曜始まり
-  const dayOfWeek = date.getDay()
-  const startDate = new Date(date)
-  startDate.setDate(date.getDate() - dayOfWeek)
-  const endDate = new Date(startDate)
-  endDate.setDate(startDate.getDate() + 6)
-  return { startDate, endDate }
-}
+import { getViewDateRange } from '../viewDateRange'
 
 export default function CalendarPage() {
   const { t } = useTranslation('calendar')
@@ -57,8 +40,8 @@ export default function CalendarPage() {
   // 前回の登録完了状態が残らないようにするためのクリック連番
   const quickPanelClickSeqRef = useRef(0)
 
-  const { startDate, endDate } = getViewDateRange(view, currentDate)
-  const { data, isPending, isError } = useEventsQuery(startDate, endDate)
+  const { startAt, endAt } = getViewDateRange(view, currentDate)
+  const { data, isPending, isError } = useEventsQuery(startAt, endAt)
 
   const calendarEvents: CalendarEvent[] = (data?.events ?? []).map((e) => ({
     id: e.id,

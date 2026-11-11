@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { useEventsQuery } from './useEventsQuery'
 
 vi.mock('../api/generated', async (importOriginal) => {
@@ -24,7 +24,36 @@ function createWrapper() {
 
 describe('useEventsQuery', () => {
   const startDate = new Date(2026, 8, 1) // 2026-09-01
-  const endDate = new Date(2026, 8, 30) // 2026-09-30
+  const endDate = new Date(2026, 9, 1) // 2026-10-01（この日時を含まない）
+
+  describe('UTC以外のタイムゾーン（JST）', () => {
+    beforeAll(() => {
+      vi.stubEnv('TZ', 'Asia/Tokyo')
+    })
+    afterAll(() => {
+      vi.unstubAllEnvs()
+    })
+
+    it('範囲をUTCのRFC3339（末尾Z）に変換して startAt / endAt で送る', async () => {
+      const { getEvents } = await import('../api/generated')
+      vi.mocked(getEvents).mockResolvedValueOnce({
+        data: { events: [] },
+        status: 200,
+        headers: new Headers(),
+      } as never)
+
+      const { result } = renderHook(
+        () => useEventsQuery(new Date(2026, 10, 1), new Date(2026, 11, 1)),
+        { wrapper: createWrapper() },
+      )
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true))
+      expect(getEvents).toHaveBeenCalledWith({
+        startAt: '2026-10-31T15:00:00.000Z',
+        endAt: '2026-11-30T15:00:00.000Z',
+      })
+    })
+  })
 
   it('成功時に events データを返す', async () => {
     const { getEvents } = await import('../api/generated')
@@ -99,7 +128,7 @@ describe('useEventsQuery', () => {
     } as never)
 
     const startDate2 = new Date(2026, 9, 1) // 2026-10-01
-    const endDate2 = new Date(2026, 9, 31) // 2026-10-31
+    const endDate2 = new Date(2026, 10, 1) // 2026-11-01
 
     let callCount = 0
     vi.mocked(getEvents).mockImplementation(async () => {

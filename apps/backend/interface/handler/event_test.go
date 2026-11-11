@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -82,18 +83,130 @@ func (s *stubListEventsExec) Execute(
 	return s.fn(ctx, userID, in)
 }
 
-func getEventsRequest(t *testing.T, startDate, endDate string) *http.Request {
+func getEventsRequest(t *testing.T, startAt, endAt string) *http.Request {
 	t.Helper()
+	q := url.Values{}
+	q.Set("startAt", startAt)
+	q.Set("endAt", endAt)
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
-		"/events?startDate="+startDate+"&endDate="+endDate,
+		"/events?"+q.Encode(),
 		nil,
 	)
 	if err != nil {
 		t.Fatalf("create request: %v", err)
 	}
 	return req
+}
+
+// JST の 2026年9月（2026-09-01T00:00+09:00 〜 2026-10-01T00:00+09:00）を UTC で表した範囲。
+const (
+	testRangeStartAt = "2026-08-31T15:00:00Z"
+	testRangeEndAt   = "2026-09-30T15:00:00Z"
+)
+
+func testGetEventsParams(t *testing.T) api.GetEventsParams {
+	t.Helper()
+	return api.GetEventsParams{
+		StartAt: mustParseTime(t, testRangeStartAt),
+		EndAt:   mustParseTime(t, testRangeEndAt),
+	}
+}
+
+func mustParseTime(t *testing.T, s string) time.Time {
+	t.Helper()
+	parsed, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		t.Fatalf("parse time %q: %v", s, err)
+	}
+	return parsed
+}
+
+func TestEventHandler_ServeHTTP_PassesUTCRangeToUsecase(t *testing.T) {
+	userID := uuid.New()
+	var got eventuc.ListEventsInput
+	stub := &stubListEventsExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.ListEventsInput) ([]eventuc.EventReadModel, error) {
+			got = in
+			return nil, nil
+		},
+	}
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	// クライアントは toISOString() でミリ秒付きの値を送る
+	req := getEventsRequest(t, "2026-08-31T15:00:00.000Z", "2026-09-30T15:00:00.000Z")
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
+	w := httptest.NewRecorder()
+
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !got.StartDate.Equal(mustParseTime(t, testRangeStartAt)) {
+		t.Errorf("StartDate mismatch: got %v, want %v", got.StartDate, testRangeStartAt)
+	}
+	if !got.EndDate.Equal(mustParseTime(t, testRangeEndAt)) {
+		t.Errorf("EndDate mismatch: got %v, want %v", got.EndDate, testRangeEndAt)
+	}
+}
+
+func TestEventHandler_ServeHTTP_InvalidRange_Returns400(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+	}{
+		{"missing startAt", "endAt=" + testRangeEndAt},
+		{"missing endAt", "startAt=" + testRangeStartAt},
+		{"date-only startAt", "startAt=2026-09-01&endAt=" + testRangeEndAt},
+		{"date-only endAt", "startAt=" + testRangeStartAt + "&endAt=2026-09-30"},
+		{"offset startAt", "startAt=" + url.QueryEscape("2026-09-01T00:00:00+09:00") + "&endAt=" + testRangeEndAt},
+		{"offset endAt", "startAt=" + testRangeStartAt + "&endAt=" + url.QueryEscape("2026-10-01T00:00:00+09:00")},
+		{"zero offset instead of Z", "startAt=" + url.QueryEscape("2026-08-31T15:00:00+00:00") + "&endAt=" + testRangeEndAt},
+		{"endAt equals startAt", "startAt=" + testRangeStartAt + "&endAt=" + testRangeStartAt},
+		{"endAt before startAt", "startAt=" + testRangeEndAt + "&endAt=" + testRangeStartAt},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			stub := &stubListEventsExec{
+				fn: func(_ context.Context, _ uuid.UUID, _ eventuc.ListEventsInput) ([]eventuc.EventReadModel, error) {
+					called = true
+					return nil, nil
+				},
+			}
+			h := handler.NewEventHandler(
+				stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+			)
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/events?"+tt.query, nil)
+			if err != nil {
+				t.Fatalf("create request: %v", err)
+			}
+			u := newStubUser(uuid.New(), "user@example.com", "User")
+			req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, u))
+			w := httptest.NewRecorder()
+
+			h.ServeHTTP(w, req)
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+			}
+			var body struct {
+				Code string `json:"code"`
+			}
+			if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if body.Code != codeValidationError {
+				t.Errorf("code mismatch: got %q, want %q", body.Code, codeValidationError)
+			}
+			if called {
+				t.Error("usecase must not be called for invalid range")
+			}
+		})
+	}
 }
 
 func TestEventHandler_GetEvents_Success(t *testing.T) {
@@ -123,14 +236,11 @@ func TestEventHandler_GetEvents_Success(t *testing.T) {
 
 	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
-	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
+	req := getEventsRequest(t, testRangeStartAt, testRangeEndAt)
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
 	w := httptest.NewRecorder()
 
-	h.GetEvents(w, req, api.GetEventsParams{
-		StartDate: mustParseDate(t, "2026-09-01"),
-		EndDate:   mustParseDate(t, "2026-09-30"),
-	})
+	h.GetEvents(w, req, testGetEventsParams(t))
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -179,14 +289,11 @@ func TestEventHandler_GetEvents_IncludesIsSubscribed(t *testing.T) {
 
 	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
-	req := getEventsRequest(t, "2026-10-01", "2026-10-31")
+	req := getEventsRequest(t, testRangeStartAt, testRangeEndAt)
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
 	w := httptest.NewRecorder()
 
-	h.GetEvents(w, req, api.GetEventsParams{
-		StartDate: mustParseDate(t, "2026-10-01"),
-		EndDate:   mustParseDate(t, "2026-10-31"),
-	})
+	h.GetEvents(w, req, testGetEventsParams(t))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -231,14 +338,11 @@ func TestEventHandler_GetEvents_IncludesSubscriptionID(t *testing.T) {
 
 	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
-	req := getEventsRequest(t, "2026-10-01", "2026-10-31")
+	req := getEventsRequest(t, testRangeStartAt, testRangeEndAt)
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
 	w := httptest.NewRecorder()
 
-	h.GetEvents(w, req, api.GetEventsParams{
-		StartDate: mustParseDate(t, "2026-10-01"),
-		EndDate:   mustParseDate(t, "2026-10-31"),
-	})
+	h.GetEvents(w, req, testGetEventsParams(t))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -268,13 +372,10 @@ func TestEventHandler_GetEvents_Unauthorized(t *testing.T) {
 	stub := &stubListEventsExec{}
 	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
-	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
+	req := getEventsRequest(t, testRangeStartAt, testRangeEndAt)
 	w := httptest.NewRecorder()
 
-	h.GetEvents(w, req, api.GetEventsParams{
-		StartDate: mustParseDate(t, "2026-09-01"),
-		EndDate:   mustParseDate(t, "2026-09-30"),
-	})
+	h.GetEvents(w, req, testGetEventsParams(t))
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", w.Code)
@@ -290,14 +391,11 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 	}
 	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
 
-	req := getEventsRequest(t, "2026-09-01", "2026-09-30")
+	req := getEventsRequest(t, testRangeStartAt, testRangeEndAt)
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "user@example.com", "User")))
 	w := httptest.NewRecorder()
 
-	h.GetEvents(w, req, api.GetEventsParams{
-		StartDate: mustParseDate(t, "2026-09-01"),
-		EndDate:   mustParseDate(t, "2026-09-30"),
-	})
+	h.GetEvents(w, req, testGetEventsParams(t))
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", w.Code)

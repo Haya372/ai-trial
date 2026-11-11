@@ -82,6 +82,167 @@ func insertRouteTestEventSubscription(t *testing.T, eventID, userID string) stri
 	return id
 }
 
+func eventsRangePath(startAt, endAt time.Time) string {
+	return fmt.Sprintf("/events?startAt=%s&endAt=%s",
+		startAt.UTC().Format(time.RFC3339), endAt.UTC().Format(time.RFC3339))
+}
+
+func getEventTitles(t *testing.T, router *chi.Mux, cookie *http.Cookie, path string) []string {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		Events []struct {
+			Title string `json:"title"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	titles := make([]string, len(body.Events))
+	for i, e := range body.Events {
+		titles[i] = e.Title
+	}
+	return titles
+}
+
+func mustLoadJST(t *testing.T) *time.Location {
+	t.Helper()
+	jst, err := time.LoadLocation("Asia/Tokyo")
+	if err != nil {
+		t.Fatalf("load Asia/Tokyo: %v", err)
+	}
+	return jst
+}
+
+// クライアントがJSTのローカル0時をUTCに変換して送ったときに、月ビューの境界をまたぐ予定が
+// 正しい月にだけ含まれることを確認する（Issue #350）。
+func TestRoute_GetEvents_jstMonthBoundary(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	jst := mustLoadJST(t)
+
+	cookie := signupAndGetCookie(t, router, "events-jst-month@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	// 2026-11-01 05:00 JST = 2026-10-31 20:00 UTC
+	start := time.Date(2026, 11, 1, 5, 0, 0, 0, jst)
+	insertRouteTestEvent(t, userID, "Nov 1 early morning", start, start.Add(time.Hour))
+
+	novTitles := getEventTitles(t, router, cookie, eventsRangePath(
+		time.Date(2026, 11, 1, 0, 0, 0, 0, jst), time.Date(2026, 12, 1, 0, 0, 0, 0, jst)))
+	if len(novTitles) != 1 || novTitles[0] != "Nov 1 early morning" {
+		t.Errorf("expected event in November view, got %v", novTitles)
+	}
+
+	octTitles := getEventTitles(t, router, cookie, eventsRangePath(
+		time.Date(2026, 10, 1, 0, 0, 0, 0, jst), time.Date(2026, 11, 1, 0, 0, 0, 0, jst)))
+	if len(octTitles) != 0 {
+		t.Errorf("expected no events in October view, got %v", octTitles)
+	}
+}
+
+// 週ビュー（日曜始まり）の境界の前後にある予定が、正しい週にだけ含まれることを確認する（Issue #350）。
+func TestRoute_GetEvents_jstWeekBoundary(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	jst := mustLoadJST(t)
+
+	cookie := signupAndGetCookie(t, router, "events-jst-week@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	// 対象週: 2026-11-08（日）〜 2026-11-14（土）JST
+	sunEarly := time.Date(2026, 11, 8, 3, 0, 0, 0, jst)
+	satLate := time.Date(2026, 11, 14, 23, 0, 0, 0, jst)
+	nextSunEarly := time.Date(2026, 11, 15, 0, 30, 0, 0, jst)
+	insertRouteTestEvent(t, userID, "Sun early", sunEarly, sunEarly.Add(30*time.Minute))
+	insertRouteTestEvent(t, userID, "Sat late", satLate, satLate.Add(30*time.Minute))
+	insertRouteTestEvent(t, userID, "Next Sun early", nextSunEarly, nextSunEarly.Add(30*time.Minute))
+
+	tests := []struct {
+		name       string
+		weekStart  time.Time
+		wantTitles []string
+	}{
+		{"previous week", time.Date(2026, 11, 1, 0, 0, 0, 0, jst), nil},
+		{"target week", time.Date(2026, 11, 8, 0, 0, 0, 0, jst), []string{"Sun early", "Sat late"}},
+		{"next week", time.Date(2026, 11, 15, 0, 0, 0, 0, jst), []string{"Next Sun early"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getEventTitles(t, router, cookie, eventsRangePath(tt.weekStart, tt.weekStart.AddDate(0, 0, 7)))
+			if len(got) != len(tt.wantTitles) {
+				t.Fatalf("expected %v, got %v", tt.wantTitles, got)
+			}
+			for i := range got {
+				if got[i] != tt.wantTitles[i] {
+					t.Errorf("expected %v, got %v", tt.wantTitles, got)
+				}
+			}
+		})
+	}
+}
+
+func TestRoute_GetEvents_returnsDatetimesInUTC(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "events-utc-response@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	start := time.Date(2026, 10, 31, 20, 0, 0, 0, time.UTC)
+	insertRouteTestEvent(t, userID, "UTC response", start, start.Add(time.Hour))
+
+	req := httptest.NewRequest(http.MethodGet, eventsRangePath(start.Add(-time.Hour), start.Add(2*time.Hour)), nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var body struct {
+		Events []struct {
+			StartAt string `json:"startAt"`
+			EndAt   string `json:"endAt"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(body.Events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(body.Events))
+	}
+	if body.Events[0].StartAt != "2026-10-31T20:00:00Z" {
+		t.Errorf("startAt mismatch: got %q", body.Events[0].StartAt)
+	}
+	if body.Events[0].EndAt != "2026-10-31T21:00:00Z" {
+		t.Errorf("endAt mismatch: got %q", body.Events[0].EndAt)
+	}
+}
+
+func TestRoute_GetEvents_offsetDatetime_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "events-offset@ex.com")
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/events?startAt=2026-11-01T00:00:00%2B09:00&endAt=2026-12-01T00:00:00%2B09:00", nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 	setupRouteTest(t)
 	router := buildEventTestRouter()
@@ -96,8 +257,7 @@ func TestRoute_GetEvents_includesSubscribedEvent(t *testing.T) {
 	sharedEventID := insertRouteTestEvent(t, ownerID, "Owner's shared meeting", now.Add(2*time.Hour), now.Add(3*time.Hour))
 	subscriptionID := insertRouteTestEventSubscription(t, sharedEventID, viewerID)
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
-		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req := httptest.NewRequest(http.MethodGet, eventsRangePath(now.Add(-time.Hour), now.Add(24*time.Hour)), nil)
 	req.AddCookie(viewerCookie)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -180,8 +340,7 @@ func TestRoute_GetEvents_excludesSubscriptionAfterSourceEventDeleted(t *testing.
 		t.Fatalf("expected event_subscriptions row to be cascade-deleted, got count %d", count)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
-		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req := httptest.NewRequest(http.MethodGet, eventsRangePath(now.Add(-time.Hour), now.Add(24*time.Hour)), nil)
 	req.AddCookie(viewerCookie)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -205,7 +364,7 @@ func TestRoute_GetEvents_withoutSession_returns401(t *testing.T) {
 	setupRouteTest(t)
 	router := buildEventTestRouter()
 
-	req := httptest.NewRequest(http.MethodGet, "/events?startDate=2026-09-01&endDate=2026-09-30", nil)
+	req := httptest.NewRequest(http.MethodGet, "/events?startAt=2026-09-01T00:00:00Z&endAt=2026-10-01T00:00:00Z", nil)
 	if code := responseCode(t, router, req); code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", code)
 	}
@@ -240,8 +399,7 @@ func TestRoute_GetEvents_returnsOnlyAuthenticatedUsersEvents(t *testing.T) {
 	insertRouteTestEvent(t, userID1, "User1 meeting", now, now.Add(time.Hour))
 	insertRouteTestEvent(t, getUserIDFromCookie(t, router, cookie2), "User2 meeting", now, now.Add(time.Hour))
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
-		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req := httptest.NewRequest(http.MethodGet, eventsRangePath(now.Add(-time.Hour), now.Add(24*time.Hour)), nil)
 	req.AddCookie(cookie1)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -283,8 +441,7 @@ func TestRoute_GetEvents_includesLocationAndUrl(t *testing.T) {
 		t.Fatalf("insert event: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/events?startDate=%s&endDate=%s",
-		now.Format("2006-01-02"), now.Add(24*time.Hour).Format("2006-01-02")), nil)
+	req := httptest.NewRequest(http.MethodGet, eventsRangePath(now.Add(-time.Hour), now.Add(24*time.Hour)), nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -320,7 +477,7 @@ func TestRoute_GetEvents_returnsEmptyListWhenNoEvents(t *testing.T) {
 
 	cookie := signupAndGetCookie(t, router, "empty-events@ex.com")
 
-	req := httptest.NewRequest(http.MethodGet, "/events?startDate=2026-09-01&endDate=2026-09-30", nil)
+	req := httptest.NewRequest(http.MethodGet, "/events?startAt=2026-09-01T00:00:00Z&endAt=2026-10-01T00:00:00Z", nil)
 	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)

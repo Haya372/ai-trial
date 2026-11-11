@@ -11,3 +11,5 @@ func NewPgxTxManagerForTest(pool interface {
 }) *PgxTxManager {
 	return &PgxTxManager{pool: pool}
 }
+
+var RegisterUTCTimestamptz = registerUTCTimestamptz

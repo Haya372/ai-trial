@@ -320,7 +320,7 @@ sequenceDiagram
     participant API as バックエンドAPI
 
     User->>UI: カレンダーページを開く／期間を切り替える
-    UI->>API: GET /events?startDate=...&endDate=...（SPEC-002）
+    UI->>API: GET /events?startAt=...&endAt=...（SPEC-002）
     API-->>UI: 200 { events: [{ id, title, ..., isSubscribed, subscriptionId }] }
     Note over UI: events[] のうち isSubscribed=true のエントリは追加済み予定として描画し、編集・削除UIは出さない。subscriptionId は「追加の取り消し」で使う
     UI-->>User: 自分の予定と追加済み予定を同じビューに表示
@@ -363,7 +363,7 @@ sequenceDiagram
     Note over API,DB: 外部キー制約 event_subscriptions.event_id ON DELETE CASCADE により、関連する追加レコードも同一トランザクションで削除される
     API-->>Owner: 204 No Content
     Subscriber->>UI: カレンダーページを開く／期間を切り替える
-    UI->>API: GET /events?startDate=...&endDate=...
+    UI->>API: GET /events?startAt=...&endAt=...
     API-->>UI: 200 [...]（削除済み予定はレスポンスに含まれない）
     UI-->>Subscriber: 当該予定はカレンダーから消える（明示的な取り消し操作は不要）
 ```
