@@ -22,18 +22,26 @@ import (
 
 const errCodeNotFound = "NOT_FOUND"
 
+// eventTagResponseBody is the JSON shape for a single tag embedded in event responses.
+type eventTagResponseBody struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Color string    `json:"color"`
+}
+
 // eventResponseBody is the JSON shape for a single event response.
 // Defined here because oapi-codegen v2 inlines these fields per-operation.
 type eventResponseBody struct {
-	ID             uuid.UUID  `json:"id"`
-	Title          string     `json:"title"`
-	Description    *string    `json:"description,omitempty"`
-	StartAt        time.Time  `json:"startAt"`
-	EndAt          time.Time  `json:"endAt"`
-	Location       *string    `json:"location,omitempty"`
-	URL            *string    `json:"url,omitempty"`
-	IsSubscribed   bool       `json:"isSubscribed"`
-	SubscriptionID *uuid.UUID `json:"subscriptionId"`
+	ID             uuid.UUID              `json:"id"`
+	Title          string                 `json:"title"`
+	Description    *string                `json:"description,omitempty"`
+	StartAt        time.Time              `json:"startAt"`
+	EndAt          time.Time              `json:"endAt"`
+	Location       *string                `json:"location,omitempty"`
+	URL            *string                `json:"url,omitempty"`
+	IsSubscribed   bool                   `json:"isSubscribed"`
+	SubscriptionID *uuid.UUID             `json:"subscriptionId"`
+	Tags           []eventTagResponseBody `json:"tags"`
 }
 
 // eventsListResponseBody is the JSON shape for the list events response.
@@ -48,11 +56,11 @@ type ListEventsExecutor interface {
 
 // CreateEventExecutor is satisfied by eventuc.CreateEventCommand.
 type CreateEventExecutor interface {
-	Execute(ctx context.Context, userID uuid.UUID, in eventuc.CreateEventInput) (domainevent.Event, error)
+	Execute(ctx context.Context, userID uuid.UUID, in eventuc.CreateEventInput) (eventuc.CreateEventOutput, error)
 }
 
 type UpdateEventExecutor interface {
-	Execute(ctx context.Context, userID uuid.UUID, in eventuc.UpdateEventInput) (domainevent.Event, error)
+	Execute(ctx context.Context, userID uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error)
 }
 
 // DeleteEventExecutor is a port deliberately kept separate from
@@ -92,6 +100,14 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "invalid endDate parameter")
 		return
 	}
+	if tagIDStr := r.URL.Query().Get("tagId"); tagIDStr != "" {
+		tagUUID, err := uuid.Parse(tagIDStr)
+		if err != nil {
+			response.WriteError(w, http.StatusBadRequest, errCodeValidation, "invalid tagId parameter")
+			return
+		}
+		params.TagId = &tagUUID
+	}
 	h.GetEvents(w, r, params)
 }
 
@@ -106,6 +122,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 	in := eventuc.ListEventsInput{
 		StartDate: params.StartDate.Time,
 		EndDate:   params.EndDate.Add(24 * time.Hour),
+		TagID:     params.TagId,
 	}
 	events, err := h.listEvents.Execute(r.Context(), u.ID(), in)
 	if err != nil {
@@ -118,6 +135,10 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 		Events: make([]eventResponseBody, len(events)),
 	}
 	for i, e := range events {
+		tags := make([]eventTagResponseBody, len(e.Tags))
+		for j, t := range e.Tags {
+			tags[j] = eventTagResponseBody{ID: t.ID, Name: t.Name, Color: t.Color}
+		}
 		resp.Events[i] = eventResponseBody{
 			ID:             e.ID,
 			Title:          e.Title,
@@ -128,6 +149,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 			URL:            optionalString(e.URL),
 			IsSubscribed:   e.IsSubscribed,
 			SubscriptionID: e.SubscriptionID,
+			Tags:           tags,
 		}
 	}
 
@@ -157,13 +179,25 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 	if body.Url != nil {
 		in.URL = *body.Url
 	}
+	if body.TagIds != nil {
+		in.TagIDs = make([]uuid.UUID, len(*body.TagIds))
+		copy(in.TagIDs, *body.TagIds)
+	}
 	return in
 }
 
-// toEventResponse builds the response for create/update, which only ever
-// act on the caller's own event, so IsSubscribed/SubscriptionId are always
-// false/nil.
-func toEventResponse(ev domainevent.Event) api.EventResponse {
+// toEventResponse builds the EventResponse for create/update endpoints.
+// These endpoints only act on the caller's own event, so IsSubscribed/SubscriptionId
+// are always false/nil.
+func toEventResponse(ev domainevent.Event, tagViews []eventuc.EventTagView) api.EventResponse {
+	apiTags := make([]api.EventTagResponse, len(tagViews))
+	for i, t := range tagViews {
+		apiTags[i] = api.EventTagResponse{
+			Id:    t.ID,
+			Name:  t.Name,
+			Color: api.TagColor(t.Color),
+		}
+	}
 	return api.EventResponse{
 		Id:             ev.ID(),
 		Title:          ev.Title(),
@@ -174,6 +208,7 @@ func toEventResponse(ev domainevent.Event) api.EventResponse {
 		Url:            optionalString(ev.URL()),
 		IsSubscribed:   false,
 		SubscriptionId: nil,
+		Tags:           apiTags,
 	}
 }
 
@@ -202,13 +237,13 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ev, err := h.createEvent.Execute(r.Context(), u.ID(), buildCreateEventInput(body))
+	out, err := h.createEvent.Execute(r.Context(), u.ID(), buildCreateEventInput(body))
 	if err != nil {
 		h.writeEventError(w, r, err)
 		return
 	}
 
-	out, err := json.Marshal(toEventResponse(ev))
+	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags))
 	if err != nil {
 		h.logger.Error("failed to marshal create event response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
@@ -216,7 +251,7 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, _ = w.Write(out)
+	_, _ = w.Write(respBody)
 }
 
 func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
@@ -239,13 +274,13 @@ func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ev, err := h.updateEvent.Execute(r.Context(), u.ID(), in)
+	out, err := h.updateEvent.Execute(r.Context(), u.ID(), in)
 	if err != nil {
 		h.writeEventError(w, r, err)
 		return
 	}
 
-	respBody, err := json.Marshal(toEventResponse(ev))
+	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags))
 	if err != nil {
 		h.logger.Error("failed to marshal update event response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
@@ -298,6 +333,12 @@ func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventI
 	}
 	if body.Url != nil {
 		in.URL = *body.Url
+	}
+	// nil tagIds = keep existing; non-nil (even empty) = replace
+	if body.TagIds != nil {
+		uuids := make([]uuid.UUID, len(*body.TagIds))
+		copy(uuids, *body.TagIds)
+		in.TagIDs = &uuids
 	}
 	return in, nil
 }

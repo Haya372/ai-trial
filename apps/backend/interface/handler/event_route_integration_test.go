@@ -38,7 +38,7 @@ func buildEventTestRouter() *chi.Mux {
 	login := authuc.NewLoginCommand(userRepo, sessRepo, usecase.RealClock{})
 	logout := authuc.NewLogoutCommand(sessRepo)
 	listEvents := eventuc.NewListEventsQuery(eventQueryRepo)
-	createEvent := eventuc.NewCreateEventCommand(eventRepo, txMgr)
+	createEvent := eventuc.NewCreateEventCommand(eventRepo, tagRepo, txMgr)
 	updateEvent := eventuc.NewUpdateEventCommand(eventRepo, tagRepo, txMgr, logger)
 	deleteEvent := eventuc.NewDeleteEventCommand(eventRepo, logger)
 

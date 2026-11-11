@@ -18,6 +18,15 @@ get:
         type: string
         format: date
       description: End of the search range (ISO 8601, YYYY-MM-DD)
+    - name: tagId
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: >-
+        If present, return only events the caller owns that have this tag.
+        Subscribed events are not returned.
   responses:
     "200":
       description: List of events

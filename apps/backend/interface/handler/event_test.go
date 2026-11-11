@@ -27,17 +27,19 @@ const (
 	testKeyEndAt      = "endAt"
 	testEventLocation = "Tokyo"
 	testEventURL      = "https://example.com"
+	testEventTagColor = "blue"
+	testFieldTagIDs   = "tagIds"
 )
 
 type stubUpdateEventExec struct {
-	fn func(context.Context, uuid.UUID, eventuc.UpdateEventInput) (domainevent.Event, error)
+	fn func(context.Context, uuid.UUID, eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error)
 }
 
 func (s *stubUpdateEventExec) Execute(
 	ctx context.Context, userID uuid.UUID, in eventuc.UpdateEventInput,
-) (domainevent.Event, error) {
+) (eventuc.UpdateEventOutput, error) {
 	if s.fn == nil {
-		return nil, nil
+		return eventuc.UpdateEventOutput{}, nil
 	}
 	return s.fn(ctx, userID, in)
 }
@@ -307,16 +309,16 @@ func TestEventHandler_GetEvents_InternalError(t *testing.T) {
 // --- CreateEvent tests ---
 
 type stubCreateEventExec struct {
-	fn func(context.Context, uuid.UUID, eventuc.CreateEventInput) (domainevent.Event, error)
+	fn func(context.Context, uuid.UUID, eventuc.CreateEventInput) (eventuc.CreateEventOutput, error)
 }
 
 func (s *stubCreateEventExec) Execute(
 	ctx context.Context,
 	userID uuid.UUID,
 	in eventuc.CreateEventInput,
-) (domainevent.Event, error) {
+) (eventuc.CreateEventOutput, error) {
 	if s.fn == nil {
-		return nil, nil
+		return eventuc.CreateEventOutput{}, nil
 	}
 	return s.fn(ctx, userID, in)
 }
@@ -346,13 +348,17 @@ func TestEventHandler_CreateEvent_Success_Returns201(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, uid uuid.UUID, in eventuc.CreateEventInput) (domainevent.Event, error) {
+		fn: func(_ context.Context, uid uuid.UUID, in eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
 			if uid != userID {
 				t.Errorf("userID mismatch: got %v, want %v", uid, userID)
 			}
-			return domainevent.New(
+			ev, err := domainevent.New(
 				eventID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
 			)
+			if err != nil {
+				return eventuc.CreateEventOutput{}, err
+			}
+			return eventuc.CreateEventOutput{Event: ev, Tags: []eventuc.EventTagView{}}, nil
 		},
 	}
 
@@ -435,8 +441,8 @@ func TestEventHandler_CreateEvent_ValidationError_Returns400(t *testing.T) {
 	userID := uuid.New()
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
-			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			return eventuc.CreateEventOutput{}, &domain.ValidationError{Details: []domain.ValidationDetail{
 				{Field: "title", Code: "REQUIRED", Message: "title is required"},
 			}}
 		},
@@ -468,8 +474,8 @@ func TestEventHandler_CreateEvent_EndAtEqualStartAt_Returns400(t *testing.T) {
 	userID := uuid.New()
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
-			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			return eventuc.CreateEventOutput{}, &domain.ValidationError{Details: []domain.ValidationDetail{
 				{Field: "endAt", Code: codeInvalidDateRange, Message: "endAt must be strictly after startAt"},
 			}}
 		},
@@ -510,8 +516,8 @@ func TestEventHandler_CreateEvent_InternalError_Returns500(t *testing.T) {
 	userID := uuid.New()
 
 	stub := &stubCreateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (domainevent.Event, error) {
-			return nil, errInternal
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			return eventuc.CreateEventOutput{}, errInternal
 		},
 	}
 
@@ -539,19 +545,19 @@ func TestEventHandler_UpdateEvent_Success(t *testing.T) {
 	eventID := uuid.New()
 	now := time.Now().UTC()
 
-	updated, _ := domainevent.New(
+	updatedEv, _ := domainevent.New(
 		eventID, userID, "Updated title", "Updated desc", now, now.Add(time.Hour), testEventLocation, testEventURL,
 	)
 
 	stub := &stubUpdateEventExec{
-		fn: func(_ context.Context, uid uuid.UUID, in eventuc.UpdateEventInput) (domainevent.Event, error) {
+		fn: func(_ context.Context, uid uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
 			if uid != userID {
 				t.Errorf("userID mismatch: got %v, want %v", uid, userID)
 			}
 			if in.ID != eventID {
 				t.Errorf("eventID mismatch: got %v, want %v", in.ID, eventID)
 			}
-			return updated, nil
+			return eventuc.UpdateEventOutput{Event: updatedEv, Tags: []eventuc.EventTagView{}}, nil
 		},
 	}
 	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
@@ -627,8 +633,8 @@ func TestEventHandler_UpdateEvent_InvalidBody(t *testing.T) {
 
 func TestEventHandler_UpdateEvent_ValidationError_Returns400(t *testing.T) {
 	stub := &stubUpdateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {
-			return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			return eventuc.UpdateEventOutput{}, &domain.ValidationError{Details: []domain.ValidationDetail{
 				{Field: "endAt", Code: codeInvalidDateRange, Message: "endAt must be after or equal to startAt"},
 			}}
 		},
@@ -648,8 +654,8 @@ func TestEventHandler_UpdateEvent_ValidationError_Returns400(t *testing.T) {
 
 func TestEventHandler_UpdateEvent_NotFound_Returns404(t *testing.T) {
 	stub := &stubUpdateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {
-			return nil, domainevent.ErrEventNotFound
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			return eventuc.UpdateEventOutput{}, domainevent.ErrEventNotFound
 		},
 	}
 	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
@@ -666,8 +672,8 @@ func TestEventHandler_UpdateEvent_NotFound_Returns404(t *testing.T) {
 
 func TestEventHandler_UpdateEvent_InternalError_Returns500(t *testing.T) {
 	stub := &stubUpdateEventExec{
-		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (domainevent.Event, error) {
-			return nil, errInternal
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			return eventuc.UpdateEventOutput{}, errInternal
 		},
 	}
 	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
@@ -832,5 +838,301 @@ func TestEventHandler_DeleteEvent_InternalError_Returns500(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- Tag-related handler tests ---
+
+func TestEventHandler_GetEvents_TagsIncludedInResponse(t *testing.T) {
+	userID := uuid.New()
+	tagID := uuid.New()
+
+	stub := &stubListEventsExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.ListEventsInput) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{
+				{
+					ID:    uuid.New(),
+					Title: "Tagged event",
+					Tags:  []eventuc.EventTagReadModel{{ID: tagID, Name: "Work", Color: testEventTagColor}},
+				},
+				{
+					ID:    uuid.New(),
+					Title: "Untagged event",
+					Tags:  []eventuc.EventTagReadModel{},
+				},
+			}, nil
+		},
+	}
+
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	req := getEventsRequest(t, "2026-10-01", "2026-10-31")
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.GetEvents(w, req, api.GetEventsParams{
+		StartDate: mustParseDate(t, "2026-10-01"),
+		EndDate:   mustParseDate(t, "2026-10-31"),
+	})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Events []struct {
+			Title string `json:"title"`
+			Tags  []struct {
+				ID    string `json:"id"`
+				Name  string `json:"name"`
+				Color string `json:"color"`
+			} `json:"tags"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(resp.Events))
+	}
+	if len(resp.Events[0].Tags) != 1 {
+		t.Errorf("expected first event to have 1 tag, got %d", len(resp.Events[0].Tags))
+	}
+	if resp.Events[0].Tags[0].ID != tagID.String() {
+		t.Errorf("tag ID mismatch: got %q, want %q", resp.Events[0].Tags[0].ID, tagID.String())
+	}
+	if resp.Events[0].Tags[0].Color != testEventTagColor {
+		t.Errorf("tag color mismatch: got %q", resp.Events[0].Tags[0].Color)
+	}
+	if len(resp.Events[1].Tags) != 0 {
+		t.Errorf("expected second event to have empty tags array, got %d", len(resp.Events[1].Tags))
+	}
+}
+
+func TestEventHandler_GetEvents_TagIDQueryPassedToUseCase(t *testing.T) {
+	userID := uuid.New()
+	tagID := uuid.New()
+
+	var capturedInput eventuc.ListEventsInput
+	stub := &stubListEventsExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.ListEventsInput) ([]eventuc.EventReadModel, error) {
+			capturedInput = in
+			return nil, nil
+		},
+	}
+
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+	req := getEventsRequest(t, "2026-10-01", "2026-10-31")
+	// Add tagId query param
+	q := req.URL.Query()
+	q.Set("tagId", tagID.String())
+	req.URL.RawQuery = q.Encode()
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.GetEvents(w, req, api.GetEventsParams{
+		StartDate: mustParseDate(t, "2026-10-01"),
+		EndDate:   mustParseDate(t, "2026-10-31"),
+		TagId:     &tagID,
+	})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if capturedInput.TagID == nil || *capturedInput.TagID != tagID {
+		t.Errorf("expected TagID %v to be passed to UseCase, got %v", tagID, capturedInput.TagID)
+	}
+}
+
+func TestEventHandler_GetEvents_InvalidTagIDReturns400(t *testing.T) {
+	userID := uuid.New()
+	stub := &stubListEventsExec{}
+	h := handler.NewEventHandler(stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	// ServeHTTP parses tagId before delegating to GetEvents; an invalid UUID
+	// must be rejected with 400 before the usecase is called.
+	req2, _ := http.NewRequestWithContext(
+		context.WithValue(context.Background(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")),
+		http.MethodGet,
+		"/events?startDate=2026-10-01&endDate=2026-10-31&tagId=not-a-uuid",
+		nil,
+	)
+	req2 = req2.WithContext(context.WithValue(req2.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w2 := httptest.NewRecorder()
+	h.ServeHTTP(w2, req2)
+
+	if w2.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid tagId, got %d: %s", w2.Code, w2.Body.String())
+	}
+}
+
+func TestEventHandler_CreateEvent_WithTagIDs_PassedToUseCase(t *testing.T) {
+	userID := uuid.New()
+	eventID := uuid.New()
+	tagID := uuid.New()
+	now := time.Now().UTC()
+
+	var capturedInput eventuc.CreateEventInput
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			capturedInput = in
+			ev, _ := domainevent.New(eventID, userID, in.Title, "", in.StartAt, in.EndAt, "", "")
+			tags := []eventuc.EventTagView{{ID: tagID, Name: "Work", Color: testEventTagColor}}
+			return eventuc.CreateEventOutput{Event: ev, Tags: tags}, nil
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:    testEventTitle,
+		testKeyStartAt:  now.Format(time.RFC3339),
+		testKeyEndAt:    now.Add(time.Hour).Format(time.RFC3339),
+		testFieldTagIDs: []string{tagID.String()},
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if len(capturedInput.TagIDs) != 1 || capturedInput.TagIDs[0] != tagID {
+		t.Errorf("expected tagID %v to be passed to UseCase, got %v", tagID, capturedInput.TagIDs)
+	}
+
+	var resp struct {
+		Tags []struct {
+			ID    string `json:"id"`
+			Name  string `json:"name"`
+			Color string `json:"color"`
+		} `json:"tags"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Tags) != 1 {
+		t.Fatalf("expected 1 tag in response, got %d", len(resp.Tags))
+	}
+	if resp.Tags[0].ID != tagID.String() {
+		t.Errorf("tag ID mismatch: got %q, want %q", resp.Tags[0].ID, tagID.String())
+	}
+}
+
+func TestEventHandler_CreateEvent_TagValidationError_Returns400WithDetails(t *testing.T) {
+	userID := uuid.New()
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, _ eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			return eventuc.CreateEventOutput{}, &domain.ValidationError{Details: []domain.ValidationDetail{
+				{Field: testFieldTagIDs, Code: "TOO_MANY", Message: "An event can have at most 5 tags"},
+			}}
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	now := time.Now().UTC()
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: now.Format(time.RFC3339),
+		testKeyEndAt:   now.Add(time.Hour).Format(time.RFC3339),
+		testFieldTagIDs: []string{
+			uuid.New().String(), uuid.New().String(), uuid.New().String(),
+			uuid.New().String(), uuid.New().String(), uuid.New().String(),
+		},
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var body map[string]any
+	_ = json.NewDecoder(w.Body).Decode(&body)
+	if body["code"] != codeValidationError {
+		t.Errorf("expected code VALIDATION_ERROR, got %v", body["code"])
+	}
+	details, ok := body["details"].([]any)
+	if !ok || len(details) == 0 {
+		t.Fatalf("expected validation details in response: %v", body)
+	}
+	detail, ok2 := details[0].(map[string]any)
+	if !ok2 {
+		t.Fatalf("expected detail to be map[string]any, got %T", details[0])
+	}
+	if detail["field"] != testFieldTagIDs {
+		t.Errorf("expected detail field=%s, got %v", testFieldTagIDs, detail["field"])
+	}
+	if detail["code"] != "TOO_MANY" {
+		t.Errorf("expected detail code=TOO_MANY, got %v", detail["code"])
+	}
+}
+
+func TestEventHandler_UpdateEvent_OmittedTagIDs_PassesNilToUseCase(t *testing.T) {
+	userID := uuid.New()
+	eventID := uuid.New()
+	now := time.Now().UTC()
+
+	var capturedInput eventuc.UpdateEventInput
+	updatedEv2, _ := domainevent.New(eventID, userID, "Title", "", now, now.Add(time.Hour), "", "")
+	stub := &stubUpdateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			capturedInput = in
+			return eventuc.UpdateEventOutput{Event: updatedEv2, Tags: []eventuc.EventTagView{}}, nil
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+
+	// No tagIds in request body
+	body := `{"title":"Title","startAt":"` + now.Format(time.RFC3339) +
+		`","endAt":"` + now.Add(time.Hour).Format(time.RFC3339) + `"}`
+	req := putEventRequestAsUser(t, eventID.String(), body)
+	w := httptest.NewRecorder()
+
+	h.UpdateEvent(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if capturedInput.TagIDs != nil {
+		t.Errorf("expected TagIDs nil when omitted, got %v", capturedInput.TagIDs)
+	}
+}
+
+func TestEventHandler_UpdateEvent_EmptyTagIDs_PassesEmptySliceToUseCase(t *testing.T) {
+	userID := uuid.New()
+	eventID := uuid.New()
+	now := time.Now().UTC()
+
+	var capturedInput eventuc.UpdateEventInput
+	updatedEv3, _ := domainevent.New(eventID, userID, "Title", "", now, now.Add(time.Hour), "", "")
+	stub := &stubUpdateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			capturedInput = in
+			return eventuc.UpdateEventOutput{Event: updatedEv3, Tags: []eventuc.EventTagView{}}, nil
+		},
+	}
+
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+
+	body := `{"title":"Title","startAt":"` + now.Format(time.RFC3339) +
+		`","endAt":"` + now.Add(time.Hour).Format(time.RFC3339) + `","tagIds":[]}`
+	req := putEventRequestAsUser(t, eventID.String(), body)
+	w := httptest.NewRecorder()
+
+	h.UpdateEvent(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if capturedInput.TagIDs == nil {
+		t.Error("expected TagIDs to be non-nil (explicit empty slice) when tagIds:[] sent")
+	} else if len(*capturedInput.TagIDs) != 0 {
+		t.Errorf("expected empty TagIDs slice, got len=%d", len(*capturedInput.TagIDs))
 	}
 }

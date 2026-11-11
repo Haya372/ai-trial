@@ -189,3 +189,132 @@ func TestListEventsQuery_Execute_EmptyResult(t *testing.T) {
 		t.Errorf("expected empty result, got %d events", len(result))
 	}
 }
+
+func TestListEventsQuery_Execute_NilTagID_PassesNilToQueryService(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+
+	var capturedFilter eventuc.ListFilter
+	stub := &stubQueryService{
+		fn: func(_ context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			capturedFilter = filter
+			return nil, nil
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(stub)
+	_, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+		TagID:     nil,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedFilter.TagID != nil {
+		t.Errorf("expected TagID nil in filter, got %v", capturedFilter.TagID)
+	}
+}
+
+func TestListEventsQuery_Execute_WithTagID_PassesTagIDToQueryService(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+	tagID := uuid.New()
+
+	var capturedFilter eventuc.ListFilter
+	stub := &stubQueryService{
+		fn: func(_ context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			capturedFilter = filter
+			return nil, nil
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(stub)
+	_, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+		TagID:     &tagID,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedFilter.TagID == nil || *capturedFilter.TagID != tagID {
+		t.Errorf("expected TagID %v in filter, got %v", tagID, capturedFilter.TagID)
+	}
+}
+
+func TestListEventsQuery_Execute_TagsArePassedThrough(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+	tagID := uuid.New()
+
+	stub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{
+				{
+					ID:    uuid.New(),
+					Title: "Tagged event",
+					Tags: []eventuc.EventTagReadModel{
+						{ID: tagID, Name: "Work", Color: "blue"},
+					},
+				},
+				{
+					ID:    uuid.New(),
+					Title: "Untagged event",
+					Tags:  []eventuc.EventTagReadModel{},
+				},
+			}, nil
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(stub)
+	result, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(result))
+	}
+	if len(result[0].Tags) != 1 || result[0].Tags[0].ID != tagID {
+		t.Errorf("expected first event to have tag %v, got %v", tagID, result[0].Tags)
+	}
+	if len(result[1].Tags) != 0 {
+		t.Errorf("expected second event to have no tags, got %d", len(result[1].Tags))
+	}
+}
+
+func TestListEventsQuery_Execute_SubscribedEventTagsPassedThrough(t *testing.T) {
+	userID := uuid.New()
+	now := time.Now()
+
+	stub := &stubQueryService{
+		fn: func(_ context.Context, _ eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
+			return []eventuc.EventReadModel{
+				{
+					ID:           uuid.New(),
+					Title:        "Subscribed event",
+					IsSubscribed: true,
+					Tags:         []eventuc.EventTagReadModel{}, // empty per spec
+				},
+			}, nil
+		},
+	}
+
+	q := eventuc.NewListEventsQuery(stub)
+	result, err := q.Execute(context.Background(), userID, eventuc.ListEventsInput{
+		StartDate: now,
+		EndDate:   now.Add(24 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(result))
+	}
+	if len(result[0].Tags) != 0 {
+		t.Errorf("expected subscribed event to have empty tags, got %d", len(result[0].Tags))
+	}
+}

@@ -34,50 +34,142 @@ func NewEventQueryRepository(pool *pgxpool.Pool, logger *slog.Logger, tp trace.T
 	return &eventQueryRepository{baseRepository{pool: pool, tracer: tp.Tracer(tracerName)}, logger}
 }
 
+// eventListRow is the common shape returned by both tag-aware list queries;
+// it lets aggregateEventRows handle both without duplicating logic.
+type eventListRow struct {
+	ID             pgtype.UUID
+	UserID         pgtype.UUID
+	Title          string
+	Description    pgtype.Text
+	StartAt        pgtype.Timestamptz
+	EndAt          pgtype.Timestamptz
+	Location       pgtype.Text
+	Url            pgtype.Text
+	IsSubscribed   bool
+	SubscriptionID pgtype.UUID
+	TagID          pgtype.UUID
+	TagName        pgtype.Text
+	TagColor       pgtype.Text
+}
+
+// newEventReadModelFromListRow builds an EventReadModel (without tags) from a
+// list-query row. Tags are appended separately after the fact.
+func newEventReadModelFromListRow(row eventListRow) eventuc.EventReadModel {
+	var desc, location, url string
+	if row.Description.Valid {
+		desc = row.Description.String
+	}
+	if row.Location.Valid {
+		location = row.Location.String
+	}
+	if row.Url.Valid {
+		url = row.Url.String
+	}
+	var subscriptionID *uuid.UUID
+	if row.SubscriptionID.Valid {
+		sid := uuid.UUID(row.SubscriptionID.Bytes)
+		subscriptionID = &sid
+	}
+	return eventuc.EventReadModel{
+		ID:             uuid.UUID(row.ID.Bytes),
+		UserID:         uuid.UUID(row.UserID.Bytes),
+		Title:          row.Title,
+		Description:    desc,
+		StartAt:        row.StartAt.Time,
+		EndAt:          row.EndAt.Time,
+		Location:       location,
+		URL:            url,
+		IsSubscribed:   row.IsSubscribed,
+		SubscriptionID: subscriptionID,
+		Tags:           []eventuc.EventTagReadModel{},
+	}
+}
+
+// aggregateEventRows collapses a 1-row-per-tag result set (from both
+// list queries) into one EventReadModel per event in first-seen order.
+func aggregateEventRows(rows []eventListRow) []eventuc.EventReadModel {
+	seen := make(map[uuid.UUID]*eventuc.EventReadModel)
+	order := make([]uuid.UUID, 0, len(rows))
+
+	for _, row := range rows {
+		id := uuid.UUID(row.ID.Bytes)
+		rm, exists := seen[id]
+		if !exists {
+			m := newEventReadModelFromListRow(row)
+			seen[id] = &m
+			order = append(order, id)
+			rm = seen[id]
+		}
+		// A NULL TagID means the LEFT JOIN found no tags (untagged event)
+		// or the UNION ALL subscribed side always sends NULL tags.
+		if row.TagID.Valid && row.TagName.Valid && row.TagColor.Valid {
+			rm.Tags = append(rm.Tags, eventuc.EventTagReadModel{
+				ID:    uuid.UUID(row.TagID.Bytes),
+				Name:  row.TagName.String,
+				Color: row.TagColor.String,
+			})
+		}
+	}
+
+	result := make([]eventuc.EventReadModel, 0, len(order))
+	for _, id := range order {
+		result = append(result, *seen[id])
+	}
+	return result
+}
+
 func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilter) ([]eventuc.EventReadModel, error) {
 	spanCtx, span := r.startDBSpan(ctx, "SELECT", eventsTable)
-	rows, err := r.querier(spanCtx).ListEventsByUserAndDateRange(spanCtx, query.ListEventsByUserAndDateRangeParams{
-		UserID:    toPgUUID(filter.UserID),
-		StartDate: pgtype.Timestamptz{Time: filter.StartDate, Valid: true},
-		EndDate:   pgtype.Timestamptz{Time: filter.EndDate, Valid: true},
-	})
+
+	var rawRows []eventListRow
+	var err error
+	if filter.TagID != nil {
+		var rows []query.ListEventsWithTagsByUserAndDateRangeFilteredByTagRow
+		rows, err = r.querier(spanCtx).ListEventsWithTagsByUserAndDateRangeFilteredByTag(spanCtx,
+			query.ListEventsWithTagsByUserAndDateRangeFilteredByTagParams{
+				TagID:     toPgUUID(*filter.TagID),
+				UserID:    toPgUUID(filter.UserID),
+				StartDate: pgtype.Timestamptz{Time: filter.StartDate, Valid: true},
+				EndDate:   pgtype.Timestamptz{Time: filter.EndDate, Valid: true},
+			})
+		if err == nil {
+			rawRows = make([]eventListRow, len(rows))
+			for i, r := range rows {
+				rawRows[i] = eventListRow{
+					ID: r.ID, UserID: r.UserID, Title: r.Title, Description: r.Description,
+					StartAt: r.StartAt, EndAt: r.EndAt, Location: r.Location, Url: r.Url,
+					IsSubscribed: r.IsSubscribed, SubscriptionID: r.SubscriptionID,
+					TagID: r.TagID, TagName: r.TagName, TagColor: r.TagColor,
+				}
+			}
+		}
+	} else {
+		var rows []query.ListEventsWithTagsByUserAndDateRangeRow
+		rows, err = r.querier(spanCtx).ListEventsWithTagsByUserAndDateRange(spanCtx,
+			query.ListEventsWithTagsByUserAndDateRangeParams{
+				UserID:    toPgUUID(filter.UserID),
+				StartDate: pgtype.Timestamptz{Time: filter.StartDate, Valid: true},
+				EndDate:   pgtype.Timestamptz{Time: filter.EndDate, Valid: true},
+			})
+		if err == nil {
+			rawRows = make([]eventListRow, len(rows))
+			for i, r := range rows {
+				rawRows[i] = eventListRow{
+					ID: r.ID, UserID: r.UserID, Title: r.Title, Description: r.Description,
+					StartAt: r.StartAt, EndAt: r.EndAt, Location: r.Location, Url: r.Url,
+					IsSubscribed: r.IsSubscribed, SubscriptionID: r.SubscriptionID,
+					TagID: r.TagID, TagName: r.TagName, TagColor: r.TagColor,
+				}
+			}
+		}
+	}
+
 	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("list events query failed", "error", err)
 		return nil, fmt.Errorf("list events: %w", err)
 	}
-
-	result := make([]eventuc.EventReadModel, 0, len(rows))
-	for _, row := range rows {
-		var desc, location, url string
-		if row.Description.Valid {
-			desc = row.Description.String
-		}
-		if row.Location.Valid {
-			location = row.Location.String
-		}
-		if row.Url.Valid {
-			url = row.Url.String
-		}
-		var subscriptionID *uuid.UUID
-		if row.SubscriptionID.Valid {
-			id := uuid.UUID(row.SubscriptionID.Bytes)
-			subscriptionID = &id
-		}
-		result = append(result, eventuc.EventReadModel{
-			ID:             uuid.UUID(row.ID.Bytes),
-			UserID:         uuid.UUID(row.UserID.Bytes),
-			Title:          row.Title,
-			Description:    desc,
-			StartAt:        row.StartAt.Time,
-			EndAt:          row.EndAt.Time,
-			Location:       location,
-			URL:            url,
-			IsSubscribed:   row.IsSubscribed,
-			SubscriptionID: subscriptionID,
-		})
-	}
-	return result, nil
+	return aggregateEventRows(rawRows), nil
 }
 
 func (r *eventQueryRepository) FindByID(ctx context.Context, id uuid.UUID) (eventuc.EventReadModel, error) {

@@ -11,6 +11,17 @@ import (
 type ListEventsInput struct {
 	StartDate time.Time
 	EndDate   time.Time
+	// TagID, when non-nil, restricts the result to own events that have this
+	// tag. Subscribed events are excluded when TagID is set.
+	TagID *uuid.UUID
+}
+
+// EventTagReadModel is the tag data embedded in a list-events response.
+// Tags are sorted by ascending position (SQL ORDER BY).
+type EventTagReadModel struct {
+	ID    uuid.UUID
+	Name  string
+	Color string
 }
 
 type EventReadModel struct {
@@ -31,6 +42,9 @@ type EventReadModel struct {
 	// IsSubscribed is true. Callers need it to remove the event from their
 	// calendar via DELETE /subscriptions/{id}.
 	SubscriptionID *uuid.UUID
+	// Tags are the event's attached tags in position order. Untagged events
+	// and subscribed events always have an empty (non-nil) slice.
+	Tags []EventTagReadModel
 }
 
 type ListEventsQuery struct {
@@ -46,6 +60,7 @@ func (q *ListEventsQuery) Execute(ctx context.Context, userID uuid.UUID, in List
 		UserID:    userID,
 		StartDate: in.StartDate,
 		EndDate:   in.EndDate,
+		TagID:     in.TagID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list events: %w", err)

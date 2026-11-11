@@ -1,13 +1,15 @@
--- name: ListEventsByUserAndDateRange :many
--- Unions the user's own events with events they added via EventSubscription
--- (SPEC-004), so the calendar listing read model is built in one query
--- instead of the application layer joining across repositories (ADR-022
--- logical CQRS: the query side owns its own read model). UNION ALL is safe
--- because a user can never subscribe to their own event, so the two halves
--- never overlap.
+-- name: ListEventsWithTagsByUserAndDateRange :many
+-- Unions the user's own events (with tag joins) with subscribed events
+-- (SPEC-004). Tags are LEFT JOINed so untagged events produce one NULL-tag
+-- row; the Go side aggregates rows into EventReadModel per event (ADR-022).
+-- UNION ALL is safe because a user can never subscribe to their own event.
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
-       e.created_at, e.updated_at, FALSE AS is_subscribed, NULL::uuid AS subscription_id
+       e.created_at, e.updated_at,
+       FALSE AS is_subscribed, NULL::uuid AS subscription_id,
+       et.tag_id, et.position, t.name AS tag_name, t.color AS tag_color
 FROM events e
+LEFT JOIN event_tags et ON et.event_id = e.id
+LEFT JOIN tags t ON t.id = et.tag_id
 WHERE e.user_id = sqlc.arg('user_id')
   AND e.end_at > sqlc.arg('start_date')
   AND e.start_at < sqlc.arg('end_date')
@@ -15,14 +17,34 @@ WHERE e.user_id = sqlc.arg('user_id')
 UNION ALL
 
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
-       e.created_at, e.updated_at, TRUE AS is_subscribed, es.id AS subscription_id
+       e.created_at, e.updated_at,
+       TRUE AS is_subscribed, es.id AS subscription_id,
+       NULL::uuid, NULL::smallint, NULL::text, NULL::text
 FROM event_subscriptions es
 JOIN events e ON e.id = es.event_id
 WHERE es.user_id = sqlc.arg('user_id')
   AND e.end_at > sqlc.arg('start_date')
   AND e.start_at < sqlc.arg('end_date')
 
-ORDER BY start_at;
+ORDER BY start_at, subscription_id NULLS FIRST, position NULLS FIRST;
+
+-- name: ListEventsWithTagsByUserAndDateRangeFilteredByTag :many
+-- Returns only events owned by the user that carry a specific tag, together
+-- with ALL their tags (not just the filter tag). Subscribed events are
+-- excluded (SPEC-008: tagId filter applies to own events only).
+SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
+       e.created_at, e.updated_at,
+       FALSE AS is_subscribed, NULL::uuid AS subscription_id,
+       et.tag_id, et.position, t.name AS tag_name, t.color AS tag_color
+FROM events e
+JOIN event_tags et_filter ON et_filter.event_id = e.id
+                         AND et_filter.tag_id = sqlc.arg('tag_id')
+LEFT JOIN event_tags et ON et.event_id = e.id
+LEFT JOIN tags t ON t.id = et.tag_id
+WHERE e.user_id = sqlc.arg('user_id')
+  AND e.end_at > sqlc.arg('start_date')
+  AND e.start_at < sqlc.arg('end_date')
+ORDER BY e.start_at, et.position;
 
 -- name: InsertEvent :one
 INSERT INTO events (id, user_id, title, description, start_at, end_at, location, url)

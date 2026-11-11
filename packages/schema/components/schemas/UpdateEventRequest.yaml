@@ -18,3 +18,12 @@ properties:
     type: ["string", "null"]
   url:
     type: ["string", "null"]
+  tagIds:
+    type: array
+    maxItems: 5
+    items:
+      type: string
+      format: uuid
+    description: >-
+      Tag IDs to attach in attachment order. Max 5, no duplicates, owner-only
+      tags. Omitted means existing tags are kept; empty array removes all tags.

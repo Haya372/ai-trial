@@ -54,14 +54,14 @@ func TestUpdateEventCommand_Execute_ValidInput_UpdatesAndReturnsEvent(t *testing
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if out.Title() != newTitle {
-		t.Errorf("title mismatch: got %q", out.Title())
+	if out.Event.Title() != newTitle {
+		t.Errorf("title mismatch: got %q", out.Event.Title())
 	}
-	if out.Location() != testLocation {
-		t.Errorf("location mismatch: got %q", out.Location())
+	if out.Event.Location() != testLocation {
+		t.Errorf("location mismatch: got %q", out.Event.Location())
 	}
-	if out.URL() != testURL {
-		t.Errorf("url mismatch: got %q", out.URL())
+	if out.Event.URL() != testURL {
+		t.Errorf("url mismatch: got %q", out.Event.URL())
 	}
 }
 
@@ -74,9 +74,8 @@ func TestUpdateEventCommand_Execute_EndAtBeforeStartAt_ReturnsValidationError(t 
 	start := time.Now().UTC()
 	end := start.Add(time.Hour)
 
-	existing, _ := domainevent.New(eventID, userID, "Old title", "", start, end, "", "")
-	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
-
+	// Body validation fails before entering the transaction, so FindByIDForUpdate
+	// must NOT be called.
 	cmd := eventuc.NewUpdateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
@@ -98,9 +97,8 @@ func TestUpdateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 	start := time.Now().UTC()
 	end := start.Add(time.Hour)
 
-	existing, _ := domainevent.New(eventID, userID, "Old title", "", start, end, "", "")
-	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
-
+	// Body validation fails before entering the transaction, so FindByIDForUpdate
+	// must NOT be called.
 	cmd := eventuc.NewUpdateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
@@ -276,7 +274,7 @@ func TestUpdateEventCommand_Execute_KeepsExistingTagsLockedForShare(t *testing.T
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	assertEventTags(t, out.Tags(), existing.Tags())
+	assertEventTags(t, out.Event.Tags(), existing.Tags())
 }
 
 func TestUpdateEventCommand_Execute_DropsTagDeletedConcurrently(t *testing.T) {
@@ -309,7 +307,7 @@ func TestUpdateEventCommand_Execute_DropsTagDeletedConcurrently(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	assertEventTags(t, out.Tags(), want)
+	assertEventTags(t, out.Event.Tags(), want)
 }
 
 func TestUpdateEventCommand_Execute_TagLockError_ReturnsErrorWithoutUpdate(t *testing.T) {
@@ -368,5 +366,171 @@ func TestUpdateEventCommand_Execute_FindsAndUpdatesInsideTransaction(t *testing.
 		EndAt:   end,
 	}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUpdateEventCommand_Execute_NilTagIDs_KeepsExistingTags(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	t1 := uuid.New()
+	existing := newTaggedEvent(t, eventID, userID, t1)
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
+	tagRepo.EXPECT().FindByIDsForShare(gomock.Any(), []uuid.UUID{t1}).Return(
+		[]tag.Tag{newStoredTag(t, t1, userID)},
+		nil,
+	)
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+
+	cmd := eventuc.NewUpdateEventCommand(repo, tagRepo, &testutil.StubTxManager{}, testLogger)
+	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
+		TagIDs: nil, // nil = keep existing
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertEventTags(t, out.Event.Tags(), existing.Tags())
+}
+
+func TestUpdateEventCommand_Execute_EmptyTagIDs_RemovesAllTags(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	existing := newTaggedEvent(t, eventID, userID, uuid.New())
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
+	// FindByIDsForShare should NOT be called for an explicit empty list replacement.
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, e domainevent.Event) error {
+			if len(e.Tags()) != 0 {
+				t.Errorf("expected event to have no tags after empty tagIds, got %d", len(e.Tags()))
+			}
+			return nil
+		},
+	)
+
+	emptyTagIDs := []uuid.UUID{}
+	cmd := eventuc.NewUpdateEventCommand(repo, tagRepo, &testutil.StubTxManager{}, testLogger)
+	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
+		TagIDs: &emptyTagIDs,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out.Event.Tags()) != 0 {
+		t.Errorf("expected empty tags after empty tagIds, got %d", len(out.Event.Tags()))
+	}
+}
+
+func TestUpdateEventCommand_Execute_ReplaceTagIDs_UpdatesToNewTags(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	oldTag := uuid.New()
+	newTag1, newTag2 := uuid.New(), uuid.New()
+	existing := newTaggedEvent(t, eventID, userID, oldTag)
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
+	tagRepo.EXPECT().FindByIDsForShare(gomock.Any(), []uuid.UUID{newTag1, newTag2}).Return(
+		[]tag.Tag{newStoredTag(t, newTag1, userID), newStoredTag(t, newTag2, userID)},
+		nil,
+	)
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+
+	newTagIDs := []uuid.UUID{newTag1, newTag2}
+	cmd := eventuc.NewUpdateEventCommand(repo, tagRepo, &testutil.StubTxManager{}, testLogger)
+	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
+		TagIDs: &newTagIDs,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out.Tags) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(out.Tags))
+	}
+	if out.Tags[0].ID != newTag1 {
+		t.Errorf("tags[0] mismatch: got %v, want %v", out.Tags[0].ID, newTag1)
+	}
+	if out.Tags[1].ID != newTag2 {
+		t.Errorf("tags[1] mismatch: got %v, want %v", out.Tags[1].ID, newTag2)
+	}
+}
+
+func TestUpdateEventCommand_Execute_TooManyReplacementTags_ReturnsValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	start := time.Now().UTC()
+	end := start.Add(time.Hour)
+
+	// Tag count validation fails before entering the transaction, so FindByIDForUpdate
+	// must NOT be called.
+	tooMany := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()}
+	cmd := eventuc.NewUpdateEventCommand(repo, tagRepo, &testutil.StubTxManager{}, testLogger)
+	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: start, EndAt: end,
+		TagIDs: &tooMany,
+	})
+	if err == nil {
+		t.Fatal("expected validation error for too many tags, got nil")
+	}
+	var ve *domain.ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected *domain.ValidationError, got %T: %v", err, err)
+	}
+	if len(ve.Details) == 0 || ve.Details[0].Field != fieldTagIDs || ve.Details[0].Code != codeTooMany {
+		t.Errorf("expected tagIds TOO_MANY, got: %v", ve.Details)
+	}
+}
+
+func TestUpdateEventCommand_Execute_ForeignReplacementTag_ReturnsValidationError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	otherUserID := uuid.New()
+	eventID := uuid.New()
+	foreignTag := uuid.New()
+	existing, _ := domainevent.New(eventID, userID, "Title", "", time.Now(), time.Now().Add(time.Hour), "", "")
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
+	// FindByIDsForShare returns tag owned by another user.
+	tagRepo.EXPECT().FindByIDsForShare(gomock.Any(), []uuid.UUID{foreignTag}).Return(
+		[]tag.Tag{newStoredTag(t, foreignTag, otherUserID)},
+		nil,
+	)
+
+	tagIDs := []uuid.UUID{foreignTag}
+	cmd := eventuc.NewUpdateEventCommand(repo, tagRepo, &testutil.StubTxManager{}, testLogger)
+	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
+		TagIDs: &tagIDs,
+	})
+	if err == nil {
+		t.Fatal("expected validation error for foreign tag, got nil")
+	}
+	var ve *domain.ValidationError
+	if !errors.As(err, &ve) {
+		t.Fatalf("expected *domain.ValidationError, got %T: %v", err, err)
+	}
+	if len(ve.Details) == 0 || ve.Details[0].Field != fieldTagIDs || ve.Details[0].Code != codeNotFound {
+		t.Errorf("expected tagIds NOT_FOUND, got: %v", ve.Details)
 	}
 }
