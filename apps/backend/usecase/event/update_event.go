@@ -130,27 +130,15 @@ func (c *UpdateEventCommand) replaceTagsInTx(
 	return newEventTags, tagViews, nil
 }
 
-// keepTagsInTx re-locks the existing tag rows (FOR SHARE) and drops any that
-// have been deleted since the event was last read.
-func (c *UpdateEventCommand) keepTagsInTx(
-	ctx context.Context, existing []domainevent.EventTag,
-) ([]domainevent.EventTag, []EventTagView, error) {
-	keptTags, err := c.lockKeptTags(ctx, existing)
-	if err != nil {
-		return nil, nil, err
-	}
-	return keptTags, eventTagsToViews(keptTags), nil
-}
-
-// lockKeptTags locks the rows of the tags being carried over (FOR SHARE) so
+// keepTagsInTx locks the rows of the tags being carried over (FOR SHARE) so
 // they cannot be deleted before Update writes them back, and drops any tag
 // already deleted since the event was read: writing it back would fail the
-// event_tags foreign key.
-func (c *UpdateEventCommand) lockKeptTags(
+// event_tags foreign key. The kept tags and their views keep the original order.
+func (c *UpdateEventCommand) keepTagsInTx(
 	ctx context.Context, tags []domainevent.EventTag,
-) ([]domainevent.EventTag, error) {
+) ([]domainevent.EventTag, []EventTagView, error) {
 	if len(tags) == 0 {
-		return tags, nil
+		return tags, nil, nil
 	}
 	ids := make([]uuid.UUID, len(tags))
 	for i, t := range tags {
@@ -158,29 +146,26 @@ func (c *UpdateEventCommand) lockKeptTags(
 	}
 	locked, err := c.tagRepo.FindByIDsForShare(ctx, ids)
 	if err != nil {
-		return nil, fmt.Errorf("lock event tags: %w", err)
+		return nil, nil, fmt.Errorf("lock event tags: %w", err)
 	}
 
-	present := make(map[uuid.UUID]struct{}, len(locked))
+	byID := make(map[uuid.UUID]tag.Tag, len(locked))
 	for _, t := range locked {
-		present[t.ID()] = struct{}{}
+		byID[t.ID()] = t
 	}
 	kept := make([]domainevent.EventTag, 0, len(tags))
-	for _, t := range tags {
-		if _, ok := present[t.TagID()]; ok {
-			kept = append(kept, t)
+	views := make([]EventTagView, 0, len(tags))
+	for _, et := range tags {
+		t, ok := byID[et.TagID()]
+		if !ok {
+			continue
 		}
+		kept = append(kept, et)
+		views = append(views, EventTagView{
+			ID:    t.ID(),
+			Name:  string(t.Name()),
+			Color: string(t.Color()),
+		})
 	}
-	return kept, nil
-}
-
-// eventTagsToViews converts EventTag slice to EventTagView slice. The
-// nil-TagIDs path uses existing tags; the handler builds the full response
-// from out.Event.Tags() for the nil-TagIDs (kept-tags) path.
-func eventTagsToViews(tags []domainevent.EventTag) []EventTagView {
-	views := make([]EventTagView, len(tags))
-	for i, t := range tags {
-		views[i] = EventTagView{ID: t.TagID()}
-	}
-	return views
+	return kept, views, nil
 }

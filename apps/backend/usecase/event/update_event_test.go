@@ -397,6 +397,44 @@ func TestUpdateEventCommand_Execute_NilTagIDs_KeepsExistingTags(t *testing.T) {
 	assertEventTags(t, out.Event.Tags(), existing.Tags())
 }
 
+func TestUpdateEventCommand_Execute_NilTagIDs_ReturnsKeptTagViewsInOrder(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	eventID := uuid.New()
+	t1, t2, t3 := uuid.New(), uuid.New(), uuid.New()
+	existing := newTaggedEvent(t, eventID, userID, t1, t2, t3)
+	stored1, stored3 := newStoredTag(t, t1, userID), newStoredTag(t, t3, userID)
+
+	// Locked rows come back in a different order and t2 was deleted concurrently.
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
+	tagRepo.EXPECT().FindByIDsForShare(gomock.Any(), []uuid.UUID{t1, t2, t3}).
+		Return([]tag.Tag{stored3, stored1}, nil)
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+
+	cmd := eventuc.NewUpdateEventCommand(repo, tagRepo, &testutil.StubTxManager{}, testLogger)
+	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []eventuc.EventTagView{
+		{ID: t1, Name: string(stored1.Name()), Color: string(stored1.Color())},
+		{ID: t3, Name: string(stored3.Name()), Color: string(stored3.Color())},
+	}
+	if len(out.Tags) != len(want) {
+		t.Fatalf("expected %d tag views, got %d", len(want), len(out.Tags))
+	}
+	for i := range want {
+		if out.Tags[i] != want[i] {
+			t.Errorf("tags[%d] mismatch: got %+v, want %+v", i, out.Tags[i], want[i])
+		}
+	}
+}
+
 func TestUpdateEventCommand_Execute_EmptyTagIDs_RemovesAllTags(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := eventmock.NewMockRepository(ctrl)
