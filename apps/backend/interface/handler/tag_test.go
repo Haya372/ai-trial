@@ -82,7 +82,8 @@ func TestTagHandler_CreateTag_Success_Returns201(t *testing.T) {
 			return domaintag.New(tagID, userID, domaintag.TagName(testTagName), domaintag.ColorTeal), nil
 		},
 	}
-	h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger)
+
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":" Work ","color":"teal"}`, &userID))
@@ -108,7 +109,9 @@ func TestTagHandler_CreateTag_Success_Returns201(t *testing.T) {
 }
 
 func TestTagHandler_CreateTag_Unauthorized_Returns401(t *testing.T) {
-	h := handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(
+		&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger,
+	)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"red"}`, nil))
@@ -120,7 +123,9 @@ func TestTagHandler_CreateTag_Unauthorized_Returns401(t *testing.T) {
 
 func TestTagHandler_CreateTag_InvalidJSON_Returns400WithoutDetails(t *testing.T) {
 	userID := uuid.New()
-	h := handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(
+		&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger,
+	)
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":`, &userID))
@@ -146,7 +151,8 @@ func TestTagHandler_CreateTag_ValidationError_Returns400WithDetails(t *testing.T
 			}}
 		},
 	}
-	h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger)
+
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"black"}`, &userID))
@@ -172,7 +178,8 @@ func TestTagHandler_CreateTag_Conflict_Returns409WithoutDetails(t *testing.T) {
 					return nil, domainErr
 				},
 			}
-			h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, testLogger)
+			h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger)
+
 			w := httptest.NewRecorder()
 
 			h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"red"}`, &userID))
@@ -199,7 +206,8 @@ func TestTagHandler_CreateTag_InternalError_Returns500(t *testing.T) {
 		},
 	}
 	logger, logs := newBufferLogger()
-	h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, logger)
+	h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, &stubDeleteTagExec{}, logger)
+
 	w := httptest.NewRecorder()
 
 	h.CreateTag(w, createTagRequest(t, `{"name":"work","color":"red"}`, &userID))
@@ -258,7 +266,8 @@ func TestTagHandler_ListTags_Success_Returns200InGivenOrder(t *testing.T) {
 			}, nil
 		},
 	}
-	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger)
+
 	w := httptest.NewRecorder()
 
 	h.ListTags(w, listTagsRequest(t, &userID))
@@ -301,7 +310,8 @@ func TestTagHandler_ListTags_NoTags_ReturnsEmptyArray(t *testing.T) {
 			return nil, nil
 		},
 	}
-	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger)
+
 	w := httptest.NewRecorder()
 
 	h.ListTags(w, listTagsRequest(t, &userID))
@@ -315,7 +325,9 @@ func TestTagHandler_ListTags_NoTags_ReturnsEmptyArray(t *testing.T) {
 }
 
 func TestTagHandler_ListTags_Unauthorized_Returns401(t *testing.T) {
-	h := handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, testLogger)
+	h := handler.NewTagHandler(
+		&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger,
+	)
 	w := httptest.NewRecorder()
 
 	h.ListTags(w, listTagsRequest(t, nil))
@@ -333,7 +345,8 @@ func TestTagHandler_ListTags_InternalError_Returns500(t *testing.T) {
 		},
 	}
 	logger, logs := newBufferLogger()
-	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, &stubUpdateTagExec{}, logger)
+	h := handler.NewTagHandler(stub, &stubCreateTagExec{}, &stubUpdateTagExec{}, &stubDeleteTagExec{}, logger)
+
 	w := httptest.NewRecorder()
 
 	h.ListTags(w, listTagsRequest(t, &userID))
@@ -378,7 +391,7 @@ func updateTagRequest(t *testing.T, id, body string, userID *uuid.UUID) *http.Re
 }
 
 func newUpdateTagHandler(stub *stubUpdateTagExec, logger *slog.Logger) *handler.TagHandler {
-	return handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, stub, logger)
+	return handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, stub, &stubDeleteTagExec{}, logger)
 }
 
 func TestTagHandler_UpdateTag_Success_Returns200WithEventCount(t *testing.T) {
@@ -545,6 +558,127 @@ func TestTagHandler_UpdateTag_InternalError_Returns500(t *testing.T) {
 	newUpdateTagHandler(stub, logger).UpdateTag(
 		w, updateTagRequest(t, uuid.NewString(), `{"name":"work","color":"red"}`, &userID),
 	)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", w.Code)
+	}
+	if !strings.Contains(logs.String(), errInternal.Error()) {
+		t.Errorf("expected the internal error to be logged, got:\n%s", logs.String())
+	}
+}
+
+type stubDeleteTagExec struct {
+	fn func(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+}
+
+func (s *stubDeleteTagExec) Execute(ctx context.Context, userID uuid.UUID, id uuid.UUID) error {
+	if s.fn == nil {
+		return errUnexpected
+	}
+	return s.fn(ctx, userID, id)
+}
+
+func deleteTagRequest(t *testing.T, id string, userID *uuid.UUID) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, "/tags/"+id, http.NoBody)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, rctx)
+	if userID != nil {
+		ctx = context.WithValue(ctx, ctxkey.User, newStubUser(*userID, "u@ex.com", "U"))
+	}
+	return req.WithContext(ctx)
+}
+
+func newDeleteTagHandler(stub *stubDeleteTagExec, logger *slog.Logger) *handler.TagHandler {
+	return handler.NewTagHandler(&stubListTagsExec{}, &stubCreateTagExec{}, &stubUpdateTagExec{}, stub, logger)
+}
+
+func TestTagHandler_DeleteTag_Success_Returns204(t *testing.T) {
+	userID := uuid.New()
+	tagID := uuid.New()
+
+	stub := &stubDeleteTagExec{
+		fn: func(_ context.Context, uid uuid.UUID, id uuid.UUID) error {
+			if uid != userID {
+				t.Errorf("userID: got %v, want %v", uid, userID)
+			}
+			if id != tagID {
+				t.Errorf("id: got %v, want %v", id, tagID)
+			}
+			return nil
+		},
+	}
+	w := httptest.NewRecorder()
+
+	newDeleteTagHandler(stub, testLogger).DeleteTag(w, deleteTagRequest(t, tagID.String(), &userID))
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+	if w.Body.Len() != 0 {
+		t.Errorf("expected an empty body, got %q", w.Body.String())
+	}
+}
+
+func TestTagHandler_DeleteTag_Unauthorized_Returns401(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	newDeleteTagHandler(&stubDeleteTagExec{}, testLogger).DeleteTag(w, deleteTagRequest(t, uuid.NewString(), nil))
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestTagHandler_DeleteTag_InvalidID_Returns400(t *testing.T) {
+	userID := uuid.New()
+	w := httptest.NewRecorder()
+
+	// The stub fails the test through errUnexpected if the usecase is reached.
+	newDeleteTagHandler(&stubDeleteTagExec{}, testLogger).DeleteTag(w, deleteTagRequest(t, "not-a-uuid", &userID))
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	code, details := decodeErrorBody(t, w)
+	if code != "VALIDATION_ERROR" {
+		t.Errorf("code: got %q, want VALIDATION_ERROR", code)
+	}
+	if len(details) != 0 {
+		t.Errorf("expected no details, got %v", details)
+	}
+}
+
+func TestTagHandler_DeleteTag_NotFound_Returns404(t *testing.T) {
+	userID := uuid.New()
+	stub := &stubDeleteTagExec{
+		fn: func(context.Context, uuid.UUID, uuid.UUID) error { return domaintag.ErrTagNotFound },
+	}
+	w := httptest.NewRecorder()
+
+	newDeleteTagHandler(stub, testLogger).DeleteTag(w, deleteTagRequest(t, uuid.NewString(), &userID))
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+	if code, _ := decodeErrorBody(t, w); code != "NOT_FOUND" {
+		t.Errorf("code: got %q, want NOT_FOUND", code)
+	}
+}
+
+func TestTagHandler_DeleteTag_InternalError_Returns500(t *testing.T) {
+	userID := uuid.New()
+	stub := &stubDeleteTagExec{
+		fn: func(context.Context, uuid.UUID, uuid.UUID) error { return errInternal },
+	}
+	logger, logs := newBufferLogger()
+	w := httptest.NewRecorder()
+
+	newDeleteTagHandler(stub, logger).DeleteTag(w, deleteTagRequest(t, uuid.NewString(), &userID))
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("expected 500, got %d", w.Code)

@@ -33,17 +33,26 @@ type UpdateTagExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in taguc.UpdateTagInput) (domaintag.Tag, int, error)
 }
 
+// DeleteTagExecutor is satisfied by taguc.DeleteTagCommand. It is kept as its
+// own port like DeleteEventExecutor: different usecase, coincidentally same shape.
+//
+//nolint:iface
+type DeleteTagExecutor interface {
+	Execute(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
+}
+
 type TagHandler struct {
 	listTags  ListTagsExecutor
 	createTag CreateTagExecutor
 	updateTag UpdateTagExecutor
+	deleteTag DeleteTagExecutor
 	logger    *slog.Logger
 }
 
 func NewTagHandler(
-	l ListTagsExecutor, c CreateTagExecutor, u UpdateTagExecutor, logger *slog.Logger,
+	l ListTagsExecutor, c CreateTagExecutor, u UpdateTagExecutor, d DeleteTagExecutor, logger *slog.Logger,
 ) *TagHandler {
-	return &TagHandler{listTags: l, createTag: c, updateTag: u, logger: logger}
+	return &TagHandler{listTags: l, createTag: c, updateTag: u, deleteTag: d, logger: logger}
 }
 
 // ListTags handles GET /tags.
@@ -169,6 +178,29 @@ func (h *TagHandler) UpdateTag(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(out)
+}
+
+// DeleteTag handles DELETE /tags/{id}.
+func (h *TagHandler) DeleteTag(w http.ResponseWriter, r *http.Request) {
+	u, ok := r.Context().Value(ctxkey.User).(user.User)
+	if !ok || u == nil {
+		h.logger.Warn("unauthorized access to DELETE /tags/{id}", "path", route.Pattern(r))
+		response.WriteError(w, http.StatusUnauthorized, errCodeUnauthorized, "Authentication required")
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid tag id")
+		return
+	}
+
+	if err := h.deleteTag.Execute(r.Context(), u.ID(), id); err != nil {
+		h.writeTagError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // writeTagError reports a duplicate name and the tag limit with the same 409
