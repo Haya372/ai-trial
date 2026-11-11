@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	sessionmock "github.com/Haya372/ai-trial/backend/domain/session/generated"
 	"github.com/Haya372/ai-trial/backend/domain/user"
@@ -176,11 +177,16 @@ func TestLoginCommand_Execute_InvalidEmailFormat_ReturnsEmailValidationError(t *
 		sessionmock.NewMockRepository(ctrl),
 		testutil.FixedClock{},
 	)
+	// "a@b" passes the OpenAPI email format (net/mail) but fails user.NewEmail.
 	_, err := cmd.Execute(context.Background(), authuc.LoginInput{
-		Email:    "not-an-email",
+		Email:    "a@b",
 		Password: testPassword,
 	})
-	if !errors.Is(err, user.ErrInvalidEmail) {
-		t.Errorf("expected ErrInvalidEmail, got %v", err)
+	ve, ok := errors.AsType[*domain.ValidationError](err)
+	if !ok {
+		t.Fatalf("expected *ValidationError, got %T: %v", err, err)
+	}
+	if len(ve.Details) != 1 || ve.Details[0].Field != "email" || ve.Details[0].Code != user.CodeInvalidEmailFormat {
+		t.Errorf("expected email INVALID_FORMAT detail, got %+v", ve.Details)
 	}
 }

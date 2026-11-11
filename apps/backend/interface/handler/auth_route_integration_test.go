@@ -325,6 +325,16 @@ func TestRoute_Login_errorCases(t *testing.T) {
 			wantCode: http.StatusUnauthorized,
 		},
 		{
+			// "a@b" passes the OpenAPI email format but fails the domain email check.
+			name: "invalid email format returns 400",
+			reqFn: func() *http.Request {
+				return authBody(t, http.MethodPost, "/auth/login", map[string]string{
+					"email": "a@b", "password": testPassword,
+				})
+			},
+			wantCode: http.StatusBadRequest,
+		},
+		{
 			name: "invalid JSON returns 400",
 			reqFn: func() *http.Request {
 				req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/auth/login",
