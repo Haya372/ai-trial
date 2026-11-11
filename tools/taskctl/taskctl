@@ -35,8 +35,12 @@ container_name() {
   echo "taskctl-$1"
 }
 
+# git は worktree のパスをシンボリックリンクを解決して記録するため、比較できるよう解決しておく
 worktree_path() {
-  echo "$WORKTREE_BASE/$1"
+  local base
+  mkdir -p "$WORKTREE_BASE"
+  base="$(cd "$WORKTREE_BASE" && pwd -P)" || die "cannot resolve $WORKTREE_BASE"
+  echo "$base/$1"
 }
 
 # 作成済みworktreeの .git はコンテナから書き換えられうるため、フックと fsmonitor を常に無効化する
@@ -62,7 +66,6 @@ ensure_worktree() {
   fi
   # 登録されていない既存ディレクトリをマウントすると、ホストの任意のファイルを渡しうる
   [ ! -e "$wt" ] || die "$wt exists but is not a worktree of $REPO_ROOT"
-  mkdir -p "$WORKTREE_BASE"
   # worktree を消してもブランチは残るため、残っていればその作業を引き継ぐ
   if host_git rev-parse --verify --quiet "refs/heads/task/$task" >/dev/null; then
     host_git worktree add "$wt" "task/$task" >&2

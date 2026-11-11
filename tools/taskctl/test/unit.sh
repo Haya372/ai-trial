@@ -74,6 +74,12 @@ call_args() {
   ' "$FAKE_LOG"
 }
 
+# taskctl が使う worktree のパス。git に合わせてシンボリックリンクを解決している
+# （macOS の /tmp は /private/tmp へのシンボリックリンク）
+wt_path() {
+  echo "$(cd "$HOME" && pwd -P)/.taskctl/worktrees/$1"
+}
+
 # 指定した引数を含む git の呼び出しを探して引数を返す
 git_call() {
   local word="$1" i=1 args
@@ -206,7 +212,8 @@ test_start_rejects_extra_arguments() {
 
 test_start_creates_worktree_with_hooks_disabled() {
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
-  local wt="$HOME/.taskctl/worktrees/t1"
+  local wt
+  wt="$(wt_path t1)"
   local args
   args="$(git_call add)" || fail "git worktree add not called"
   assert_pair "$args" "-c" "core.hooksPath=/dev/null"
@@ -217,7 +224,8 @@ test_start_creates_worktree_with_hooks_disabled() {
 }
 
 test_start_reuses_registered_worktree() {
-  local wt="$HOME/.taskctl/worktrees/t1"
+  local wt
+  wt="$(wt_path t1)"
   mkdir -p "$wt"
   export FAKE_WORKTREES="worktree $wt"$'\n'
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
@@ -227,7 +235,8 @@ test_start_reuses_registered_worktree() {
 
 # 一致した行の後に出力が続くと、grep -q が先に終了して git が SIGPIPE で落ちうる
 test_start_reuses_worktree_listed_before_long_output() {
-  local wt="$HOME/.taskctl/worktrees/t1" i
+  local wt i
+  wt="$(wt_path t1)"
   mkdir -p "$wt"
   export FAKE_WORKTREES="worktree $wt"$'\n'
   export FAKE_WORKTREES_TAIL="$WORK/tail.txt"
@@ -237,8 +246,23 @@ test_start_reuses_worktree_listed_before_long_output() {
   true
 }
 
+# git は worktree のパスをシンボリックリンクを解決して記録する（例: macOS の /tmp → /private/tmp）
+test_start_reuses_worktree_when_home_is_a_symlink() {
+  mkdir -p "$WORK/real-home"
+  rm -rf "$HOME"
+  ln -s "$WORK/real-home" "$HOME"
+  local resolved
+  resolved="$(cd "$WORK/real-home" && pwd -P)/.taskctl/worktrees/t1"
+  mkdir -p "$resolved"
+  export FAKE_WORKTREES="worktree $resolved"$'\n'
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  git_call add >/dev/null && fail "git worktree add was called"
+  assert_pair "$(docker_call run)" "--mount" "type=bind,src=$resolved,dst=/workspace"
+}
+
 test_start_does_not_prune_when_worktree_exists() {
-  local wt="$HOME/.taskctl/worktrees/t1"
+  local wt
+  wt="$(wt_path t1)"
   mkdir -p "$wt"
   export FAKE_WORKTREES="worktree $wt"$'\n'
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
@@ -248,7 +272,8 @@ test_start_does_not_prune_when_worktree_exists() {
 
 # ディレクトリを手で消すと、git には prunable な worktree として登録が残る
 test_start_recreates_worktree_whose_directory_was_deleted() {
-  local wt="$HOME/.taskctl/worktrees/t1"
+  local wt
+  wt="$(wt_path t1)"
   export FAKE_WORKTREES="worktree $wt"$'\nprunable gitdir file points to non-existent location\n'
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
   git_call prune >/dev/null || fail "git worktree prune not called"
@@ -259,7 +284,8 @@ test_start_recreates_worktree_whose_directory_was_deleted() {
 # worktree を削除しても task/<task> ブランチは残るため、-b で作り直すと失敗する
 test_start_reuses_leftover_branch() {
   export FAKE_BRANCH_EXISTS=0
-  local wt="$HOME/.taskctl/worktrees/t1" args
+  local wt args
+  wt="$(wt_path t1)"
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
   args="$(git_call add)" || fail "git worktree add not called"
   refute_line "$args" "-b"
@@ -267,7 +293,7 @@ test_start_reuses_leftover_branch() {
 }
 
 test_start_refuses_unregistered_existing_directory() {
-  mkdir -p "$HOME/.taskctl/worktrees/t1"
+  mkdir -p "$(wt_path t1)"
   if bash "$TASKCTL" start t1 2>/dev/null; then
     fail "accepted a directory that is not a registered worktree"
   fi
@@ -277,7 +303,8 @@ test_start_refuses_unregistered_existing_directory() {
 
 test_start_runs_container_with_fixed_security_options() {
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
-  local args wt="$HOME/.taskctl/worktrees/t1"
+  local args wt
+  wt="$(wt_path t1)"
   args="$(docker_call run)" || fail "docker run not called"
   assert_pair "$args" "--name" "taskctl-t1"
   assert_pair "$args" "--cap-drop" "ALL"
