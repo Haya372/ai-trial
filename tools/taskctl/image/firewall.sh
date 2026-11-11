@@ -54,7 +54,10 @@ iptables -A OUTPUT -p tcp --dport 443 -m set --match-set "$IPSET" dst -j ACCEPT
 iptables -A OUTPUT -p tcp -j REJECT --reject-with tcp-reset
 iptables -A OUTPUT -j REJECT --reject-with icmp-port-unreachable
 
-# ipset は IPv4 のみを扱うため、IPv6 はすべて拒否する
+# ipset は IPv4 のみを扱うため、IPv6 はループバック以外を拒否する。
+# Node などは localhost を ::1 に解決するので、::1 を塞ぐとコンテナ内のローカルサーバーにつながらない
 ip6tables -P INPUT DROP
 ip6tables -P FORWARD DROP
 ip6tables -P OUTPUT DROP
+ip6tables -A INPUT -i lo -j ACCEPT
+ip6tables -A OUTPUT -o lo -d ::1 -j ACCEPT

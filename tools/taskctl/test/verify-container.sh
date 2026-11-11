@@ -62,6 +62,19 @@ blocked_fails_fast() {
     [ $((SECONDS - start)) -lt 5 ]
 }
 
+# /etc/hosts は localhost を ::1 にも割り当てているため、IPv6 のループバックが通らないと
+# localhost で待ち受けるローカルサーバーにつながらないことがある
+loopback_reachable() {
+  in_container node -e '
+    const net = require("net");
+    const host = process.argv[1];
+    const s = net.createServer((c) => c.end()).listen(0, host, () => {
+      const t = setTimeout(() => process.exit(1), 3000);
+      net.connect({ host, port: s.address().port }, () => process.exit(0))
+        .on("error", () => process.exit(1));
+    });' "$1"
+}
+
 exits_without_net_admin() {
   # 60秒以内に非0で終了すること（動き続けている場合は失敗とみなす）
   local id i code=""
@@ -150,6 +163,8 @@ check "example.com is blocked" refute https_ok https://example.com
 check "direct IP is blocked" refute https_ok https://1.1.1.1
 check "allowed domain on port 80 is blocked" refute https_ok http://registry.npmjs.org
 check "blocked connections fail fast" blocked_fails_fast
+check "loopback 127.0.0.1 is reachable" loopback_reachable 127.0.0.1
+check "loopback ::1 is reachable" loopback_reachable ::1
 
 echo "# ファイアウォールを設定できなければ起動しない"
 check "exits without NET_ADMIN" exits_without_net_admin
