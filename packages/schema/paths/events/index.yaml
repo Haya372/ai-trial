@@ -1,23 +1,23 @@
 get:
   operationId: getEvents
-  summary: List events within a date range
+  summary: List events overlapping a datetime range
   tags:
     - events
   parameters:
-    - name: startDate
+    - name: startAt
       in: query
       required: true
       schema:
         type: string
-        format: date
-      description: Start of the search range (ISO 8601, YYYY-MM-DD)
-    - name: endDate
+        format: date-time
+      description: Start of the search range, inclusive (RFC 3339 in UTC, must end with "Z")
+    - name: endAt
       in: query
       required: true
       schema:
         type: string
-        format: date
-      description: End of the search range (ISO 8601, YYYY-MM-DD)
+        format: date-time
+      description: End of the search range, exclusive (RFC 3339 in UTC, must end with "Z"). Must be after startAt
     - name: tagId
       in: query
       required: false

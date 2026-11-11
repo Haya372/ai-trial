@@ -92,9 +92,10 @@
 
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
-| GET | `/events` | セッションCookie必須 | クエリ: `startDate` (`YYYY-MM-DD`, 必須)、`endDate` (`YYYY-MM-DD`, 必須) | 200: `{ events: EventResponse[] }` — ログイン中ユーザーに紐づく期間内の予定一覧 | 400: クエリ不正 / 401: 未認証 / 500: 内部エラー |
+| GET | `/events` | セッションCookie必須 | クエリ: `startAt` (date-time UTC, 必須)、`endAt` (date-time UTC, 必須) | 200: `{ events: EventResponse[] }` — ログイン中ユーザーに紐づく期間内の予定一覧 | 400: クエリ不正 / 401: 未認証 / 500: 内部エラー |
 
 - エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照する。
+- 日時の形式とタイムゾーンの扱いは [ADR-036](../adr/ADR-036-api-datetime-utc.md) を参照する。
 - 予定の作成・更新・削除 API は SPEC-003、共有関連 API は SPEC-004 を参照する。
 
 #### GET /events
@@ -106,8 +107,10 @@
 | 場所 | フィールド | 型 | 必須 | 制約 | 説明 |
 |---|---|---|---|---|---|
 | cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
-| query | `startDate` | string | 必須 | `YYYY-MM-DD` 形式 | 検索範囲の開始日。UTCの0時として解釈する（クライアントはローカル日付を送るため、UTC以外のタイムゾーンでは範囲の端の予定がずれる） |
-| query | `endDate` | string | 必須 | `YYYY-MM-DD` 形式 | 検索範囲の終了日（この日を含む）。ハンドラ側で `endDate` のUTC 0時 + 1 日を排他的な上限として下位層に渡す |
+| query | `startAt` | string | 必須 | RFC3339、末尾 `Z`（UTC） | 検索範囲の開始日時（この日時を含む）。クライアントは表示期間の初日のローカル0時をUTCに変換して送る |
+| query | `endAt` | string | 必須 | RFC3339、末尾 `Z`（UTC）。`startAt` より後 | 検索範囲の終了日時（この日時を含まない）。クライアントは表示期間の翌日のローカル0時をUTCに変換して送る |
+
+検索範囲と重なる予定（`end_at > startAt` かつ `start_at < endAt`）を返す。
 
 ##### レスポンス（200 OK）
 
@@ -116,8 +119,8 @@
 | `events` | `EventResponse[]` | 否 | 期間内の予定一覧。該当なしの場合は空配列 |
 | `events[].id` | string (uuid) | 否 | 予定ID |
 | `events[].title` | string | 否 | タイトル |
-| `events[].startAt` | string (date-time, RFC3339) | 否 | 開始日時 |
-| `events[].endAt` | string (date-time, RFC3339) | 否 | 終了日時 |
+| `events[].startAt` | string (date-time, RFC3339, UTC) | 否 | 開始日時 |
+| `events[].endAt` | string (date-time, RFC3339, UTC) | 否 | 終了日時 |
 | `events[].description` | string | 否（空のときはフィールドごと省略する） | メモ |
 | `events[].location` | string | 否（空のときはフィールドごと省略する） | 場所（SPEC-003で追加） |
 | `events[].url` | string | 否（空のときはフィールドごと省略する） | 関連URL（SPEC-003で追加） |
@@ -128,7 +131,7 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 400 | `VALIDATION_ERROR` | - | `startDate` または `endDate` が未指定、または `YYYY-MM-DD` として解釈できない |
+| 400 | `VALIDATION_ERROR` | - | `startAt` または `endAt` が未指定、RFC3339として解釈できない、末尾が `Z` でない、または `endAt` が `startAt` 以前 |
 | 401 | `UNAUTHORIZED` | - | セッションCookieが無い、無効、または対応するユーザーを解決できない |
 | 500 | `INTERNAL_ERROR` | - | 下位層のクエリ実行失敗、またはレスポンスのJSONエンコードに失敗 |
 
@@ -144,8 +147,8 @@ sequenceDiagram
     participant UI as 画面
     participant API as API
     User->>UI: カレンダー画面を開く（月ビュー）
-    Note over UI: currentDate = 現在日時<br/>startDate = 当月の月初<br/>endDate = 当月の月末
-    UI->>API: GET /events?startDate&endDate
+    Note over UI: currentDate = 現在日時<br/>startAt = 当月1日のローカル0時（UTC）<br/>endAt = 翌月1日のローカル0時（UTC）
+    UI->>API: GET /events?startAt&endAt
     API-->>UI: 200 { events: EventResponse[] }
     Note over UI: 各 event の startAt / endAt に基づき<br/>日セルへ配置して描画
 ```
@@ -160,8 +163,8 @@ sequenceDiagram
     participant UI as 画面
     participant API as API
     User->>UI: カレンダー画面を開く（週ビュー）
-    Note over UI: currentDate = 現在日時<br/>startDate = currentDate を含む週の日曜<br/>endDate = 同週の土曜
-    UI->>API: GET /events?startDate&endDate
+    Note over UI: currentDate = 現在日時<br/>startAt = currentDate を含む週の日曜のローカル0時（UTC）<br/>endAt = 翌週の日曜のローカル0時（UTC）
+    UI->>API: GET /events?startAt&endAt
     API-->>UI: 200 { events: EventResponse[] }
     Note over UI: 各 event の startAt / endAt に基づき<br/>曜日 × 時間帯のセルへ配置して描画
 ```
@@ -176,8 +179,8 @@ sequenceDiagram
     participant UI as 画面
     participant API as API
     User->>UI: 「前へ」/「次へ」/「今日」をクリック
-    Note over UI: 月ビュー: currentDate を ±1ヶ月、または現在日時へ<br/>週ビュー: currentDate を ±1週、または現在日時へ<br/>新しい currentDate から startDate / endDate を導出
-    UI->>API: GET /events?startDate&endDate
+    Note over UI: 月ビュー: currentDate を ±1ヶ月、または現在日時へ<br/>週ビュー: currentDate を ±1週、または現在日時へ<br/>新しい currentDate から startAt / endAt を導出
+    UI->>API: GET /events?startAt&endAt
     API-->>UI: 200 { events: EventResponse[] }
     Note over UI: events を再配置して描画し直す
 ```
@@ -192,8 +195,8 @@ sequenceDiagram
     participant UI as 画面
     participant API as API
     User->>UI: 「月」/「週」タブをクリック
-    Note over UI: view を切り替え、currentDate は維持<br/>新しい view に応じて startDate / endDate を導出
-    UI->>API: GET /events?startDate&endDate
+    Note over UI: view を切り替え、currentDate は維持<br/>新しい view に応じて startAt / endAt を導出
+    UI->>API: GET /events?startAt&endAt
     API-->>UI: 200 { events: EventResponse[] }
     Note over UI: 新しいビューで events を描画
 ```
