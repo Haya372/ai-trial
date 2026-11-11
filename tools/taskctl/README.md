@@ -2,6 +2,8 @@
 
 タスクごとに隔離コンテナを起動・停止するラッパー。方式は [ADR-035](../../docs/adr/ADR-035-orchestrator-subagent-coordination.md) を参照。
 
+macOS + Docker Desktop で使う。コンテナ内の `dev`（uid 1000）が worktree に書き込めるのは Docker Desktop のファイル共有が所有者を変換するためで、Linux の Docker Engine ではホストの uid が 1000 以外だと `/workspace` に書き込めない。
+
 ## 使い方
 
 ```bash
