@@ -19,6 +19,7 @@ setup() {
   export FAKE_RUNNING=true
   export FAKE_READY=0
   export FAKE_WORKTREES=""
+  export FAKE_BRANCH_EXISTS=1
   : >"$FAKE_LOG"
 
   # 呼び出しごとに "== <cmd>" の行と、引数を1行ずつ記録する
@@ -48,7 +49,9 @@ for a in "$@"; do
     if [ -n "${FAKE_WORKTREES_TAIL:-}" ]; then cat "$FAKE_WORKTREES_TAIL" || exit; fi
     exit 0
   fi
-  # 引数の最後から2番目がパス（... add -b <branch> <path> <commit>）
+  # FAKE_BRANCH_EXISTS は rev-parse の終了コード（0: ブランチあり）
+  if [ "$a" = "rev-parse" ]; then exit "$FAKE_BRANCH_EXISTS"; fi
+  # 引数の最後から2番目がパス（... add [-b <branch>] <path> <commit-ish>）
   if [ "$a" = "add" ]; then mkdir -p "${@: -2:1}"; fi
 done
 exit 0
@@ -69,6 +72,20 @@ call_args() {
     /^== / { if ($0 == cmd) { i++ } inblock = ($0 == cmd && i == n); next }
     inblock { print }
   ' "$FAKE_LOG"
+}
+
+# 指定した引数を含む git の呼び出しを探して引数を返す
+git_call() {
+  local word="$1" i=1 args
+  while :; do
+    args="$(call_args git "$i")"
+    [ -z "$args" ] && return 1
+    if grep -qxF -- "$word" <<<"$args"; then
+      printf '%s\n' "$args"
+      return 0
+    fi
+    i=$((i + 1))
+  done
 }
 
 # 指定サブコマンド（docker の第1引数）の呼び出しを探して引数を返す
@@ -191,7 +208,7 @@ test_start_creates_worktree_with_hooks_disabled() {
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
   local wt="$HOME/.taskctl/worktrees/t1"
   local args
-  args="$(call_args git 2)"
+  args="$(git_call add)" || fail "git worktree add not called"
   assert_pair "$args" "-c" "core.hooksPath=/dev/null"
   assert_pair "$args" "-c" "core.fsmonitor=false"
   assert_line "$args" "add"
@@ -204,7 +221,8 @@ test_start_reuses_registered_worktree() {
   mkdir -p "$wt"
   export FAKE_WORKTREES="worktree $wt"$'\n'
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
-  refute_line "$(call_args git 2)" "add"
+  git_call add >/dev/null && fail "git worktree add was called"
+  true
 }
 
 # 一致した行の後に出力が続くと、grep -q が先に終了して git が SIGPIPE で落ちうる
@@ -215,7 +233,37 @@ test_start_reuses_worktree_listed_before_long_output() {
   export FAKE_WORKTREES_TAIL="$WORK/tail.txt"
   for ((i = 0; i < 20000; i++)); do echo "worktree /other/path-$i"; done >"$FAKE_WORKTREES_TAIL"
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
-  refute_line "$(call_args git 2)" "add"
+  git_call add >/dev/null && fail "git worktree add was called"
+  true
+}
+
+test_start_does_not_prune_when_worktree_exists() {
+  local wt="$HOME/.taskctl/worktrees/t1"
+  mkdir -p "$wt"
+  export FAKE_WORKTREES="worktree $wt"$'\n'
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  git_call prune >/dev/null && fail "git worktree prune was called"
+  true
+}
+
+# ディレクトリを手で消すと、git には prunable な worktree として登録が残る
+test_start_recreates_worktree_whose_directory_was_deleted() {
+  local wt="$HOME/.taskctl/worktrees/t1"
+  export FAKE_WORKTREES="worktree $wt"$'\nprunable gitdir file points to non-existent location\n'
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  git_call prune >/dev/null || fail "git worktree prune not called"
+  git_call add >/dev/null || fail "git worktree add not called"
+  [ -d "$wt" ] || fail "worktree was not recreated"
+}
+
+# worktree を削除しても task/<task> ブランチは残るため、-b で作り直すと失敗する
+test_start_reuses_leftover_branch() {
+  export FAKE_BRANCH_EXISTS=0
+  local wt="$HOME/.taskctl/worktrees/t1" args
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  args="$(git_call add)" || fail "git worktree add not called"
+  refute_line "$args" "-b"
+  assert_sequence "$args" add "$wt" task/t1
 }
 
 test_start_refuses_unregistered_existing_directory() {

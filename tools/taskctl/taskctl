@@ -56,12 +56,19 @@ ensure_worktree() {
   local task="$1" wt
   wt="$(worktree_path "$task")"
   if is_registered_worktree "$wt"; then
-    return 0
+    [ ! -d "$wt" ] || return 0
+    # ディレクトリが消えても git には登録が残り、マウント元がなく起動できなくなるため登録を消す
+    host_git worktree prune
   fi
   # 登録されていない既存ディレクトリをマウントすると、ホストの任意のファイルを渡しうる
   [ ! -e "$wt" ] || die "$wt exists but is not a worktree of $REPO_ROOT"
   mkdir -p "$WORKTREE_BASE"
-  host_git worktree add -b "task/$task" "$wt" "$BASE_REF" >&2
+  # worktree を消してもブランチは残るため、残っていればその作業を引き継ぐ
+  if host_git rev-parse --verify --quiet "refs/heads/task/$task" >/dev/null; then
+    host_git worktree add "$wt" "task/$task" >&2
+  else
+    host_git worktree add -b "task/$task" "$wt" "$BASE_REF" >&2
+  fi
 }
 
 cmd_build() {
