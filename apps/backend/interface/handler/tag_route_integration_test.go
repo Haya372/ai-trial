@@ -43,6 +43,7 @@ func buildTagTestRouter() *chi.Mux {
 		taguc.NewListTagsQuery(repository.NewTagQueryRepository(routeTestPool, logger, testTracerProvider)),
 		taguc.NewCreateTagCommand(tagRepo, txMgr),
 		taguc.NewUpdateTagCommand(tagRepo, txMgr),
+		taguc.NewDeleteTagCommand(tagRepo, txMgr),
 		logger,
 	)
 
@@ -52,6 +53,7 @@ func buildTagTestRouter() *chi.Mux {
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Get("/tags", tg.ListTags)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Post("/tags", tg.CreateTag)
 	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Put("/tags/{id}", tg.UpdateTag)
+	r.With(mw.RequireAuth(sessRepo, userRepo, logger)).Delete("/tags/{id}", tg.DeleteTag)
 	return r
 }
 
@@ -502,6 +504,108 @@ func TestRoute_UpdateTag_invalidID_returns400(t *testing.T) {
 	cookie := signupAndGetCookie(t, router, "tag-update-400@ex.com")
 
 	rec := putTag(t, router, cookie, "not-a-uuid", `{"name":"work","color":"red"}`)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func deleteTag(t *testing.T, router *chi.Mux, cookie *http.Cookie, id string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodDelete, "/tags/"+id, http.NoBody)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+func rowExists(t *testing.T, query string, args ...any) bool {
+	t.Helper()
+	var exists bool
+	if err := routeTestPool.QueryRow(context.Background(),
+		"SELECT EXISTS ("+query+")", args...,
+	).Scan(&exists); err != nil {
+		t.Fatalf("check row existence: %v", err)
+	}
+	return exists
+}
+
+func TestRoute_DeleteTag_unauthenticated_returns401(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+
+	rec := deleteTag(t, router, nil, uuid.NewString())
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRoute_DeleteTag_success_returns204AndDetachesTagFromEvents(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+	cookie := signupAndGetCookie(t, router, "tag-delete@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC()
+	tagID := insertRouteTestTag(t, userID, "Work", "red", now)
+	keptTagID := insertRouteTestTag(t, userID, "Private", "blue", now)
+	eventID := insertRouteTestEvent(t, userID, "Meeting", now, now.Add(time.Hour))
+	insertRouteTestEventTag(t, eventID, tagID, 1)
+	insertRouteTestEventTag(t, eventID, keptTagID, 2)
+
+	rec := deleteTag(t, router, cookie, tagID)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if rec.Body.Len() != 0 {
+		t.Errorf("expected an empty body, got %q", rec.Body.String())
+	}
+	if rowExists(t, "SELECT 1 FROM tags WHERE id = $1", tagID) {
+		t.Error("expected the tag to be deleted")
+	}
+	if rowExists(t, "SELECT 1 FROM event_tags WHERE tag_id = $1", tagID) {
+		t.Error("expected the tag to be detached from the event")
+	}
+	if !rowExists(t, "SELECT 1 FROM events WHERE id = $1", eventID) {
+		t.Error("expected the event to be kept")
+	}
+	if !rowExists(t, "SELECT 1 FROM event_tags WHERE event_id = $1 AND tag_id = $2", eventID, keptTagID) {
+		t.Error("expected the event's other tag to stay attached")
+	}
+}
+
+func TestRoute_DeleteTag_notOwnedOrMissing_returns404(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+	cookie := signupAndGetCookie(t, router, "tag-delete-404@ex.com")
+	otherCookie := signupAndGetCookie(t, router, "tag-delete-404-other@ex.com")
+	otherID := getUserIDFromCookie(t, router, otherCookie)
+	othersTag := insertRouteTestTag(t, otherID, "Other", "green", time.Now().UTC())
+
+	for name, id := range map[string]string{"another user's tag": othersTag, "missing tag": uuid.NewString()} {
+		t.Run(name, func(t *testing.T) {
+			rec := deleteTag(t, router, cookie, id)
+
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+	if !rowExists(t, "SELECT 1 FROM tags WHERE id = $1", othersTag) {
+		t.Error("expected another user's tag to be kept")
+	}
+}
+
+func TestRoute_DeleteTag_invalidID_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+	cookie := signupAndGetCookie(t, router, "tag-delete-400@ex.com")
+
+	rec := deleteTag(t, router, cookie, "not-a-uuid")
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
