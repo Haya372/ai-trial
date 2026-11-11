@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Haya372/ai-trial/backend/domain"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	"github.com/Haya372/ai-trial/backend/usecase"
@@ -28,7 +29,7 @@ func NewLoginCommand(ur user.Repository, sr session.Repository, clock usecase.Cl
 func (c *LoginCommand) Execute(ctx context.Context, in LoginInput) (*AuthOutput, error) {
 	email, err := user.NewEmail(in.Email)
 	if err != nil {
-		return nil, fmt.Errorf("validate email: %w", err)
+		return nil, &domain.ValidationError{Details: []domain.ValidationDetail{toValidationDetail("email", err)}}
 	}
 
 	u, findErr := c.userRepo.FindByEmail(ctx, email)
