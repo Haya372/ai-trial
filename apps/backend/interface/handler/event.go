@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/oapi-codegen/runtime"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
@@ -77,19 +76,19 @@ func NewEventHandler(
 	return &EventHandler{listEvents: l, createEvent: c, updateEvent: u, deleteEvent: d, logger: logger}
 }
 
-func bindDateParam(r *http.Request, name string, dest any) error {
-	opts := runtime.BindQueryParameterOptions{Type: "string", Format: "date"}
-	return runtime.BindQueryParameterWithOptions("form", true, true, name, r.URL.Query(), dest, opts)
-}
-
 func (h *EventHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var params api.GetEventsParams
-	if err := bindDateParam(r, "startDate", &params.StartDate); err != nil {
-		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "invalid startDate parameter")
+	var err error
+	if params.StartAt, err = parseUTCDateTime(r.URL.Query().Get("startAt")); err != nil {
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "invalid startAt parameter")
 		return
 	}
-	if err := bindDateParam(r, "endDate", &params.EndDate); err != nil {
-		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "invalid endDate parameter")
+	if params.EndAt, err = parseUTCDateTime(r.URL.Query().Get("endAt")); err != nil {
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "invalid endAt parameter")
+		return
+	}
+	if !params.EndAt.After(params.StartAt) {
+		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "endAt must be after startAt")
 		return
 	}
 	h.GetEvents(w, r, params)
@@ -104,8 +103,8 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 	}
 
 	in := eventuc.ListEventsInput{
-		StartDate: params.StartDate.Time,
-		EndDate:   params.EndDate.Add(24 * time.Hour),
+		StartDate: params.StartAt,
+		EndDate:   params.EndAt,
 	}
 	events, err := h.listEvents.Execute(r.Context(), u.ID(), in)
 	if err != nil {
