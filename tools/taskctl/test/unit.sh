@@ -20,6 +20,8 @@ setup() {
   export FAKE_READY=0
   export FAKE_WORKTREES=""
   export FAKE_BRANCH_EXISTS=1
+  # mise.toml の blob ハッシュ（タスクの worktree・origin/main・イメージのラベル）
+  export FAKE_TASK_MISE=h1 FAKE_BASE_MISE=h1 FAKE_IMAGE_MISE=h1
   : >"$FAKE_LOG"
 
   # 呼び出しごとに "== <cmd>" の行と、引数を1行ずつ記録する
@@ -27,7 +29,7 @@ setup() {
 #!/usr/bin/env bash
 { echo "== docker"; printf '%s\n' "$@"; } >>"$FAKE_LOG"
 case "$1" in
-  image) exit 0 ;;
+  image) echo "$FAKE_IMAGE_MISE" ;;
   ps) printf '%s' "${FAKE_STATE:-}" ;;
   inspect) echo "$FAKE_RUNNING" ;;
   exec)
@@ -49,8 +51,14 @@ for a in "$@"; do
     if [ -n "${FAKE_WORKTREES_TAIL:-}" ]; then cat "$FAKE_WORKTREES_TAIL" || exit; fi
     exit 0
   fi
-  # FAKE_BRANCH_EXISTS は rev-parse の終了コード（0: ブランチあり）
-  if [ "$a" = "rev-parse" ]; then exit "$FAKE_BRANCH_EXISTS"; fi
+  if [ "$a" = "rev-parse" ]; then
+    # --verify はブランチの存在確認。FAKE_BRANCH_EXISTS がその終了コード（0: ブランチあり）
+    case " $* " in *" --verify "*) exit "$FAKE_BRANCH_EXISTS" ;; esac
+    echo "$FAKE_BASE_MISE"
+    exit 0
+  fi
+  if [ "$a" = "hash-object" ]; then echo "$FAKE_TASK_MISE"; exit 0; fi
+  if [ "$a" = "show" ]; then echo "content of ${*: -1}"; exit 0; fi
   # 引数の最後から2番目がパス（... add [-b <branch>] <path> <commit-ish>）
   if [ "$a" = "add" ]; then mkdir -p "${@: -2:1}"; fi
 done
@@ -371,6 +379,47 @@ test_start_fails_when_task_is_already_running() {
   docker_call run >/dev/null && fail "docker run was called"
   docker_call rm >/dev/null && fail "docker rm was called"
   true
+}
+
+# イメージのツールはビルド時の mise.toml で入るため、タスクの mise.toml と一致させる
+
+test_start_does_not_build_when_image_matches_task_mise() {
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  docker_call build >/dev/null && fail "docker build was called"
+  true
+}
+
+test_start_rebuilds_stale_image_when_task_matches_base() {
+  export FAKE_TASK_MISE=h2 FAKE_BASE_MISE=h2 FAKE_IMAGE_MISE=h1
+  bash "$TASKCTL" start t1 >/dev/null 2>&1 || fail "start failed"
+  local args
+  args="$(docker_call build)" || fail "docker build not called"
+  assert_pair "$args" "--label" "taskctl.mise-toml=h2"
+  assert_sequence "$(docker_subcommands | grep -xE 'build|run')" build run
+}
+
+test_start_fails_when_task_mise_differs_from_base() {
+  export FAKE_TASK_MISE=h3 FAKE_BASE_MISE=h2 FAKE_IMAGE_MISE=h2
+  local err
+  if err="$(bash "$TASKCTL" start t1 2>&1 >/dev/null)"; then
+    fail "start succeeded with a mismatched mise.toml"
+  fi
+  grep -q "mise.toml" <<<"$err" || fail "unclear error: $err"
+  docker_call build >/dev/null && fail "docker build was called"
+  docker_call run >/dev/null && fail "docker run was called"
+  true
+}
+
+test_build_uses_mise_toml_from_base_ref() {
+  bash "$TASKCTL" build >/dev/null || fail "build failed"
+  local args ctx
+  args="$(docker_call build)" || fail "docker build not called"
+  assert_pair "$args" "--label" "taskctl.mise-toml=h1"
+  git_call origin/main:mise.toml >/dev/null || fail "mise.toml was not read from origin/main"
+  git_call origin/main:.env.example >/dev/null || fail ".env.example was not read from origin/main"
+  # 作業ツリーのファイルではなく、origin/main から取り出したファイルをビルドに渡す
+  ctx="$(awk 'prev == "--build-context" { print; exit } { prev = $0 }' <<<"$args")"
+  [ "$ctx" != "project=$(cd "$TEST_DIR/../../.." && pwd)" ] || fail "built from the working tree"
 }
 
 # ---- stop / status ----

@@ -74,13 +74,31 @@ ensure_worktree() {
   fi
 }
 
+# 実行時は外部からツールを取得できないため、ツールはビルド時に mise.toml から入れる。
+# 新しいタスクは BASE_REF から作るので、作業ツリーではなく BASE_REF の mise.toml を使い、
+# start で比較できるよう blob ハッシュをラベルに残す
 cmd_build() {
-  docker build -t "$IMAGE" --build-context "project=$REPO_ROOT" \
-    -f "$TASKCTL_DIR/image/Dockerfile" "$TASKCTL_DIR/image"
+  local ctx status=0
+  ctx="$(mktemp -d "${TMPDIR:-/tmp}/taskctl-build.XXXXXX")"
+  host_git show "$BASE_REF:mise.toml" >"$ctx/mise.toml" &&
+    host_git show "$BASE_REF:.env.example" >"$ctx/.env.example" &&
+    docker build -t "$IMAGE" \
+      --label "taskctl.mise-toml=$(host_git rev-parse "$BASE_REF:mise.toml")" \
+      --build-context "project=$ctx" \
+      -f "$TASKCTL_DIR/image/Dockerfile" "$TASKCTL_DIR/image" || status=$?
+  rm -rf "$ctx"
+  return "$status"
 }
 
+# タスクの mise.toml がイメージと食い違うと、mise がツールを取得しようとして遮断される
 ensure_image() {
-  docker image inspect "$IMAGE" >/dev/null 2>&1 || cmd_build >&2
+  local task_mise="$1" want have
+  want="$(host_git hash-object --no-filters "$task_mise")"
+  have="$(docker image inspect -f '{{index .Config.Labels "taskctl.mise-toml"}}' "$IMAGE" 2>/dev/null)" || true
+  [ "$want" != "$have" ] || return 0
+  [ "$want" = "$(host_git rev-parse "$BASE_REF:mise.toml")" ] ||
+    die "mise.toml of the task differs from $BASE_REF, so the image cannot provide its tools (update the task branch onto $BASE_REF)"
+  cmd_build >&2
 }
 
 wait_ready() {
@@ -106,7 +124,7 @@ cmd_start() {
   wt="$(worktree_path "$task")"
 
   ensure_worktree "$task"
-  ensure_image
+  ensure_image "$wt/mise.toml"
 
   # Docker やホストの再起動後は、停止した同名コンテナが残り docker run が名前の衝突で失敗する
   case "$(docker ps -a --filter "name=^${name}\$" --format '{{.State}}')" in

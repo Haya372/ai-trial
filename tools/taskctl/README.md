@@ -7,14 +7,15 @@ macOS + Docker Desktop で使う。コンテナ内の `dev`（uid 1000）が wor
 ## 使い方
 
 ```bash
-tools/taskctl/taskctl build          # イメージを作り直す（mise.toml を変更したとき）
-tools/taskctl/taskctl start <task>   # worktree を作成してコンテナを起動する
+tools/taskctl/taskctl build          # origin/main の mise.toml でイメージを作り直す
+tools/taskctl/taskctl start <task>   # worktree を作成してコンテナを起動する（イメージが古ければ作り直す）
 tools/taskctl/taskctl status         # タスクとコンテナの状態を一覧する
 tools/taskctl/taskctl stop <task>    # コンテナを削除する（worktree は残る）
 ```
 
 - `<task>` は英小文字・数字・`-` の40文字以内
 - worktree は `~/.taskctl/worktrees/<task>` に、`origin/main` から `task/<task>` ブランチで作成する。このディレクトリはホストのシェル・IDEで開かない
+- タスクの `mise.toml` が `origin/main` と違うと `start` は失敗する。タスクのブランチを `origin/main` に追従させてから起動する
 
 ## テスト
 
