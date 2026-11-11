@@ -46,6 +46,7 @@ const existingEvent: EventResponse = {
   url: 'https://example.com',
   isSubscribed: false,
   subscriptionId: null,
+  tags: [],
 }
 
 function renderModal(

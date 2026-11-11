@@ -116,6 +116,7 @@ const fullEvent: EventResponse = {
   url: null,
   isSubscribed: false,
   subscriptionId: null,
+  tags: [],
 }
 
 describe('CalendarPage', () => {
