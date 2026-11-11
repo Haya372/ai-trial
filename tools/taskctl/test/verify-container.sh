@@ -55,6 +55,13 @@ https_ok() {
   in_container curl -sS -o /dev/null --max-time 10 "$1"
 }
 
+# 遮断した通信は DROP でタイムアウトまで待たせず、REJECT ですぐ失敗させる
+blocked_fails_fast() {
+  local start=$SECONDS
+  ! in_container curl -sS -o /dev/null --max-time 10 https://1.1.1.1 &&
+    [ $((SECONDS - start)) -lt 5 ]
+}
+
 exits_without_net_admin() {
   # 60秒以内に非0で終了すること（動き続けている場合は失敗とみなす）
   local id i code=""
@@ -142,6 +149,7 @@ check "api.anthropic.com:443 is reachable" https_ok https://api.anthropic.com
 check "example.com is blocked" refute https_ok https://example.com
 check "direct IP is blocked" refute https_ok https://1.1.1.1
 check "allowed domain on port 80 is blocked" refute https_ok http://registry.npmjs.org
+check "blocked connections fail fast" blocked_fails_fast
 
 echo "# ファイアウォールを設定できなければ起動しない"
 check "exits without NET_ADMIN" exits_without_net_admin

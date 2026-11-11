@@ -49,6 +49,11 @@ done
 
 iptables -A OUTPUT -p tcp --dport 443 -m set --match-set "$IPSET" dst -j ACCEPT
 
+# 既定ポリシーの DROP だと、許可外の通信はタイムアウトまで固まる。CDN の IP が起動時の
+# 解決結果から変わったときなどに原因が分かるよう、その場で接続エラーにする
+iptables -A OUTPUT -p tcp -j REJECT --reject-with tcp-reset
+iptables -A OUTPUT -j REJECT --reject-with icmp-port-unreachable
+
 # ipset は IPv4 のみを扱うため、IPv6 はすべて拒否する
 ip6tables -P INPUT DROP
 ip6tables -P FORWARD DROP
