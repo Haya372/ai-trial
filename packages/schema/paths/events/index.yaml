@@ -18,6 +18,15 @@ get:
         type: string
         format: date-time
       description: End of the search range, exclusive (RFC 3339 in UTC, must end with "Z"). Must be after startAt
+    - name: tagId
+      in: query
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: >-
+        If present, return only events the caller owns that have this tag.
+        Subscribed events are not returned.
   responses:
     "200":
       description: List of events

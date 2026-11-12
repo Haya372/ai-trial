@@ -17,6 +17,9 @@ properties:
       - INVALID_CHARACTER
       - INSUFFICIENT_COMPLEXITY
       - INVALID_DATE_RANGE
+      - TOO_MANY
+      - DUPLICATED
+      - NOT_FOUND
     example: "INVALID_FORMAT"
   message:
     type: string

@@ -51,6 +51,8 @@ components:
       $ref: "./components/schemas/InternalErrorResponse.yaml"
     NotFoundErrorResponse:
       $ref: "./components/schemas/NotFoundErrorResponse.yaml"
+    EventTagResponse:
+      $ref: "./components/schemas/EventTagResponse.yaml"
     EventResponse:
       $ref: "./components/schemas/EventResponse.yaml"
     EventsListResponse:

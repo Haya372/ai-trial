@@ -6,6 +6,7 @@ required:
   - endAt
   - isSubscribed
   - subscriptionId
+  - tags
 properties:
   id:
     type: string
@@ -37,3 +38,10 @@ properties:
       The EventSubscription's own ID, set only when isSubscribed is true.
       Pass this to DELETE /subscriptions/{id} to remove the event from the
       caller's calendar.
+  tags:
+    type: array
+    items:
+      $ref: "./EventTagResponse.yaml"
+    description: >-
+      Attached tags in insertion order. Always an empty array for untagged
+      events and for events added via share link (isSubscribed=true).
