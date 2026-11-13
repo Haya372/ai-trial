@@ -113,11 +113,11 @@
 
 ### API設計
 
-エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照。
+エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照。日時の形式とタイムゾーンの扱いは [ADR-036](../adr/ADR-036-api-datetime-utc.md) を参照。
 
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
-| POST | /events/{id}/shares | セッションCookie（必須） | `expiresAt`（ISO 8601、省略可。省略時は予定終了日時） | 201: `{ url: "/share/{token}", expiresAt }` | 400（バリデーション: `BEFORE_EVENT_START`・`NOT_IN_FUTURE`、無効なpath id、リクエストボディ不正）、401、404（予定が存在しない／他ユーザーの予定）、500 |
+| POST | /events/{id}/shares | セッションCookie（必須） | `expiresAt`（RFC3339、末尾 `Z`（UTC）、省略可。省略時は予定終了日時） | 201: `{ url: "/share/{token}", expiresAt }` | 400（バリデーション: `BEFORE_EVENT_START`・`NOT_IN_FUTURE`、無効なpath id、リクエストボディ不正）、401、404（予定が存在しない／他ユーザーの予定）、500 |
 | GET | /shares/{token} | 任意（[ADR-030](../adr/ADR-030-optional-auth-middleware.md) の `OptionalAuth`） | - | 200: `{ title, description?, startAt, endAt, location?, url?, isOwnEvent, isSubscribed }`。`isOwnEvent`・`isSubscribed` は未認証時は `false` | 404（トークン不一致・予定削除済み）、410（有効期限切れ）、500 |
 | POST | /shares/{token}/subscriptions | セッションCookie（必須） | - | 201: `{ id, eventId, createdAt }`（新規作成）/ 200: 同じ形（既存を返す冪等呼び出し） | 401、403（作成者本人による自分の予定の追加）、404、410、500 |
 | DELETE | /subscriptions/{id} | セッションCookie（必須） | - | 204: ボディ無し | 400（無効なpath id）、401、403（他ユーザーのサブスクリプション）、404、500 |
@@ -130,7 +130,7 @@
 |---|---|---|---|---|---|
 | cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
 | path | id | string(uuid) | 必須 | UUID形式 | 共有リンクを発行する予定のID |
-| body | expiresAt | string(date-time) \| null | 任意 | ISO 8601、`BEFORE_EVENT_START`（予定の開始日時以降）と `NOT_IN_FUTURE`（現在時刻より後）の両方を満たすこと。省略／null時は予定終了日時を使い、この2バリデーションはスキップされる | 共有リンクの有効期限 |
+| body | expiresAt | string(date-time) \| null | 任意 | RFC3339、末尾 `Z`（UTC）。`BEFORE_EVENT_START`（予定の開始日時以降）と `NOT_IN_FUTURE`（現在時刻より後）の両方を満たすこと。省略／null時は予定終了日時を使い、この2バリデーションはスキップされる | 共有リンクの有効期限 |
 
 リクエストボディ全体の省略も許容する（その場合は `expiresAt` 省略と同じ扱い）。
 
@@ -146,7 +146,7 @@
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
 | 400 | VALIDATION_ERROR | - | path `id` がUUIDとしてパースできない |
-| 400 | VALIDATION_ERROR | - | リクエストボディがJSONとしてデコードできない |
+| 400 | VALIDATION_ERROR | - | リクエストボディがJSONとしてデコードできない、または `expiresAt` の末尾が `Z` でない |
 | 400 | VALIDATION_ERROR | BEFORE_EVENT_START | `expiresAt` が予定の開始日時より前 |
 | 400 | VALIDATION_ERROR | NOT_IN_FUTURE | `expiresAt` が現在時刻以前 |
 | 401 | UNAUTHORIZED | - | 未認証（セッションCookieが無い／無効） |

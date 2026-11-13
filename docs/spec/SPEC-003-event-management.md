@@ -100,7 +100,7 @@
 | PUT | `/events/{id}` | セッション必須 | `UpdateEventRequest`（`title` / `startAt` / `endAt` 必須、`description` / `location` / `url` 任意） | 200 `EventResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 500 INTERNAL_ERROR |
 | DELETE | `/events/{id}` | セッション必須 | （なし） | 204 No Content | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 500 INTERNAL_ERROR |
 
-エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照する。404 は予定が存在しない場合と他ユーザーの予定にアクセスした場合をまとめて返し、所有関係の有無を漏らさない。
+エラーレスポンスの共通構造（`code` / `message` / `details`）は [ADR-013](../adr/ADR-013-api-error-structure.md) を参照する。日時の形式とタイムゾーンの扱いは [ADR-036](../adr/ADR-036-api-datetime-utc.md) を参照する。404 は予定が存在しない場合と他ユーザーの予定にアクセスした場合をまとめて返し、所有関係の有無を漏らさない。
 
 #### POST /events
 
@@ -110,8 +110,8 @@
 |---|---|---|---|---|---|
 | cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
 | body | `title` | string | 必須 | `minLength: 1`（OpenAPI）、ドメイン層でも空文字を拒否 | 予定タイトル |
-| body | `startAt` | string (date-time, RFC3339) | 必須 | - | 開始日時 |
-| body | `endAt` | string (date-time, RFC3339) | 必須 | `startAt` より厳密に後（同時刻不可。ドメイン層で検証） | 終了日時 |
+| body | `startAt` | string (date-time, RFC3339) | 必須 | 末尾 `Z`（UTC） | 開始日時 |
+| body | `endAt` | string (date-time, RFC3339) | 必須 | 末尾 `Z`（UTC）。`startAt` より厳密に後（同時刻不可。ドメイン層で検証） | 終了日時 |
 | body | `description` | string \| null | 任意 | - | メモ |
 | body | `location` | string \| null | 任意 | - | 場所 |
 | body | `url` | string \| null | 任意 | - | 関連URL。形式検証なし |
@@ -134,7 +134,7 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 400 | `VALIDATION_ERROR` | - | リクエストボディのJSONパースに失敗した場合（`details` は返さない） |
+| 400 | `VALIDATION_ERROR` | - | リクエストボディのJSONパースに失敗した場合、または `startAt` / `endAt` の末尾が `Z` でない場合（`details` は返さない） |
 | 400 | `VALIDATION_ERROR` | `REQUIRED` | `title` が空文字（`details[].field = "title"`） |
 | 400 | `VALIDATION_ERROR` | `INVALID_DATE_RANGE` | `endAt` が `startAt` 以前または同時刻（`details[].field = "endAt"`） |
 | 401 | `UNAUTHORIZED` | - | 認証未通過（セッションCookieが無効または欠落） |
@@ -149,8 +149,8 @@
 | cookie | session_id | string | 必須 | 平文のセッショントークン | `RequireAuth` ミドルウェアが検証する |
 | path | `id` | string (uuid) | 必須 | UUID 形式 | 更新対象の予定ID |
 | body | `title` | string | 必須 | ドメイン層で空文字を拒否（OpenAPIは `minLength` 未宣言） | 予定タイトル |
-| body | `startAt` | string (date-time, RFC3339) | 必須 | - | 開始日時 |
-| body | `endAt` | string (date-time, RFC3339) | 必須 | `startAt` より厳密に後 | 終了日時 |
+| body | `startAt` | string (date-time, RFC3339) | 必須 | 末尾 `Z`（UTC） | 開始日時 |
+| body | `endAt` | string (date-time, RFC3339) | 必須 | 末尾 `Z`（UTC）。`startAt` より厳密に後 | 終了日時 |
 | body | `description` | string \| null | 任意 | - | メモ |
 | body | `location` | string \| null | 任意 | - | 場所 |
 | body | `url` | string \| null | 任意 | - | 関連URL |
@@ -164,7 +164,7 @@
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
 | 400 | `VALIDATION_ERROR` | - | パスの `id` が UUID としてパースできない |
-| 400 | `VALIDATION_ERROR` | - | リクエストボディのJSONパースに失敗した場合 |
+| 400 | `VALIDATION_ERROR` | - | リクエストボディのJSONパースに失敗した場合、または `startAt` / `endAt` の末尾が `Z` でない場合 |
 | 400 | `VALIDATION_ERROR` | `REQUIRED` | `title` が空文字 |
 | 400 | `VALIDATION_ERROR` | `INVALID_DATE_RANGE` | `endAt` が `startAt` 以前または同時刻 |
 | 401 | `UNAUTHORIZED` | - | 認証未通過 |
