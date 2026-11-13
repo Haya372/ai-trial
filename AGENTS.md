@@ -43,6 +43,7 @@ Codex・Gemini CLIは `.agents/skills/` を自動で読み込む。Claude Code�
 ## コマンド実行
 
 - **pnpm**: corepack 経由だとシグネチャ検証エラーが出る。`mise exec -- pnpm <command>` で実行する
+- **生成コード**: oapi-codegen・sqlc・orval・TanStack Routerの生成コードはgitignore対象。ブランチを作成・切り替えた後と、`packages/schema` やSQLを変更した後は、ビルド・テストの前に `mise exec -- pnpm generate` で再生成する
 
 ## 制約
 
