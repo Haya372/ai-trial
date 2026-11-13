@@ -15,6 +15,7 @@ gh            = "2.100.0"
 [env]
 _.file = ".env.example"
 DATABASE_URL = "postgres://{{env.DB_USER}}:{{env.DB_PASSWORD}}@{{env.DB_HOST}}:{{env.DB_PORT}}/{{env.DB_NAME}}?sslmode=disable"
+TURBO_TELEMETRY_DISABLED = "1"
 
 [tasks.git-clean]
 run = "bash scripts/git-clean-branches.sh"
