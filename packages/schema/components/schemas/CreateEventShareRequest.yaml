@@ -4,5 +4,5 @@ properties:
     type: ["string", "null"]
     format: date-time
     description: >-
-      Optional expiry for the share link. Defaults to the event's end time
-      when omitted.
+      Optional expiry for the share link (RFC 3339 in UTC, must end with "Z").
+      Defaults to the event's end time when omitted.

@@ -22,14 +22,16 @@ import (
 )
 
 const (
-	testEventTitle    = "Meeting"
-	testKeyTitle      = "title"
-	testKeyStartAt    = "startAt"
-	testKeyEndAt      = "endAt"
-	testEventLocation = "Tokyo"
-	testEventURL      = "https://example.com"
-	testEventTagColor = "blue"
-	testFieldTagIDs   = "tagIds"
+	testEventTitle     = "Meeting"
+	testKeyTitle       = "title"
+	testKeyStartAt     = "startAt"
+	testCaseZeroOffset = "zero offset instead of Z"
+	testBodyEndAtUTC   = "2026-11-01T01:00:00Z"
+	testKeyEndAt       = "endAt"
+	testEventLocation  = "Tokyo"
+	testEventURL       = "https://example.com"
+	testEventTagColor  = "blue"
+	testFieldTagIDs    = "tagIds"
 )
 
 type stubUpdateEventExec struct {
@@ -165,7 +167,7 @@ func TestEventHandler_ServeHTTP_InvalidRange_Returns400(t *testing.T) {
 		{"date-only endAt", "startAt=" + testRangeStartAt + "&endAt=2026-09-30"},
 		{"offset startAt", "startAt=" + url.QueryEscape("2026-09-01T00:00:00+09:00") + "&endAt=" + testRangeEndAt},
 		{"offset endAt", "startAt=" + testRangeStartAt + "&endAt=" + url.QueryEscape("2026-10-01T00:00:00+09:00")},
-		{"zero offset instead of Z", "startAt=" + url.QueryEscape("2026-08-31T15:00:00+00:00") + "&endAt=" + testRangeEndAt},
+		{testCaseZeroOffset, "startAt=" + url.QueryEscape("2026-08-31T15:00:00+00:00") + "&endAt=" + testRangeEndAt},
 		{"endAt equals startAt", "startAt=" + testRangeStartAt + "&endAt=" + testRangeStartAt},
 		{"endAt before startAt", "startAt=" + testRangeEndAt + "&endAt=" + testRangeStartAt},
 	}
@@ -500,8 +502,8 @@ func TestEventHandler_CreateEvent_Unauthorized_Returns401(t *testing.T) {
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   testEventTitle,
-		testKeyStartAt: time.Now().Format(time.RFC3339),
-		testKeyEndAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+		testKeyStartAt: time.Now().UTC().Format(time.RFC3339),
+		testKeyEndAt:   time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
 	})
 	w := httptest.NewRecorder()
 
@@ -550,8 +552,8 @@ func TestEventHandler_CreateEvent_ValidationError_Returns400(t *testing.T) {
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   "",
-		testKeyStartAt: time.Now().Format(time.RFC3339),
-		testKeyEndAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+		testKeyStartAt: time.Now().UTC().Format(time.RFC3339),
+		testKeyEndAt:   time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
 	})
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
 	w := httptest.NewRecorder()
@@ -623,8 +625,8 @@ func TestEventHandler_CreateEvent_InternalError_Returns500(t *testing.T) {
 
 	req := createEventRequest(t, map[string]any{
 		testKeyTitle:   testEventTitle,
-		testKeyStartAt: time.Now().Format(time.RFC3339),
-		testKeyEndAt:   time.Now().Add(time.Hour).Format(time.RFC3339),
+		testKeyStartAt: time.Now().UTC().Format(time.RFC3339),
+		testKeyEndAt:   time.Now().UTC().Add(time.Hour).Format(time.RFC3339),
 	})
 	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
 	w := httptest.NewRecorder()
@@ -1232,5 +1234,159 @@ func TestEventHandler_UpdateEvent_EmptyTagIDs_PassesEmptySliceToUseCase(t *testi
 		t.Error("expected TagIDs to be non-nil (explicit empty slice) when tagIds:[] sent")
 	} else if len(*capturedInput.TagIDs) != 0 {
 		t.Errorf("expected empty TagIDs slice, got len=%d", len(*capturedInput.TagIDs))
+	}
+}
+
+// --- Request body datetime notation (ADR-036) ---
+
+func nonUTCBodyDateTimeCases() []struct{ name, startAt, endAt string } {
+	return []struct{ name, startAt, endAt string }{
+		{"offset startAt", "2026-11-01T09:00:00+09:00", testBodyEndAtUTC},
+		{"offset endAt", "2026-11-01T00:00:00Z", "2026-11-01T10:00:00+09:00"},
+		{testCaseZeroOffset, "2026-11-01T00:00:00+00:00", testBodyEndAtUTC},
+	}
+}
+
+func assertValidationErrorResponse(t *testing.T, w *httptest.ResponseRecorder) {
+	t.Helper()
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Code string `json:"code"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Code != codeValidationError {
+		t.Errorf("code mismatch: got %q, want %q", body.Code, codeValidationError)
+	}
+}
+
+func TestEventHandler_CreateEvent_NonUTCDateTime_Returns400(t *testing.T) {
+	for _, tt := range nonUTCBodyDateTimeCases() {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			stub := &stubCreateEventExec{
+				fn: func(context.Context, uuid.UUID, eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+					called = true
+					return eventuc.CreateEventOutput{}, errInternal
+				},
+			}
+			h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+			req := createEventRequest(t, map[string]any{
+				testKeyTitle:   testEventTitle,
+				testKeyStartAt: tt.startAt,
+				testKeyEndAt:   tt.endAt,
+			})
+			req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(uuid.New(), "u@ex.com", "U")))
+			w := httptest.NewRecorder()
+
+			h.CreateEvent(w, req)
+
+			assertValidationErrorResponse(t, w)
+			if called {
+				t.Error("usecase must not be called for non-UTC datetime")
+			}
+		})
+	}
+}
+
+func TestEventHandler_CreateEvent_UTCDateTimeWithMilliseconds_PassedToUseCase(t *testing.T) {
+	userID := uuid.New()
+	var got eventuc.CreateEventInput
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			got = in
+			ev, err := domainevent.New(uuid.New(), userID, in.Title, "", in.StartAt, in.EndAt, "", "")
+			if err != nil {
+				return eventuc.CreateEventOutput{}, err
+			}
+			return eventuc.CreateEventOutput{Event: ev, Tags: []eventuc.EventTagView{}}, nil
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	// クライアントは toISOString() でミリ秒付きの値を送る
+	req := createEventRequest(t, map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: "2026-11-01T00:00:00.000Z",
+		testKeyEndAt:   "2026-11-01T01:00:00.000Z",
+	})
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if !got.StartAt.Equal(mustParseTime(t, "2026-11-01T00:00:00Z")) {
+		t.Errorf("StartAt mismatch: got %v", got.StartAt)
+	}
+	if !got.EndAt.Equal(mustParseTime(t, testBodyEndAtUTC)) {
+		t.Errorf("EndAt mismatch: got %v", got.EndAt)
+	}
+}
+
+func TestEventHandler_UpdateEvent_NonUTCDateTime_Returns400(t *testing.T) {
+	for _, tt := range nonUTCBodyDateTimeCases() {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			stub := &stubUpdateEventExec{
+				fn: func(context.Context, uuid.UUID, eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+					called = true
+					return eventuc.UpdateEventOutput{}, errInternal
+				},
+			}
+			h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+
+			body := `{"title":"Title","startAt":"` + tt.startAt + `","endAt":"` + tt.endAt + `"}`
+			req := putEventRequest(t, uuid.New().String(), body)
+			req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(uuid.New(), "u@ex.com", "U")))
+			w := httptest.NewRecorder()
+
+			h.UpdateEvent(w, req)
+
+			assertValidationErrorResponse(t, w)
+			if called {
+				t.Error("usecase must not be called for non-UTC datetime")
+			}
+		})
+	}
+}
+
+func TestEventHandler_UpdateEvent_UTCDateTimeWithMilliseconds_PassedToUseCase(t *testing.T) {
+	userID := uuid.New()
+	eventID := uuid.New()
+	var got eventuc.UpdateEventInput
+	stub := &stubUpdateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			got = in
+			ev, err := domainevent.New(eventID, userID, in.Title, "", in.StartAt, in.EndAt, "", "")
+			if err != nil {
+				return eventuc.UpdateEventOutput{}, err
+			}
+			return eventuc.UpdateEventOutput{Event: ev, Tags: []eventuc.EventTagView{}}, nil
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+
+	body := `{"title":"Title","startAt":"2026-11-01T00:00:00.000Z","endAt":"2026-11-01T01:00:00.000Z"}`
+	req := putEventRequest(t, eventID.String(), body)
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.UpdateEvent(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if !got.StartAt.Equal(mustParseTime(t, "2026-11-01T00:00:00Z")) {
+		t.Errorf("StartAt mismatch: got %v", got.StartAt)
+	}
+	if !got.EndAt.Equal(mustParseTime(t, testBodyEndAtUTC)) {
+		t.Errorf("EndAt mismatch: got %v", got.EndAt)
 	}
 }

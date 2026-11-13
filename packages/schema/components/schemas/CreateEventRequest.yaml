@@ -12,9 +12,11 @@ properties:
   startAt:
     type: string
     format: date-time
+    description: RFC 3339 in UTC, must end with "Z"
   endAt:
     type: string
     format: date-time
+    description: RFC 3339 in UTC, must end with "Z"
   location:
     type: ["string", "null"]
   url:

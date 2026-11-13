@@ -1,9 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -80,11 +80,26 @@ func (h *EventShareHandler) CreateShare(w http.ResponseWriter, r *http.Request) 
 func decodeCreateShareInput(r *http.Request, eventID uuid.UUID) (eventshareuc.CreateShareInput, error) {
 	in := eventshareuc.CreateShareInput{EventID: eventID}
 
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return eventshareuc.CreateShareInput{}, err
+	}
+	// The body is optional; an absent body means expiresAt defaults to the event end.
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return in, nil
+	}
+
 	var body api.CreateEventShareJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		if errors.Is(err, io.EOF) {
-			return in, nil
-		}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return eventshareuc.CreateShareInput{}, err
+	}
+	var dt struct {
+		ExpiresAt *string `json:"expiresAt"`
+	}
+	if err := json.Unmarshal(raw, &dt); err != nil {
+		return eventshareuc.CreateShareInput{}, err
+	}
+	if err := requireUTCDateTimes(dt.ExpiresAt); err != nil {
 		return eventshareuc.CreateShareInput{}, err
 	}
 	in.ExpiresAt = body.ExpiresAt

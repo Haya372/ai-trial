@@ -126,3 +126,62 @@ func TestRoute_CreateEventShare_nonExistentEvent_returns404(t *testing.T) {
 		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestRoute_CreateEventShare_offsetExpiresAt_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventShareTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "share-offset@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, userID, "Shared meeting", now, now.Add(time.Hour))
+
+	for _, expiresAt := range []string{
+		now.Add(time.Hour).In(time.FixedZone("JST", 9*60*60)).Format(time.RFC3339),
+		now.Add(time.Hour).Format("2006-01-02T15:04:05") + "+00:00",
+	} {
+		t.Run(expiresAt, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/events/"+eventID+"/shares",
+				strings.NewReader(`{"expiresAt":"`+expiresAt+`"}`))
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRoute_CreateEventShare_utcExpiresAtWithMilliseconds_returns201(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventShareTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "share-millis@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, userID, "Shared meeting", now, now.Add(time.Hour))
+
+	expiresAt := now.Add(2 * time.Hour)
+	req := httptest.NewRequest(http.MethodPost, "/events/"+eventID+"/shares",
+		strings.NewReader(`{"expiresAt":"`+expiresAt.Format("2006-01-02T15:04:05.000Z")+`"}`))
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		ExpiresAt time.Time `json:"expiresAt"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !body.ExpiresAt.Equal(expiresAt) {
+		t.Errorf("expiresAt mismatch: got %v, want %v", body.ExpiresAt, expiresAt)
+	}
+}
