@@ -56,11 +56,14 @@ gh issue view <number>
 
 ### ステップ 4: ブランチを作成する
 
+mainブランチの最新状態から作成する。`git fetch` は他のコマンドと連結せず単独で実行する。
+
 ```bash
-git checkout -b <branch-name>
+git fetch origin main
+git checkout --no-track -b <branch-name> origin/main
 ```
 
-mainブランチの最新状態から作成する。
+`--no-track` を付ける。付けないとupstreamの設定が共有の `.git/config` へ書き込まれる。サンドボックスはこのファイルへの書き込みを拒否するので、checkoutが途中で失敗し、インデックスだけが新しいブランチの内容に変わる。upstreamは初回pushの `git push -u origin <branch-name>` で設定する。
 
 ### ステップ 5: 作業内容を整理してユーザーに報告し、次の工程へ進む
 
