@@ -1,7 +1,7 @@
 # タグ＆カラーラベル 仕様書
 
 - 作成日: 2026-11-08
-- 更新日: 2026-11-08（新テンプレートに追従し、設計セクションを追記）
+- 更新日: 2026-11-14（タグAPIの 409 の `code` を理由ごとに分ける / #366）
 - ステータス: PDM合意済
 
 ## PRD参照
@@ -152,8 +152,8 @@
 | メソッド | パス | 認証 | リクエスト | レスポンス | エラー（HTTPステータス） |
 |---|---|---|---|---|---|
 | GET | `/tags` | セッション必須 | （なし） | 200 `{ tags: TagResponse[] }`（各タグの付与件数 `eventCount` を含む） | 401 UNAUTHORIZED / 500 INTERNAL_ERROR |
-| POST | `/tags` | セッション必須 | `CreateTagRequest`（`name` / `color` 必須） | 201 `TagResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 409 CONFLICT / 500 INTERNAL_ERROR |
-| PUT | `/tags/{id}` | セッション必須 | `UpdateTagRequest`（`name` / `color` 必須） | 200 `TagResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 409 CONFLICT / 500 INTERNAL_ERROR |
+| POST | `/tags` | セッション必須 | `CreateTagRequest`（`name` / `color` 必須） | 201 `TagResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 409 TAG_NAME_TAKEN・TAG_LIMIT_EXCEEDED / 500 INTERNAL_ERROR |
+| PUT | `/tags/{id}` | セッション必須 | `UpdateTagRequest`（`name` / `color` 必須） | 200 `TagResponse` | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 409 TAG_NAME_TAKEN / 500 INTERNAL_ERROR |
 | DELETE | `/tags/{id}` | セッション必須 | （なし） | 204 No Content | 400 VALIDATION_ERROR / 401 UNAUTHORIZED / 404 NOT_FOUND / 500 INTERNAL_ERROR |
 | GET | `/events`（SPEC-002 を拡張） | セッション必須 | クエリに `tagId`（任意）を追加 | 200 `{ events: EventResponse[] }`（各予定に `tags` を追加） | SPEC-002 のエラーに 400 を追加 |
 | POST | `/events`（SPEC-003 を拡張） | セッション必須 | `CreateEventRequest` に `tagIds`（任意）を追加 | 201 `EventResponse`（`tags` を追加） | SPEC-003 のエラーに 400 を追加 |
@@ -216,8 +216,8 @@
 | 400 | `VALIDATION_ERROR` | `TOO_LONG` | `name` が前後の空白除去後に 20 文字超（`details[].field = "name"`） |
 | 400 | `VALIDATION_ERROR` | `INVALID_FORMAT` | `color` がプリセット12色のいずれでもない（`details[].field = "color"`） |
 | 401 | `UNAUTHORIZED` | - | 認証未通過 |
-| 409 | `CONFLICT` | - | 同一ユーザー内に同名（大文字・小文字違いを含む）のタグがある |
-| 409 | `CONFLICT` | - | ユーザーのタグが既に50件ある（画面は50件で作成を阻止するため、同時に作成した場合だけ起こる） |
+| 409 | `TAG_NAME_TAKEN` | - | 同一ユーザー内に同名（大文字・小文字違いを含む）のタグがある |
+| 409 | `TAG_LIMIT_EXCEEDED` | - | ユーザーのタグが既に50件ある（画面は50件で作成を阻止するため、同時に作成した場合だけ起こる）。同名のタグもある場合はこちらを返す |
 | 500 | `INTERNAL_ERROR` | - | 永続化失敗などの予期しない内部エラー |
 
 #### PUT /tags/{id}
@@ -246,7 +246,7 @@
 | 400 | `VALIDATION_ERROR` | `INVALID_FORMAT` | `color` がプリセット12色のいずれでもない |
 | 401 | `UNAUTHORIZED` | - | 認証未通過 |
 | 404 | `NOT_FOUND` | - | タグが存在しない、または他ユーザーのタグ |
-| 409 | `CONFLICT` | - | 同一ユーザー内に同名（大文字・小文字違いを含む）の別のタグがある |
+| 409 | `TAG_NAME_TAKEN` | - | 同一ユーザー内に同名（大文字・小文字違いを含む）の別のタグがある |
 | 500 | `INTERNAL_ERROR` | - | 永続化失敗などの予期しない内部エラー |
 
 #### DELETE /tags/{id}
@@ -348,11 +348,9 @@ sequenceDiagram
     else 400 VALIDATION_ERROR
         API-->>UI: 400 { details[].code }
         UI-->>User: details[].code に応じたエラーをモーダル内に表示（モーダルは閉じない）
-    else 409 CONFLICT
-        API-->>UI: 409
-        UI->>API: GET /tags
-        API-->>UI: 200 { tags: [...] }
-        UI-->>User: tags が50件なら上限、それ以外ならタグ名の重複のエラーをモーダル内に表示（モーダルは閉じない）
+    else 409
+        API-->>UI: 409 { code }
+        UI-->>User: code が TAG_LIMIT_EXCEEDED なら上限、TAG_NAME_TAKEN ならタグ名の重複のエラーをモーダル内に表示（モーダルは閉じない）
     end
 ```
 
