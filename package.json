@@ -9,8 +9,8 @@
     "lint": "turbo lint",
     "format": "turbo format",
     "build": "turbo build",
-    "generate": "pnpm generate:frontend && pnpm generate:backend && pnpm generate:sqlc && pnpm generate:web",
-    "generate:backend": "make -C apps/backend oapi-codegen-generate",
+    "generate": "pnpm generate:frontend && pnpm generate:sqlc && pnpm generate:backend && pnpm generate:web",
+    "generate:backend": "make -C apps/backend generate",
     "generate:sqlc": "make -C apps/backend sqlc-generate",
     "generate:frontend": "pnpm --filter @ai-trial/schema generate:frontend",
     "generate:web": "pnpm --filter web generate:routes"
