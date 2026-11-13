@@ -72,8 +72,8 @@ export function TodayTimeline({
           if (item.type === 'gap') {
             return (
               <li
-                // A gap has no identity of its own; it is always followed by
-                // the next event, whose id is unique.
+                // Gaps carry no state, so a positional key is safe even when
+                // the list is rebuilt every minute.
                 key={`gap-${index}`}
                 className="px-3 py-1 text-xs text-muted-foreground"
               >
