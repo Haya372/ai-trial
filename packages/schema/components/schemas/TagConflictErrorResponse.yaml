@@ -1,0 +1,16 @@
+type: object
+required:
+  - code
+  - message
+properties:
+  code:
+    type: string
+    description: >-
+      TAG_NAME_TAKEN: a tag with the same name (case-insensitive) already
+      exists. TAG_LIMIT_EXCEEDED: the user already owns the maximum number of
+      tags (50).
+    enum: ["TAG_NAME_TAKEN", "TAG_LIMIT_EXCEEDED"]
+    example: "TAG_NAME_TAKEN"
+  message:
+    type: string
+    example: "Tag name already exists"
