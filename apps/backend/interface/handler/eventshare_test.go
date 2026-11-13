@@ -258,3 +258,61 @@ func TestEventShareHandler_CreateShare_InternalError_Returns500(t *testing.T) {
 		t.Fatalf("expected 500, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestEventShareHandler_CreateShare_NonUTCExpiresAt_Returns400(t *testing.T) {
+	tests := []struct {
+		name      string
+		expiresAt string
+	}{
+		{"offset", "2026-12-31T09:00:00+09:00"},
+		{testCaseZeroOffset, "2026-12-31T00:00:00+00:00"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			stub := &stubCreateShareExec{
+				fn: func(context.Context, uuid.UUID, eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error) {
+					called = true
+					return nil, context.DeadlineExceeded
+				},
+			}
+			h := handler.NewEventShareHandler(stub, slog.New(slog.DiscardHandler))
+
+			req := createShareRequestAsUser(t, uuid.New().String(), `{"expiresAt":"`+tt.expiresAt+`"}`)
+			w := httptest.NewRecorder()
+			h.CreateShare(w, req)
+
+			assertValidationErrorResponse(t, w)
+			if called {
+				t.Error("usecase must not be called for non-UTC expiresAt")
+			}
+		})
+	}
+}
+
+func TestEventShareHandler_CreateShare_UTCExpiresAtWithMilliseconds_PassesExpiresAtToExecutor(t *testing.T) {
+	eventID := uuid.New()
+	override := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
+	var gotExpiresAt *time.Time
+	stub := &stubCreateShareExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventshareuc.CreateShareInput) (*eventshareuc.CreateShareResult, error) {
+			gotExpiresAt = in.ExpiresAt
+			return &eventshareuc.CreateShareResult{
+				Share: newTestShare(t, eventID, override),
+				Token: testPlainToken,
+			}, nil
+		},
+	}
+	h := handler.NewEventShareHandler(stub, slog.New(slog.DiscardHandler))
+
+	req := createShareRequestAsUser(t, eventID.String(), `{"expiresAt":"2026-12-31T00:00:00.000Z"}`)
+	w := httptest.NewRecorder()
+	h.CreateShare(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if gotExpiresAt == nil || !gotExpiresAt.Equal(override) {
+		t.Errorf("expiresAt mismatch: got %v, want %v", gotExpiresAt, override)
+	}
+}

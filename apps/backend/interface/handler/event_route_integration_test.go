@@ -762,3 +762,95 @@ func getUserIDFromCookie(t *testing.T, router *chi.Mux, cookie *http.Cookie) str
 	}
 	return body.ID
 }
+
+func TestRoute_PostEvent_offsetDatetime_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "post-event-offset@ex.com")
+
+	for _, startAt := range []string{"2026-11-01T09:00:00+09:00", "2026-11-01T00:00:00+00:00"} {
+		t.Run(startAt, func(t *testing.T) {
+			body := `{"title":"x","startAt":"` + startAt + `","endAt":testBodyEndAtUTC}`
+			req := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(body))
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRoute_PostEvent_utcDatetime_returns201(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "post-event-utc@ex.com")
+
+	tests := []struct{ startAt, endAt string }{
+		{"2026-11-01T00:00:00Z", testBodyEndAtUTC},
+		{"2026-11-01T00:00:00.000Z", "2026-11-01T01:00:00.000Z"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.startAt, func(t *testing.T) {
+			body := `{"title":"x","startAt":"` + tt.startAt + `","endAt":"` + tt.endAt + `"}`
+			req := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(body))
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusCreated {
+				t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRoute_PutEvent_offsetDatetime_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "put-event-offset@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, userID, "Original title", now, now.Add(time.Hour))
+
+	for _, endAt := range []string{"2026-11-01T10:00:00+09:00", "2026-11-01T01:00:00+00:00"} {
+		t.Run(endAt, func(t *testing.T) {
+			body := `{"title":"x","startAt":"2026-11-01T00:00:00Z","endAt":"` + endAt + `"}`
+			req := httptest.NewRequest(http.MethodPut, "/events/"+eventID, strings.NewReader(body))
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRoute_PutEvent_utcDatetimeWithMilliseconds_returns200(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "put-event-millis@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	now := time.Now().UTC().Truncate(time.Second)
+	eventID := insertRouteTestEvent(t, userID, "Original title", now, now.Add(time.Hour))
+
+	body := `{"title":"x","startAt":"2026-11-01T00:00:00.000Z","endAt":"2026-11-01T01:00:00.000Z"}`
+	req := httptest.NewRequest(http.MethodPut, "/events/"+eventID, strings.NewReader(body))
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}

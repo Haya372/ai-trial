@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -230,7 +231,7 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var body api.CreateEventJSONRequestBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeEventBody(r, &body); err != nil {
 		h.logger.Warn("invalid JSON body for POST /events", "error", err)
 		response.WriteError(w, http.StatusBadRequest, errCodeValidation, "Invalid request body")
 		return
@@ -312,9 +313,31 @@ func (h *EventHandler) DeleteEvent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// eventBodyDateTimes mirrors the datetime fields of the create/update request bodies
+// as strings so that requireUTCDateTimes can see their original notation.
+type eventBodyDateTimes struct {
+	StartAt *string `json:"startAt"`
+	EndAt   *string `json:"endAt"`
+}
+
+func decodeEventBody(r *http.Request, dst any) error {
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, dst); err != nil {
+		return err
+	}
+	var dt eventBodyDateTimes
+	if err := json.Unmarshal(raw, &dt); err != nil {
+		return err
+	}
+	return requireUTCDateTimes(dt.StartAt, dt.EndAt)
+}
+
 func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventInput, error) {
 	var body api.UpdateEventRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := decodeEventBody(r, &body); err != nil {
 		return eventuc.UpdateEventInput{}, err
 	}
 
