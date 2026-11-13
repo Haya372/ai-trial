@@ -12,6 +12,10 @@ describe('formatTime', () => {
     expect(formatTime(new Date(2026, 10, 14, 9, 5))).toBe('09:05')
   })
 
+  it('0時0分を00:00で返す', () => {
+    expect(formatTime(new Date(2026, 10, 14, 0, 0))).toBe('00:00')
+  })
+
   it('23時台も2桁で返す', () => {
     expect(formatTime(new Date(2026, 10, 14, 23, 59))).toBe('23:59')
   })
