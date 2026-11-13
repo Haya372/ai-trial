@@ -31,7 +31,11 @@ export function TodayTimeline({
   const { items, nextEvent, hasEvents } = buildTimeline(events, now)
 
   return (
-    <div data-slot="today-timeline" className="flex flex-col gap-3">
+    <section
+      data-slot="today-timeline"
+      aria-label={labels.title}
+      className="flex flex-col gap-3"
+    >
       <div className="rounded-md border border-border p-3">
         {nextEvent ? (
           <>
@@ -58,7 +62,10 @@ export function TodayTimeline({
                 className="flex items-center gap-2 text-xs font-semibold text-destructive"
               >
                 <span>{formatTime(item.time)}</span>
-                <span className="h-px flex-1 bg-destructive" />
+                <span
+                  aria-hidden="true"
+                  className="h-px flex-1 bg-destructive"
+                />
               </li>
             )
           }
@@ -98,6 +105,6 @@ export function TodayTimeline({
           )
         })}
       </ol>
-    </div>
+    </section>
   )
 }

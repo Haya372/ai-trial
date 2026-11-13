@@ -5,6 +5,7 @@ const at = (hours: number, minutes = 0) =>
   new Date(2026, 10, 14, hours, minutes)
 
 const labels = {
+  title: '今日の予定',
   noEventsToday: '今日の予定はありません',
   noMoreEventsToday: '今日の予定はもうありません',
   fromPreviousDay: '前日から',
