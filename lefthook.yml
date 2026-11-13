@@ -32,3 +32,6 @@ pre-commit:
     - name: markdown-lint
       glob: "{**/*.md,*.md}"
       run: mise exec -- markdownlint-cli2 {staged_files}
+    - name: taskctl
+      glob: "tools/taskctl/**"
+      run: mise exec -- shellcheck tools/taskctl/taskctl tools/taskctl/image/*.sh tools/taskctl/test/*.sh && bash tools/taskctl/test/unit.sh

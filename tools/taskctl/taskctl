@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# タスクごとの隔離コンテナを操作する固定コマンドのラッパー（ADR-035 決定1・3・4）。
+# 起動オプションはこのファイルに固定し、引数からは変更できないようにしている。
+# 引数はシェルに展開せず、配列のまま docker / git に渡す。
+set -euo pipefail
+
+TASKCTL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$TASKCTL_DIR/../.." && pwd)"
+IMAGE="ai-trial-taskctl:latest"
+# ホストのシェルやIDEで開かないよう、リポジトリの外の専用ディレクトリに置く（ADR-035 決定4）
+WORKTREE_BASE="$HOME/.taskctl/worktrees"
+BASE_REF="origin/main"
+READY_TIMEOUT_SECONDS=60
+
+usage() {
+  cat >&2 <<'EOF'
+usage: taskctl build
+       taskctl start <task>
+       taskctl stop <task>
+       taskctl status
+EOF
+}
+
+die() {
+  echo "taskctl: $*" >&2
+  exit 1
+}
+
+validate_task() {
+  [[ "${1:-}" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] ||
+    die "invalid task name: '${1:-}' (allowed: ^[a-z0-9][a-z0-9-]{0,39}\$)"
+}
+
+container_name() {
+  echo "taskctl-$1"
+}
+
+# git は worktree のパスをシンボリックリンクを解決して記録するため、比較できるよう解決しておく
+worktree_path() {
+  local base
+  mkdir -p "$WORKTREE_BASE"
+  base="$(cd "$WORKTREE_BASE" && pwd -P)" || die "cannot resolve $WORKTREE_BASE"
+  echo "$base/$1"
+}
+
+# 作成済みworktreeの .git はコンテナから書き換えられうるため、フックと fsmonitor を常に無効化する
+host_git() {
+  git -C "$REPO_ROOT" -c core.hooksPath=/dev/null -c core.fsmonitor=false "$@"
+}
+
+# パイプで grep -q に渡すと、一致後に grep が先に終了して git が SIGPIPE で落ち、
+# pipefail により未登録と誤判定しうるため、出力をいったん変数に受ける
+is_registered_worktree() {
+  local list
+  list="$(host_git worktree list --porcelain)"
+  grep -qxF "worktree $1" <<<"$list"
+}
+
+ensure_worktree() {
+  local task="$1" wt
+  wt="$(worktree_path "$task")"
+  if is_registered_worktree "$wt"; then
+    [ ! -d "$wt" ] || return 0
+    # ディレクトリが消えても git には登録が残り、マウント元がなく起動できなくなるため登録を消す
+    host_git worktree prune
+  fi
+  # 登録されていない既存ディレクトリをマウントすると、ホストの任意のファイルを渡しうる
+  [ ! -e "$wt" ] || die "$wt exists but is not a worktree of $REPO_ROOT"
+  # worktree を消してもブランチは残るため、残っていればその作業を引き継ぐ
+  if host_git rev-parse --verify --quiet "refs/heads/task/$task" >/dev/null; then
+    host_git worktree add "$wt" "task/$task" >&2
+  else
+    host_git worktree add -b "task/$task" "$wt" "$BASE_REF" >&2
+  fi
+}
+
+# 実行時は外部からツールを取得できないため、ツールはビルド時に mise.toml から入れる。
+# 新しいタスクは BASE_REF から作るので、作業ツリーではなく BASE_REF の mise.toml を使い、
+# start で比較できるよう blob ハッシュをラベルに残す
+cmd_build() {
+  local ctx status=0
+  ctx="$(mktemp -d "${TMPDIR:-/tmp}/taskctl-build.XXXXXX")"
+  host_git show "$BASE_REF:mise.toml" >"$ctx/mise.toml" &&
+    host_git show "$BASE_REF:.env.example" >"$ctx/.env.example" &&
+    docker build -t "$IMAGE" \
+      --label "taskctl.mise-toml=$(host_git rev-parse "$BASE_REF:mise.toml")" \
+      --build-context "project=$ctx" \
+      -f "$TASKCTL_DIR/image/Dockerfile" "$TASKCTL_DIR/image" || status=$?
+  rm -rf "$ctx"
+  return "$status"
+}
+
+# タスクの mise.toml がイメージと食い違うと、mise がツールを取得しようとして遮断される。
+# worktree のファイルはコンテナから FIFO やリンクに差し替えられ、ホストで読むと止まったり
+# 任意のファイルを開かされたりするため、コンテナが触れない git のオブジェクトから比べる
+ensure_image() {
+  local task="$1" want have
+  want="$(host_git rev-parse "task/$task:mise.toml")"
+  have="$(docker image inspect -f '{{index .Config.Labels "taskctl.mise-toml"}}' "$IMAGE" 2>/dev/null)" || true
+  [ "$want" != "$have" ] || return 0
+  [ "$want" = "$(host_git rev-parse "$BASE_REF:mise.toml")" ] ||
+    die "mise.toml of the task differs from $BASE_REF, so the image cannot provide its tools (update the task branch onto $BASE_REF)"
+  cmd_build >&2
+}
+
+wait_ready() {
+  local name="$1" i
+  for ((i = 0; i < READY_TIMEOUT_SECONDS; i++)); do
+    if [ "$(docker inspect -f '{{.State.Running}}' "$name")" != "true" ]; then
+      docker logs "$name" >&2 || true
+      return 1
+    fi
+    if docker exec "$name" /usr/bin/test -f /run/taskctl/ready; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+cmd_start() {
+  [ "$#" -eq 1 ] || { usage; exit 2; }
+  local task="$1" name wt
+  validate_task "$task"
+  name="$(container_name "$task")"
+  wt="$(worktree_path "$task")"
+
+  ensure_worktree "$task"
+  ensure_image "$task"
+
+  # Docker やホストの再起動後は、停止した同名コンテナが残り docker run が名前の衝突で失敗する
+  case "$(docker ps -a --filter "name=^${name}\$" --format '{{.State}}')" in
+    "") ;;
+    running) die "'$task' is already running (run 'taskctl stop $task' first to recreate it)" ;;
+    *) docker rm -f "$name" >/dev/null ;;
+  esac
+
+  docker run -d --init \
+    --name "$name" \
+    --label "taskctl.task=$task" \
+    --network bridge \
+    --cap-drop ALL \
+    --cap-add NET_ADMIN \
+    --cap-add NET_RAW \
+    --cap-add NET_BIND_SERVICE \
+    --cap-add SETUID \
+    --cap-add SETGID \
+    --cap-add SETPCAP \
+    --security-opt no-new-privileges \
+    --mount "type=bind,src=$wt,dst=/workspace" \
+    "$IMAGE" >/dev/null
+
+  if ! wait_ready "$name"; then
+    docker rm -f "$name" >/dev/null 2>&1 || true
+    die "container for '$task' failed to start (firewall setup failed?)"
+  fi
+  echo "$task started (worktree: $wt)"
+}
+
+cmd_stop() {
+  [ "$#" -eq 1 ] || { usage; exit 2; }
+  validate_task "$1"
+  docker rm -f "$(container_name "$1")" >/dev/null
+  echo "$1 stopped"
+}
+
+cmd_status() {
+  [ "$#" -eq 0 ] || { usage; exit 2; }
+  docker ps -a --filter "label=taskctl.task" \
+    --format '{{.Label "taskctl.task"}}\t{{.Status}}'
+}
+
+# コンテナ内で一般ユーザー dev に切り替え、capability をすべて落としてコマンドを実行する。
+# setpriv は環境変数を引き継ぐため、docker exec の -e で渡したものだけが追加される。
+# docker exec のオプションは mode ごとに固定し、呼び出し側からは渡せないようにしている。
+# コンテナの PATH は dev が書き込めるディレクトリから始まるため、root で実行するコマンド
+# （setpriv や wait_ready の test）はフルパスで指定する。
+run_as_dev() {
+  local task="$1" mode="$2"
+  shift 2
+  validate_task "$task"
+  local mode_opts
+  case "$mode" in
+    plain) mode_opts=() ;;
+    with-token) mode_opts=(-i -e CLAUDE_CODE_OAUTH_TOKEN) ;;
+    *) die "unknown exec mode: $mode" ;;
+  esac
+  docker exec ${mode_opts[@]+"${mode_opts[@]}"} -u root -w /workspace \
+    -e HOME=/home/dev -e USER=dev \
+    "$(container_name "$task")" \
+    /usr/bin/setpriv --reuid=dev --regid=dev --init-groups --inh-caps=-all --bounding-set=-all \
+    -- "$@"
+}
+
+taskctl_exec() {
+  local task="$1"
+  shift
+  run_as_dev "$task" plain "$@"
+}
+
+# プロンプトは標準入力で渡す（--allowedTools が複数の値を取るため、後続の引数が吸い込まれる）。
+# 認証トークンは実行のたびに名前だけを -e に渡し、値をコマンドラインと常駐プロセスに残さない。
+taskctl_claude() {
+  local task="$1"
+  shift
+  [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || die "CLAUDE_CODE_OAUTH_TOKEN is not set"
+  run_as_dev "$task" with-token claude -p --permission-mode acceptEdits --allowedTools Bash "$@"
+}
+
+main() {
+  local sub="${1:-}"
+  [ "$#" -gt 0 ] && shift
+  case "$sub" in
+    build) [ "$#" -eq 0 ] || { usage; exit 2; }; cmd_build ;;
+    start) cmd_start "$@" ;;
+    stop) cmd_stop "$@" ;;
+    status) cmd_status "$@" ;;
+    *) usage; exit 2 ;;
+  esac
+}
+
+# source されたとき（テストや後続のサブコマンド実装）は関数定義だけを読み込む
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  main "$@"
+fi
