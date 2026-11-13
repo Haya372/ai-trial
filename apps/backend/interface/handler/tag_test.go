@@ -169,13 +169,21 @@ func TestTagHandler_CreateTag_ValidationError_Returns400WithDetails(t *testing.T
 	}
 }
 
-func TestTagHandler_CreateTag_Conflict_Returns409WithoutDetails(t *testing.T) {
-	for _, domainErr := range []error{domaintag.ErrTagNameTaken, domaintag.ErrTagLimitExceeded} {
-		t.Run(domainErr.Error(), func(t *testing.T) {
+func TestTagHandler_CreateTag_Conflict_Returns409WithReasonCode(t *testing.T) {
+	cases := []struct {
+		err      error
+		wantCode string
+	}{
+		{err: domaintag.ErrTagNameTaken, wantCode: "TAG_NAME_TAKEN"},
+		{err: domaintag.ErrTagLimitExceeded, wantCode: "TAG_LIMIT_EXCEEDED"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.err.Error(), func(t *testing.T) {
 			userID := uuid.New()
 			stub := &stubCreateTagExec{
 				fn: func(context.Context, uuid.UUID, taguc.CreateTagInput) (domaintag.Tag, error) {
-					return nil, domainErr
+					return nil, tc.err
 				},
 			}
 			h := handler.NewTagHandler(&stubListTagsExec{}, stub, &stubUpdateTagExec{}, &stubDeleteTagExec{}, testLogger)
@@ -188,8 +196,8 @@ func TestTagHandler_CreateTag_Conflict_Returns409WithoutDetails(t *testing.T) {
 				t.Fatalf("expected 409, got %d", w.Code)
 			}
 			code, details := decodeErrorBody(t, w)
-			if code != "CONFLICT" {
-				t.Errorf("code: got %q, want CONFLICT", code)
+			if code != tc.wantCode {
+				t.Errorf("code: got %q, want %q", code, tc.wantCode)
 			}
 			if len(details) != 0 {
 				t.Errorf("expected no details, got %v", details)
@@ -514,7 +522,7 @@ func TestTagHandler_UpdateTag_DomainErrors(t *testing.T) {
 		wantCode   string
 	}{
 		{err: domaintag.ErrTagNotFound, wantStatus: http.StatusNotFound, wantCode: "NOT_FOUND"},
-		{err: domaintag.ErrTagNameTaken, wantStatus: http.StatusConflict, wantCode: "CONFLICT"},
+		{err: domaintag.ErrTagNameTaken, wantStatus: http.StatusConflict, wantCode: "TAG_NAME_TAKEN"},
 	}
 
 	for _, tc := range cases {

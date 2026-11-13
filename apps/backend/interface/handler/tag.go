@@ -18,6 +18,11 @@ import (
 	taguc "github.com/Haya372/ai-trial/backend/usecase/tag"
 )
 
+const (
+	errCodeTagNameTaken     = "TAG_NAME_TAKEN"
+	errCodeTagLimitExceeded = "TAG_LIMIT_EXCEEDED"
+)
+
 // CreateTagExecutor is satisfied by taguc.CreateTagCommand.
 type CreateTagExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, in taguc.CreateTagInput) (domaintag.Tag, error)
@@ -203,18 +208,18 @@ func (h *TagHandler) DeleteTag(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// writeTagError reports a duplicate name and the tag limit with the same 409
-// and no details; the client tells them apart by refetching GET /tags (SPEC-008).
+// writeTagError reports a duplicate name and the tag limit as 409s with
+// distinct codes so the client can tell them apart without refetching (SPEC-008).
 func (h *TagHandler) writeTagError(w http.ResponseWriter, r *http.Request, err error) {
 	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
 		domaintag.CodeTagNotFound: {
 			status: http.StatusNotFound, code: errCodeNotFound, message: "Tag not found",
 		},
 		domaintag.CodeTagNameTaken: {
-			status: http.StatusConflict, code: errCodeConflict, message: "Tag name already exists",
+			status: http.StatusConflict, code: errCodeTagNameTaken, message: "Tag name already exists",
 		},
 		domaintag.CodeTagLimitExceeded: {
-			status: http.StatusConflict, code: errCodeConflict, message: "Tag limit exceeded",
+			status: http.StatusConflict, code: errCodeTagLimitExceeded, message: "Tag limit exceeded",
 		},
 	})
 }

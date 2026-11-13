@@ -183,6 +183,9 @@ func TestRoute_CreateTag_duplicateNameIgnoringCase_returns409(t *testing.T) {
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
 	}
+	if code, _ := decodeErrorBody(t, rec); code != "TAG_NAME_TAKEN" {
+		t.Errorf("code: got %q, want TAG_NAME_TAKEN", code)
+	}
 }
 
 func TestRoute_CreateTag_sameNameAsAnotherUsersTag_returns201(t *testing.T) {
@@ -215,8 +218,28 @@ func TestRoute_CreateTag_atLimit_returns409(t *testing.T) {
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
 	}
+	if code, _ := decodeErrorBody(t, rec); code != "TAG_LIMIT_EXCEEDED" {
+		t.Errorf("code: got %q, want TAG_LIMIT_EXCEEDED", code)
+	}
 	if got := tagRowCount(t, userID); got != domaintag.MaxTagsPerUser {
 		t.Errorf("tag count: got %d, want %d", got, domaintag.MaxTagsPerUser)
+	}
+}
+
+func TestRoute_CreateTag_atLimitWithDuplicateName_returnsLimitExceeded(t *testing.T) {
+	setupRouteTest(t)
+	router := buildTagTestRouter()
+	cookie := signupAndGetCookie(t, router, "tag-limit-dup@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+	insertRouteTestTags(t, userID, domaintag.MaxTagsPerUser)
+
+	rec := postTag(t, router, cookie, `{"name":"TAG-00","color":"red"}`)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code, _ := decodeErrorBody(t, rec); code != "TAG_LIMIT_EXCEEDED" {
+		t.Errorf("code: got %q, want TAG_LIMIT_EXCEEDED", code)
 	}
 }
 
@@ -470,6 +493,9 @@ func TestRoute_UpdateTag_nameOfAnotherOwnTag_returns409(t *testing.T) {
 
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if code, _ := decodeErrorBody(t, rec); code != "TAG_NAME_TAKEN" {
+		t.Errorf("code: got %q, want TAG_NAME_TAKEN", code)
 	}
 	if name, _ := tagRow(t, tagID); name != "Private" {
 		t.Errorf("stored name: got %s, want it unchanged as Private", name)

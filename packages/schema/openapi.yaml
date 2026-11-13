@@ -47,6 +47,8 @@ components:
       $ref: "./components/schemas/UnauthorizedErrorResponse.yaml"
     ConflictErrorResponse:
       $ref: "./components/schemas/ConflictErrorResponse.yaml"
+    TagConflictErrorResponse:
+      $ref: "./components/schemas/TagConflictErrorResponse.yaml"
     InternalErrorResponse:
       $ref: "./components/schemas/InternalErrorResponse.yaml"
     NotFoundErrorResponse:

@@ -59,7 +59,7 @@ post:
       content:
         application/json:
           schema:
-            $ref: "../../components/schemas/ConflictErrorResponse.yaml"
+            $ref: "../../components/schemas/TagConflictErrorResponse.yaml"
     "500":
       description: Internal server error
       content:

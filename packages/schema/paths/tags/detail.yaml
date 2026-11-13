@@ -42,11 +42,14 @@ put:
           schema:
             $ref: "../../components/schemas/NotFoundErrorResponse.yaml"
     "409":
-      description: Another tag of the user has the same name (case-insensitive)
+      description: >-
+        Another tag of the user has the same name (case-insensitive). Only
+        TAG_NAME_TAKEN is returned here; TAG_LIMIT_EXCEEDED applies to
+        POST /tags only.
       content:
         application/json:
           schema:
-            $ref: "../../components/schemas/ConflictErrorResponse.yaml"
+            $ref: "../../components/schemas/TagConflictErrorResponse.yaml"
     "500":
       description: Internal server error
       content:
