@@ -15,7 +15,7 @@ tools/taskctl/taskctl stop <task>    # コンテナを削除する（worktree �
 
 - `<task>` は英小文字・数字・`-` の40文字以内
 - worktree は `~/.taskctl/worktrees/<task>` に、`origin/main` から `task/<task>` ブランチで作成する。このディレクトリはホストのシェル・IDEで開かない
-- タスクの `mise.toml` が `origin/main` と違うと `start` は失敗する。タスクのブランチを `origin/main` に追従させてから起動する
+- `task/<task>` ブランチにコミットされた `mise.toml` が `origin/main` と違うと `start` は失敗する。タスクのブランチを `origin/main` に追従させてから起動する
 
 ## テスト
 

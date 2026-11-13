@@ -54,7 +54,7 @@ for a in "$@"; do
   if [ "$a" = "rev-parse" ]; then
     # --verify はブランチの存在確認。FAKE_BRANCH_EXISTS がその終了コード（0: ブランチあり）
     case " $* " in *" --verify "*) exit "$FAKE_BRANCH_EXISTS" ;; esac
-    echo "$FAKE_BASE_MISE"
+    case "${*: -1}" in task/*:mise.toml) echo "$FAKE_TASK_MISE" ;; *) echo "$FAKE_BASE_MISE" ;; esac
     exit 0
   fi
   if [ "$a" = "hash-object" ]; then echo "$FAKE_TASK_MISE"; exit 0; fi
@@ -382,6 +382,14 @@ test_start_fails_when_task_is_already_running() {
 }
 
 # イメージのツールはビルド時の mise.toml で入るため、タスクの mise.toml と一致させる
+
+# worktree のファイルはコンテナから書き換えられる（FIFO や /dev/zero へのリンクにされうる）ため、
+# ホストはコミット済みの内容だけを見る
+test_start_compares_committed_mise_toml_without_reading_worktree() {
+  bash "$TASKCTL" start t1 >/dev/null || fail "start failed"
+  git_call hash-object >/dev/null && fail "read mise.toml from the worktree"
+  git_call task/t1:mise.toml >/dev/null || fail "did not use the committed mise.toml"
+}
 
 test_start_does_not_build_when_image_matches_task_mise() {
   bash "$TASKCTL" start t1 >/dev/null || fail "start failed"

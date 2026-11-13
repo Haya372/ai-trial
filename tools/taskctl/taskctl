@@ -90,10 +90,12 @@ cmd_build() {
   return "$status"
 }
 
-# タスクの mise.toml がイメージと食い違うと、mise がツールを取得しようとして遮断される
+# タスクの mise.toml がイメージと食い違うと、mise がツールを取得しようとして遮断される。
+# worktree のファイルはコンテナから FIFO やリンクに差し替えられ、ホストで読むと止まったり
+# 任意のファイルを開かされたりするため、コンテナが触れない git のオブジェクトから比べる
 ensure_image() {
-  local task_mise="$1" want have
-  want="$(host_git hash-object --no-filters "$task_mise")"
+  local task="$1" want have
+  want="$(host_git rev-parse "task/$task:mise.toml")"
   have="$(docker image inspect -f '{{index .Config.Labels "taskctl.mise-toml"}}' "$IMAGE" 2>/dev/null)" || true
   [ "$want" != "$have" ] || return 0
   [ "$want" = "$(host_git rev-parse "$BASE_REF:mise.toml")" ] ||
@@ -124,7 +126,7 @@ cmd_start() {
   wt="$(worktree_path "$task")"
 
   ensure_worktree "$task"
-  ensure_image "$wt/mise.toml"
+  ensure_image "$task"
 
   # Docker やホストの再起動後は、停止した同名コンテナが残り docker run が名前の衝突で失敗する
   case "$(docker ps -a --filter "name=^${name}\$" --format '{{.State}}')" in
