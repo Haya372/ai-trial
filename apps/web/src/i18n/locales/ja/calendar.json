@@ -36,5 +36,17 @@
     "createButton": "新規作成",
     "loading": "読み込み中...",
     "loadError": "予定を読み込めませんでした"
+  },
+  "timeline": {
+    "title": "今日のタイムライン",
+    "loading": "読み込み中...",
+    "loadError": "今日の予定を読み込めませんでした",
+    "noEventsToday": "今日の予定はありません",
+    "noMoreEventsToday": "今日の予定はもうありません",
+    "fromPreviousDay": "前日から",
+    "untilNextDay": "翌日まで",
+    "minutesUntil": "あと{{minutes}}分",
+    "hoursMinutesUntil": "あと{{hours}}時間{{minutes}}分",
+    "freeTime": "{{minutes}}分の空き"
   }
 }

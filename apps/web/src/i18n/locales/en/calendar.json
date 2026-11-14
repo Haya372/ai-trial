@@ -36,5 +36,17 @@
     "createButton": "Create",
     "loading": "Loading...",
     "loadError": "Failed to load events"
+  },
+  "timeline": {
+    "title": "Today's timeline",
+    "loading": "Loading...",
+    "loadError": "Failed to load today's events",
+    "noEventsToday": "No events today",
+    "noMoreEventsToday": "No more events today",
+    "fromPreviousDay": "From previous day",
+    "untilNextDay": "Until next day",
+    "minutesUntil": "In {{minutes}} min",
+    "hoursMinutesUntil": "In {{hours}} h {{minutes}} min",
+    "freeTime": "{{minutes}} min free"
   }
 }
