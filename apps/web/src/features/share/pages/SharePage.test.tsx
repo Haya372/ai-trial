@@ -43,7 +43,7 @@ describe('SharePage', () => {
       vi.mocked(getMe).mockReturnValueOnce(new Promise(() => {}))
 
       render(<SharePage token="tok1" />, { wrapper: createWrapper() })
-      expect(screen.getByText('読み込み中…')).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('読み込み中…')
     })
   })
 

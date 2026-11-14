@@ -165,19 +165,13 @@ export default function EventDetailModal({
             <Button
               variant="destructive"
               onClick={confirmAction}
-              disabled={isBusy}
+              loading={isBusy}
             >
-              {isBusy
-                ? t(
-                    event.isSubscribed
-                      ? 'eventDetail.removing'
-                      : 'eventDetail.deleting',
-                  )
-                : t(
-                    event.isSubscribed
-                      ? 'eventDetail.removeFromCalendar'
-                      : 'eventDetail.delete',
-                  )}
+              {t(
+                event.isSubscribed
+                  ? 'eventDetail.removeFromCalendar'
+                  : 'eventDetail.delete',
+              )}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

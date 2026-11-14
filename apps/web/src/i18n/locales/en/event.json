@@ -11,13 +11,11 @@
     "createTitle": "Create event",
     "editTitle": "Edit event",
     "cancelButton": "Cancel",
-    "submitButton": "Save",
-    "submitButtonLoading": "Saving…"
+    "submitButton": "Save"
   },
   "quickRegistration": {
     "titlePlaceholder": "Enter a title",
     "submitButton": "Save",
-    "submitButtonLoading": "Saving…",
     "successMessage": "Event created",
     "editDetailLink": "Edit details"
   },

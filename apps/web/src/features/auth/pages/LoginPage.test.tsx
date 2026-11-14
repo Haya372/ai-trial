@@ -94,6 +94,24 @@ describe('LoginPage', () => {
     })
   })
 
+  it('送信中はログインボタンをローディング状態にする', async () => {
+    const { login } = await import('../../../api/generated')
+    vi.mocked(login).mockReturnValueOnce(new Promise(() => {}))
+    render(<LoginPage />)
+    fireEvent.change(screen.getByLabelText(/メールアドレス/), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.change(screen.getByLabelText(/パスワード/), {
+      target: { value: 'password123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /ログイン/ }))
+    await waitFor(() => {
+      const button = screen.getByRole('button', { name: /ログイン/ })
+      expect(button).toBeDisabled()
+      expect(button).toHaveAttribute('aria-busy', 'true')
+    })
+  })
+
   it('calls toast.error with unauthorized message when API returns UNAUTHORIZED', async () => {
     const { login } = await import('../../../api/generated')
     vi.mocked(login).mockResolvedValueOnce({

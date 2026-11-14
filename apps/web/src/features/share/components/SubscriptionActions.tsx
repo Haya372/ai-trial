@@ -35,11 +35,9 @@ export default function SubscriptionActions({
       {(status === 'notSubscribed' || status === 'subscribing') && (
         <Button
           onClick={() => void onSubscribe()}
-          disabled={status === 'subscribing'}
+          loading={status === 'subscribing'}
         >
-          {status === 'subscribing'
-            ? t('subscription.adding')
-            : t('subscription.addButton')}
+          {t('subscription.addButton')}
         </Button>
       )}
 
@@ -51,11 +49,9 @@ export default function SubscriptionActions({
           <Button
             variant="secondary"
             onClick={() => void onUnsubscribe()}
-            disabled={status === 'unsubscribing'}
+            loading={status === 'unsubscribing'}
           >
-            {status === 'unsubscribing'
-              ? t('subscription.removing')
-              : t('subscription.removeButton')}
+            {t('subscription.removeButton')}
           </Button>
         </div>
       )}

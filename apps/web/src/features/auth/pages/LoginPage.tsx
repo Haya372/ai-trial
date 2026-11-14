@@ -64,11 +64,9 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
         <Button
           type="submit"
           variant="primary"
-          disabled={form.formState.isSubmitting}
+          loading={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting
-            ? t('login.submitButtonLoading')
-            : t('login.submitButton')}
+          {t('login.submitButton')}
         </Button>
         <Link
           to="/signup"

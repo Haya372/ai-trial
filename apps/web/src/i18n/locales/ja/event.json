@@ -11,13 +11,11 @@
     "createTitle": "予定を作成",
     "editTitle": "予定を編集",
     "cancelButton": "キャンセル",
-    "submitButton": "保存",
-    "submitButtonLoading": "保存中…"
+    "submitButton": "保存"
   },
   "quickRegistration": {
     "titlePlaceholder": "タイトルを入力",
     "submitButton": "保存",
-    "submitButtonLoading": "登録中…",
     "successMessage": "予定を登録しました",
     "editDetailLink": "詳細を編集"
   },

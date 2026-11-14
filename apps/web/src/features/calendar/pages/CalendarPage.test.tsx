@@ -164,7 +164,7 @@ describe('CalendarPage', () => {
       } as never)
 
       render(<CalendarPage />, { wrapper: createWrapper() })
-      expect(screen.getByText(/読み込み中/)).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('読み込み中...')
     })
   })
 

@@ -19,10 +19,8 @@
   },
   "subscription": {
     "addButton": "Add to my calendar",
-    "adding": "Adding…",
     "subscribedLabel": "Added",
     "removeButton": "Remove from calendar",
-    "removing": "Removing…",
     "addSuccessToast": "Added to calendar",
     "removeSuccessToast": "Removed from calendar"
   },

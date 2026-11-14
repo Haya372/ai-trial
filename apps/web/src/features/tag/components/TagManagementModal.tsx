@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Loading,
 } from '@repo/ui'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -87,9 +88,9 @@ export default function TagManagementModal({
           </DialogHeader>
           <div className="flex flex-col gap-3">
             {isPending && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                {t('management.loading')}
-              </p>
+              <div className="py-4">
+                <Loading label={t('management.loading')} />
+              </div>
             )}
             {isError && (
               <Alert variant="destructive">

@@ -505,7 +505,11 @@ describe('TagManagementButton', () => {
       )
       const confirm = await screen.findByRole('alertdialog')
       fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
-      await within(confirm).findByRole('button', { name: '削除中...' })
+      await waitFor(() =>
+        expect(
+          within(confirm).getByRole('button', { name: '削除する' }),
+        ).toHaveAttribute('aria-busy', 'true'),
+      )
 
       fireEvent.keyDown(confirm, { key: 'Escape' })
       await new Promise((resolve) => setTimeout(resolve, 50))

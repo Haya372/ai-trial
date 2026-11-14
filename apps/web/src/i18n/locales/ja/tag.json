@@ -16,14 +16,12 @@
     "name": "タグ名",
     "color": "色",
     "save": "保存",
-    "saving": "保存中...",
     "cancel": "キャンセル"
   },
   "deleteConfirm": {
     "title": "タグ「{{name}}」を削除しますか？",
     "description": "{{count}}件の予定に付与されています。予定自体は削除されません。",
     "confirm": "削除する",
-    "deleting": "削除中...",
     "cancel": "キャンセル"
   },
   "validation": {

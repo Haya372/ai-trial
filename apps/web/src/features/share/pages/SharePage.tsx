@@ -1,3 +1,4 @@
+import { Loading } from '@repo/ui'
 import { useTranslation } from 'react-i18next'
 import type { ShareDetailError } from '../hooks/useShareDetailQuery'
 import { useShareDetailQuery } from '../hooks/useShareDetailQuery'
@@ -39,7 +40,7 @@ export default function SharePage({ token }: SharePageProps) {
   if (shareDetail.isPending) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>{t('page.loading')}</p>
+        <Loading label={t('page.loading')} />
       </div>
     )
   }
