@@ -489,6 +489,34 @@ describe('TagManagementButton', () => {
       expect(deleteTag).not.toHaveBeenCalled()
     })
 
+    // Closing it mid-request would let a stale completion close another tag's dialog.
+    it('削除中は Escape で確認ダイアログを閉じられない', async () => {
+      mockTags([work])
+      let resolveDelete: (value: never) => void = () => {}
+      vi.mocked(deleteTag).mockReturnValue(
+        new Promise((resolve) => {
+          resolveDelete = resolve
+        }),
+      )
+      setup()
+      const dialog = await openModal()
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+      await within(confirm).findByRole('button', { name: '削除中...' })
+
+      fireEvent.keyDown(confirm, { key: 'Escape' })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+
+      resolveDelete(response(204))
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+    })
+
     it('削除に失敗したらモーダル内にエラーを表示し、モーダルを閉じない', async () => {
       mockTags([work])
       vi.mocked(deleteTag).mockResolvedValue(

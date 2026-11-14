@@ -29,7 +29,9 @@ export default function TagDeleteConfirmDialog({
     <AlertDialog
       open={tag !== null}
       onOpenChange={(open) => {
-        if (!open) onCancel()
+        // Escape still requests a close while deleting; ignore it so the dialog
+        // stays tied to the request until it settles.
+        if (!open && !isDeleting) onCancel()
       }}
     >
       <AlertDialogContent>
