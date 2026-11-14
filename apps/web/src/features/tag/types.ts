@@ -20,7 +20,6 @@ export function createTagFormSchema(t: TFunction<'tag'>) {
   })
 }
 
-export type TagFormInput = z.input<ReturnType<typeof createTagFormSchema>>
 export type TagFormValues = z.output<ReturnType<typeof createTagFormSchema>>
 
 export type TagEditorTarget =

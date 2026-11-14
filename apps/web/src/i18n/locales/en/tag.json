@@ -8,7 +8,9 @@
     "loadError": "Couldn't load tags",
     "limitReached": "You can create up to {{limit}} tags. Delete tags you no longer need.",
     "edit": "Edit {{name}}",
-    "delete": "Delete {{name}}"
+    "delete": "Delete {{name}}",
+    "editButton": "Edit",
+    "deleteButton": "Delete"
   },
   "editor": {
     "name": "Tag name",

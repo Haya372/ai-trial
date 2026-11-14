@@ -8,7 +8,9 @@
     "loadError": "タグを読み込めませんでした",
     "limitReached": "タグは{{limit}}件まで作成できます。不要なタグを削除してください",
     "edit": "{{name}}を編集",
-    "delete": "{{name}}を削除"
+    "delete": "{{name}}を削除",
+    "editButton": "編集",
+    "deleteButton": "削除"
   },
   "editor": {
     "name": "タグ名",
