@@ -94,10 +94,8 @@ export default function TagEditor({
           <Button type="button" variant="secondary" onClick={onDone}>
             {t('editor.cancel')}
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting
-              ? t('editor.saving')
-              : t('editor.save')}
+          <Button type="submit" loading={form.formState.isSubmitting}>
+            {t('editor.save')}
           </Button>
         </div>
       </form>

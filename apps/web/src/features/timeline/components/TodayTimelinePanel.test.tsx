@@ -90,7 +90,7 @@ describe('TodayTimelinePanel', () => {
       wrapper: createWrapper(),
     })
 
-    expect(screen.getByText('読み込み中...')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('読み込み中...')
   })
 
   it('取得に失敗したらパネル内にエラーメッセージを表示する', async () => {

@@ -52,11 +52,9 @@ export default function TagDeleteConfirmDialog({
               <Button
                 variant="destructive"
                 onClick={onConfirm}
-                disabled={isDeleting}
+                loading={isDeleting}
               >
-                {isDeleting
-                  ? t('deleteConfirm.deleting')
-                  : t('deleteConfirm.confirm')}
+                {t('deleteConfirm.confirm')}
               </Button>
             </AlertDialogFooter>
           </>

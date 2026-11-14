@@ -171,11 +171,9 @@ export default function EventFormModal({
               <Button
                 type="submit"
                 variant="primary"
-                disabled={form.formState.isSubmitting}
+                loading={form.formState.isSubmitting}
               >
-                {form.formState.isSubmitting
-                  ? t('form.submitButtonLoading')
-                  : t('form.submitButton')}
+                {t('form.submitButton')}
               </Button>
             </DialogFooter>
           </form>

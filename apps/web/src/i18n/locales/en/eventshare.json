@@ -4,7 +4,6 @@
     "descriptionWarning": "メモ欄の内容もリンクで共有されます。機密情報が含まれていないか確認してください。",
     "expiresAtLabel": "有効期限",
     "generate": "生成",
-    "generating": "生成中…",
     "cancel": "キャンセル",
     "close": "閉じる",
     "regenerate": "もう一度生成",

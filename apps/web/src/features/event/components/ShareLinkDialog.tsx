@@ -128,11 +128,9 @@ export default function ShareLinkDialog({
                 <Button
                   type="submit"
                   variant="primary"
-                  disabled={form.formState.isSubmitting}
+                  loading={form.formState.isSubmitting}
                 >
-                  {form.formState.isSubmitting
-                    ? t('dialog.generating')
-                    : t('dialog.generate')}
+                  {t('dialog.generate')}
                 </Button>
               </DialogFooter>
             </form>

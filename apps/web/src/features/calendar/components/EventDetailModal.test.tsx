@@ -341,6 +341,11 @@ describe('EventDetailModal', () => {
           screen.getByRole('button', { name: 'キャンセル' }),
         ).toBeDisabled()
       })
+      expect(
+        within(screen.getByRole('alertdialog')).getByRole('button', {
+          name: '削除',
+        }),
+      ).toHaveAttribute('aria-busy', 'true')
 
       resolveDelete({
         data: undefined,

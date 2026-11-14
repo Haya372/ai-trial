@@ -16,7 +16,6 @@
     "name": "Tag name",
     "color": "Color",
     "save": "Save",
-    "saving": "Saving...",
     "cancel": "Cancel"
   },
   "deleteConfirm": {
@@ -24,7 +23,6 @@
     "description_one": "It is attached to {{count}} event. The event itself won't be deleted.",
     "description_other": "It is attached to {{count}} events. The events themselves won't be deleted.",
     "confirm": "Delete",
-    "deleting": "Deleting...",
     "cancel": "Cancel"
   },
   "validation": {

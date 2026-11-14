@@ -84,11 +84,9 @@ export default function QuickRegistrationPanel({
                   type="submit"
                   variant="primary"
                   size="sm"
-                  disabled={form.formState.isSubmitting}
+                  loading={form.formState.isSubmitting}
                 >
-                  {form.formState.isSubmitting
-                    ? t('quickRegistration.submitButtonLoading')
-                    : t('quickRegistration.submitButton')}
+                  {t('quickRegistration.submitButton')}
                 </Button>
               </div>
             </form>

@@ -25,6 +25,7 @@ const meta = {
       options: ['sm', 'md', 'lg'],
     },
     disabled: { control: 'boolean' },
+    loading: { control: 'boolean' },
   },
 } satisfies Meta<typeof Button>
 
@@ -100,5 +101,21 @@ export const DisabledDestructive: Story = {
     children: 'Delete',
     variant: 'destructive',
     disabled: true,
+  },
+}
+
+export const Loading: Story = {
+  args: {
+    children: 'Save',
+    variant: 'primary',
+    loading: true,
+  },
+}
+
+export const LoadingDestructive: Story = {
+  args: {
+    children: 'Delete',
+    variant: 'destructive',
+    loading: true,
   },
 }

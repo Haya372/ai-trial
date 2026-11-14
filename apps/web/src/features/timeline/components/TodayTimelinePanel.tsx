@@ -1,5 +1,5 @@
 import type { CalendarEvent, TodayTimelineLabels } from '@repo/ui'
-import { TodayTimeline } from '@repo/ui'
+import { Loading, TodayTimeline } from '@repo/ui'
 import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
 import { useEventsQuery } from '../../../hooks/useEventsQuery'
@@ -33,9 +33,7 @@ export default function TodayTimelinePanel({
   }
 
   if (isPending) {
-    return (
-      <p className="text-sm text-muted-foreground">{t('timeline.loading')}</p>
-    )
+    return <Loading label={t('timeline.loading')} />
   }
 
   if (isError) {

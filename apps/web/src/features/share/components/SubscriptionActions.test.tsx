@@ -85,6 +85,24 @@ describe('SubscriptionActions', () => {
       })
     })
 
+    it('追加中は「追加」ボタンをローディング状態にする', async () => {
+      const { subscribeToShare } = await import('../../../api/generated')
+      vi.mocked(subscribeToShare).mockReturnValueOnce(new Promise(() => {}))
+
+      render(<SubscriptionActions token="tok1" initialIsSubscribed={false} />, {
+        wrapper: createWrapper(),
+      })
+      fireEvent.click(
+        screen.getByRole('button', { name: '自分のカレンダーに追加' }),
+      )
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: '自分のカレンダーに追加' }),
+        ).toHaveAttribute('aria-busy', 'true')
+      })
+    })
+
     it('201 で成功したとき表示が「追加済み」+「削除」ボタンに切り替わる', async () => {
       const { subscribeToShare } = await import('../../../api/generated')
       vi.mocked(subscribeToShare).mockResolvedValueOnce({
