@@ -1,3 +1,5 @@
+import './tagColors.css'
+
 // Mirrors the TagColor enum in packages/schema; the order is the palette order defined by SPEC-008.
 export const TAG_COLOR_KEYS = [
   'red',

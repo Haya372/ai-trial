@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import tokensCss from '../tokens.css?raw'
+import tagColorsCss from './tagColors.css?raw'
 import { TAG_COLOR_KEYS, tagColorVars } from './tagColorTokens'
 
 function relativeLuminance(hex: string): number {
@@ -20,7 +20,7 @@ function contrastRatio(a: string, b: string): number {
 }
 
 function tokenValue(name: string): string | undefined {
-  return tokensCss.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1].trim()
+  return tagColorsCss.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1].trim()
 }
 
 describe('TAG_COLOR_KEYS', () => {
@@ -51,7 +51,7 @@ describe('tagColorVars', () => {
   })
 })
 
-describe('tokens.css のタグ色定義', () => {
+describe('tagColors.css のタグ色定義', () => {
   it.each(TAG_COLOR_KEYS)('%s の背景色と文字色を HEX で定義する', (key) => {
     expect(tokenValue(`tag-${key}-bg`)).toMatch(/^#[0-9a-f]{6}$/i)
     expect(tokenValue(`tag-${key}-fg`)).toMatch(/^#[0-9a-f]{6}$/i)

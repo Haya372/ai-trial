@@ -55,32 +55,6 @@
   --spacing-4: 1rem;
   --spacing-6: 1.5rem;
   --spacing-8: 2rem;
-
-  /* Tag colors: keyed by TagColor so the palette can be retuned without migrating stored data */
-  --tag-red-bg: #dc2626;
-  --tag-red-fg: #ffffff;
-  --tag-orange-bg: #c2410c;
-  --tag-orange-fg: #ffffff;
-  --tag-yellow-bg: #facc15;
-  --tag-yellow-fg: #422006;
-  --tag-green-bg: #15803d;
-  --tag-green-fg: #ffffff;
-  --tag-teal-bg: #0f766e;
-  --tag-teal-fg: #ffffff;
-  --tag-cyan-bg: #0e7490;
-  --tag-cyan-fg: #ffffff;
-  --tag-blue-bg: #2563eb;
-  --tag-blue-fg: #ffffff;
-  --tag-indigo-bg: #4f46e5;
-  --tag-indigo-fg: #ffffff;
-  --tag-purple-bg: #9333ea;
-  --tag-purple-fg: #ffffff;
-  --tag-pink-bg: #be185d;
-  --tag-pink-fg: #ffffff;
-  --tag-brown-bg: #8a5a3b;
-  --tag-brown-fg: #ffffff;
-  --tag-gray-bg: #4b5563;
-  --tag-gray-fg: #ffffff;
 }
 
 .dark {
