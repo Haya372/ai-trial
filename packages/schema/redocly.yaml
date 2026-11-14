@@ -1,3 +1,5 @@
+telemetry: off
+
 apis:
   main:
     root: ./openapi.yaml

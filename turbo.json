@@ -10,9 +10,6 @@
     "format": {},
     "bundle": {
       "outputs": ["dist/**"]
-    },
-    "generate:backend": {
-      "dependsOn": ["@ai-trial/schema#bundle"]
     }
   }
 }

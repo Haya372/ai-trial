@@ -25,7 +25,7 @@ lint:
 
 fmt:
 	gofmt -w .
-	goimports -w .
+	go tool goimports -w .
 
 vet:
 	go vet ./...
