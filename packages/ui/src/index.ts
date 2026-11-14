@@ -66,3 +66,11 @@ export { WeekCalendar } from './calendar/WeekCalendar'
 export type { CalendarEvent } from './calendar/types'
 export { TodayTimeline } from './timeline/TodayTimeline'
 export type { TodayTimelineLabels } from './timeline/types'
+export { TagBadge } from './tag/TagBadge'
+export { TagColorPalette } from './tag/TagColorPalette'
+export { TagColorSwatch } from './tag/TagColorSwatch'
+export {
+  TAG_COLOR_KEYS,
+  type TagColorKey,
+  tagColorVars,
+} from './tag/tagColorTokens'
