@@ -91,6 +91,33 @@ vi.mock('../../event/components/QuickRegistrationPanel', () => ({
   ),
 }))
 
+// TodayTimelinePanel は個別にテスト済みのためスタブ化し、
+// CalendarPage への配置と詳細モーダルへの接続だけを検証する
+vi.mock('../../timeline/components/TodayTimelinePanel', () => ({
+  default: vi.fn(({ onEventClick }) => (
+    <div data-testid="today-timeline-panel">
+      <button
+        onClick={() =>
+          onEventClick({
+            id: 'timeline-event',
+            title: '今日の予定',
+            description: null,
+            location: null,
+            url: null,
+            startAt: new Date(2026, 10, 14, 10, 0).toISOString(),
+            endAt: new Date(2026, 10, 14, 11, 0).toISOString(),
+            isSubscribed: false,
+            subscriptionId: null,
+            tags: [],
+          })
+        }
+      >
+        タイムラインの予定
+      </button>
+    </div>
+  )),
+}))
+
 import CalendarPage from './CalendarPage'
 
 function createWrapper() {
@@ -510,6 +537,66 @@ describe('CalendarPage', () => {
 
       const dialog = screen.getByTestId('share-link-dialog')
       expect(dialog).toHaveTextContent(`event:${fullEvent.id}`)
+    })
+  })
+
+  describe('今日のタイムラインパネル', () => {
+    async function setup(
+      view: CalendarState['view'],
+      query: { isPending: boolean; isError: boolean },
+    ) {
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
+      vi.mocked(useCalendarStore).mockImplementation(
+        (selector: (state: CalendarState) => unknown) => {
+          const state: CalendarState = {
+            view,
+            currentDate: new Date(2026, 8, 13),
+            setView: vi.fn(),
+            setCurrentDate: vi.fn(),
+          }
+          return selector ? selector(state) : state
+        },
+      )
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: query.isPending || query.isError ? undefined : { events: [] },
+        isPending: query.isPending,
+        isError: query.isError,
+        isSuccess: !query.isPending && !query.isError,
+        error: null,
+      } as never)
+      render(<CalendarPage />, { wrapper: createWrapper() })
+    }
+
+    it.each(['month', 'week'] as const)(
+      '%s ビューでパネルを表示する',
+      async (view) => {
+        await setup(view, { isPending: false, isError: false })
+        expect(screen.getByTestId('today-timeline-panel')).toBeInTheDocument()
+      },
+    )
+
+    it('カレンダーの予定が取得中でもパネルを表示する', async () => {
+      await setup('month', { isPending: true, isError: false })
+      expect(screen.getByTestId('today-timeline-panel')).toBeInTheDocument()
+    })
+
+    it('カレンダーの予定の取得に失敗してもパネルを表示する', async () => {
+      await setup('month', { isPending: false, isError: true })
+      expect(screen.getByTestId('today-timeline-panel')).toBeInTheDocument()
+    })
+
+    it('パネルの予定クリックで、その予定の詳細モーダルを開く', async () => {
+      await setup('month', { isPending: false, isError: false })
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'タイムラインの予定' }),
+      )
+
+      expect(screen.getByTestId('event-detail-modal')).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: '編集-timeline-event' }),
+      ).toBeInTheDocument()
     })
   })
 })

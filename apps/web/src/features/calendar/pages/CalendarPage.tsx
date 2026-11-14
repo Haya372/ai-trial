@@ -1,6 +1,5 @@
-import { Button } from '@repo/ui'
 import type { CalendarEvent } from '@repo/ui'
-import { MonthCalendar, WeekCalendar } from '@repo/ui'
+import { Button, MonthCalendar, WeekCalendar } from '@repo/ui'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
@@ -8,9 +7,10 @@ import { useEventsQuery } from '../../../hooks/useEventsQuery'
 import { useCalendarStore } from '../../../stores/calendarStore'
 import LogoutButton from '../../auth/components/LogoutButton'
 import EventFormModal from '../../event/components/EventFormModal'
-import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
+import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import type { EventFormMode } from '../../event/types'
+import TodayTimelinePanel from '../../timeline/components/TodayTimelinePanel'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
 import EventDetailModal from '../components/EventDetailModal'
@@ -51,10 +51,13 @@ export default function CalendarPage() {
     isSubscribed: e.isSubscribed,
   }))
 
-  function handleEventClick(event: CalendarEvent) {
-    const fullEvent = data?.events.find((e) => e.id === event.id) ?? null
-    setSelectedEvent(fullEvent)
+  function openEventDetail(event: EventResponse | null) {
+    setSelectedEvent(event)
     setDetailModalOpen(true)
+  }
+
+  function handleEventClick(event: CalendarEvent) {
+    openEventDetail(data?.events.find((e) => e.id === event.id) ?? null)
   }
 
   function openCreateForm(start: Date | null) {
@@ -126,39 +129,47 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {isPending && (
-        <div className="flex items-center justify-center p-16 text-muted-foreground">
-          {t('page.loading')}
-        </div>
-      )}
+      <div className="flex min-h-0 flex-1 gap-4">
+        <div className="flex min-w-0 flex-1 flex-col">
+          {isPending && (
+            <div className="flex items-center justify-center p-16 text-muted-foreground">
+              {t('page.loading')}
+            </div>
+          )}
 
-      {isError && (
-        <div className="flex items-center justify-center p-16 text-destructive">
-          {t('page.loadError')}
-        </div>
-      )}
+          {isError && (
+            <div className="flex items-center justify-center p-16 text-destructive">
+              {t('page.loadError')}
+            </div>
+          )}
 
-      {!isPending && !isError && (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {view === CALENDAR_VIEW.MONTH ? (
-            <MonthCalendar
-              events={calendarEvents}
-              currentDate={currentDate}
-              onEventClick={handleEventClick}
-              onDateClick={handleDateClick}
-              onDateChange={setCurrentDate}
-            />
-          ) : (
-            <WeekCalendar
-              events={calendarEvents}
-              currentDate={currentDate}
-              onEventClick={handleEventClick}
-              onTimeSlotClick={handleTimeSlotClick}
-              onDateChange={setCurrentDate}
-            />
+          {!isPending && !isError && (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {view === CALENDAR_VIEW.MONTH ? (
+                <MonthCalendar
+                  events={calendarEvents}
+                  currentDate={currentDate}
+                  onEventClick={handleEventClick}
+                  onDateClick={handleDateClick}
+                  onDateChange={setCurrentDate}
+                />
+              ) : (
+                <WeekCalendar
+                  events={calendarEvents}
+                  currentDate={currentDate}
+                  onEventClick={handleEventClick}
+                  onTimeSlotClick={handleTimeSlotClick}
+                  onDateChange={setCurrentDate}
+                />
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        <aside className="w-72 shrink-0 overflow-y-auto">
+          <TodayTimelinePanel onEventClick={openEventDetail} />
+        </aside>
+      </div>
 
       <EventDetailModal
         open={detailModalOpen}
