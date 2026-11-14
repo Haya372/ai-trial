@@ -38,6 +38,7 @@ export { Icon } from './Icon'
 export { Input } from './Input'
 export { Label } from './Label'
 export { List, ListItem } from './List'
+export { Loading } from './Loading'
 export { Popover, PopoverContent, PopoverTrigger } from './Popover'
 export {
   Select,
@@ -47,6 +48,7 @@ export {
   SelectTrigger,
   SelectValue,
 } from './Select'
+export { Spinner } from './Spinner'
 export { Switch } from './Switch'
 export {
   Table,
