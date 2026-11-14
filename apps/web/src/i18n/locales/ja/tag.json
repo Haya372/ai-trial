@@ -1,0 +1,52 @@
+{
+  "management": {
+    "openButton": "タグ管理",
+    "title": "タグ管理",
+    "newTag": "新しいタグ",
+    "empty": "タグはまだありません",
+    "loading": "読み込み中...",
+    "loadError": "タグを読み込めませんでした",
+    "limitReached": "タグは{{limit}}件まで作成できます。不要なタグを削除してください",
+    "edit": "{{name}}を編集",
+    "delete": "{{name}}を削除",
+    "editButton": "編集",
+    "deleteButton": "削除"
+  },
+  "editor": {
+    "name": "タグ名",
+    "color": "色",
+    "save": "保存",
+    "saving": "保存中...",
+    "cancel": "キャンセル"
+  },
+  "deleteConfirm": {
+    "title": "タグ「{{name}}」を削除しますか？",
+    "description": "{{count}}件の予定に付与されています。予定自体は削除されません。",
+    "confirm": "削除する",
+    "deleting": "削除中...",
+    "cancel": "キャンセル"
+  },
+  "validation": {
+    "nameRequired": "タグ名を入力してください",
+    "nameTooLong": "タグ名は{{max}}文字以内で入力してください"
+  },
+  "errors": {
+    "nameTaken": "同じ名前のタグがすでにあります",
+    "saveFailed": "タグの保存に失敗しました。しばらく経ってから再試行してください",
+    "deleteFailed": "タグの削除に失敗しました。しばらく経ってから再試行してください"
+  },
+  "colors": {
+    "red": "赤",
+    "orange": "オレンジ",
+    "yellow": "黄",
+    "green": "緑",
+    "teal": "ティール",
+    "cyan": "水色",
+    "blue": "青",
+    "indigo": "藍",
+    "purple": "紫",
+    "pink": "ピンク",
+    "brown": "茶",
+    "gray": "グレー"
+  }
+}

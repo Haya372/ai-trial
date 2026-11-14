@@ -8,3 +8,7 @@ export const sharesKeys = {
   all: ['shares'] as const,
   detail: (token: string) => [...sharesKeys.all, token] as const,
 }
+
+export const tagsKeys = {
+  all: ['tags'] as const,
+}

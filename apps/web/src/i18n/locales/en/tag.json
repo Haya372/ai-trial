@@ -1,0 +1,53 @@
+{
+  "management": {
+    "openButton": "Manage tags",
+    "title": "Manage tags",
+    "newTag": "New tag",
+    "empty": "No tags yet",
+    "loading": "Loading...",
+    "loadError": "Couldn't load tags",
+    "limitReached": "You can create up to {{limit}} tags. Delete tags you no longer need.",
+    "edit": "Edit {{name}}",
+    "delete": "Delete {{name}}",
+    "editButton": "Edit",
+    "deleteButton": "Delete"
+  },
+  "editor": {
+    "name": "Tag name",
+    "color": "Color",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel"
+  },
+  "deleteConfirm": {
+    "title": "Delete the tag \"{{name}}\"?",
+    "description_one": "It is attached to {{count}} event. The event itself won't be deleted.",
+    "description_other": "It is attached to {{count}} events. The events themselves won't be deleted.",
+    "confirm": "Delete",
+    "deleting": "Deleting...",
+    "cancel": "Cancel"
+  },
+  "validation": {
+    "nameRequired": "Enter a tag name",
+    "nameTooLong": "Tag names can be at most {{max}} characters"
+  },
+  "errors": {
+    "nameTaken": "A tag with this name already exists",
+    "saveFailed": "Couldn't save the tag. Please try again later.",
+    "deleteFailed": "Couldn't delete the tag. Please try again later."
+  },
+  "colors": {
+    "red": "Red",
+    "orange": "Orange",
+    "yellow": "Yellow",
+    "green": "Green",
+    "teal": "Teal",
+    "cyan": "Cyan",
+    "blue": "Blue",
+    "indigo": "Indigo",
+    "purple": "Purple",
+    "pink": "Pink",
+    "brown": "Brown",
+    "gray": "Gray"
+  }
+}

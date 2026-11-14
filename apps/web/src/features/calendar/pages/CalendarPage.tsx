@@ -10,6 +10,7 @@ import EventFormModal from '../../event/components/EventFormModal'
 import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
 import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import type { EventFormMode } from '../../event/types'
+import TagManagementButton from '../../tag/components/TagManagementButton'
 import TodayTimelinePanel from '../../timeline/components/TodayTimelinePanel'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
@@ -124,6 +125,7 @@ export default function CalendarPage() {
           <Button variant="primary" onClick={handleCreateClick}>
             {t('page.createButton')}
           </Button>
+          <TagManagementButton />
           <CalendarViewTabs view={view} onViewChange={setView} />
           <LogoutButton />
         </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventsKeys, sharesKeys } from './queryKeys'
+import { eventsKeys, sharesKeys, tagsKeys } from './queryKeys'
 
 describe('eventsKeys', () => {
   it('list は all の末尾に startAt/endAt を連結したキーを返す', () => {
@@ -38,5 +38,11 @@ describe('sharesKeys', () => {
     const key1 = sharesKeys.detail('token1')
     const key2 = sharesKeys.detail('token2')
     expect(key1).not.toEqual(key2)
+  })
+})
+
+describe('tagsKeys', () => {
+  it('all は ["tags"] を返す', () => {
+    expect(tagsKeys.all).toEqual(['tags'])
   })
 })

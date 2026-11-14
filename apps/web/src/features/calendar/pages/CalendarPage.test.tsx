@@ -118,6 +118,11 @@ vi.mock('../../timeline/components/TodayTimelinePanel', () => ({
   )),
 }))
 
+// TagManagementButton は個別にテスト済みのためスタブ化し、ヘッダーへの配置だけを検証する
+vi.mock('../../tag/components/TagManagementButton', () => ({
+  default: vi.fn(() => <div data-testid="tag-management-button" />),
+}))
+
 import CalendarPage from './CalendarPage'
 
 function createWrapper() {
@@ -266,6 +271,23 @@ describe('CalendarPage', () => {
       }>
       expect(events.find((e) => e.id === 'event-1')?.isSubscribed).toBe(false)
       expect(events.find((e) => e.id === 'event-2')?.isSubscribed).toBe(true)
+    })
+  })
+
+  describe('タグ管理', () => {
+    it('ヘッダーにタグ管理ボタンを表示する', async () => {
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      expect(screen.getByTestId('tag-management-button')).toBeInTheDocument()
     })
   })
 
