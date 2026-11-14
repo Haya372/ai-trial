@@ -5,6 +5,7 @@ import type calendarJa from './locales/ja/calendar.json'
 import type eventJa from './locales/ja/event.json'
 import type eventshareJa from './locales/ja/eventshare.json'
 import type shareJa from './locales/ja/share.json'
+import type tagJa from './locales/ja/tag.json'
 
 declare module 'i18next' {
   interface CustomTypeOptions {
@@ -16,6 +17,7 @@ declare module 'i18next' {
       event: typeof eventJa
       eventshare: typeof eventshareJa
       share: typeof shareJa
+      tag: typeof tagJa
     }
   }
 }
