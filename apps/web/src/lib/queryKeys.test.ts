@@ -28,6 +28,14 @@ describe('eventsKeys', () => {
     )
   })
 
+  it('tagId に null を渡すと省略したときと同じキーを返す', () => {
+    const range = [
+      '2026-08-31T15:00:00.000Z',
+      '2026-09-30T15:00:00.000Z',
+    ] as const
+    expect(eventsKeys.list(...range, null)).toEqual(eventsKeys.list(...range))
+  })
+
   it('startAt/endAt が異なれば異なるキーを返す', () => {
     const key1 = eventsKeys.list(
       '2026-08-31T15:00:00.000Z',

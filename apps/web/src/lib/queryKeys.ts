@@ -1,7 +1,7 @@
 export const eventsKeys = {
   all: ['events'] as const,
-  list: (startAt: string, endAt: string, tagId?: string) =>
-    [...eventsKeys.all, startAt, endAt, tagId ?? null] as const,
+  list: (startAt: string, endAt: string, tagId: string | null = null) =>
+    [...eventsKeys.all, startAt, endAt, tagId] as const,
 }
 
 export const sharesKeys = {

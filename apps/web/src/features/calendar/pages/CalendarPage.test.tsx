@@ -399,7 +399,7 @@ describe('CalendarPage', () => {
       expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
         'selected:none',
       )
-      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeUndefined()
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeNull()
     })
 
     it('タグを選ぶとそのタグIDで予定を取得し、選択状態を渡す', async () => {
@@ -423,7 +423,7 @@ describe('CalendarPage', () => {
         screen.getByRole('button', { name: '絞り込みを解除する' }),
       )
 
-      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeUndefined()
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeNull()
       expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
         'selected:none',
       )

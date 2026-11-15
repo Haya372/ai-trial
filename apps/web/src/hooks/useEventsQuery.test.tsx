@@ -102,6 +102,26 @@ describe('useEventsQuery', () => {
     })
   })
 
+  it.each([
+    ['省略', undefined],
+    ['null', null],
+  ])('tagId が%sのときはリクエストに tagId を含めない', async (_, tagId) => {
+    const { getEvents } = await import('../api/generated')
+    vi.mocked(getEvents).mockResolvedValueOnce({
+      data: { events: [] },
+      status: 200,
+      headers: new Headers(),
+    } as never)
+
+    const { result } = renderHook(
+      () => useEventsQuery(startDate, endDate, tagId),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(vi.mocked(getEvents).mock.lastCall?.[0]).not.toHaveProperty('tagId')
+  })
+
   it('ネットワークエラー時に isError が true になる', async () => {
     const { getEvents } = await import('../api/generated')
     vi.mocked(getEvents).mockRejectedValueOnce(new Error('Network error'))

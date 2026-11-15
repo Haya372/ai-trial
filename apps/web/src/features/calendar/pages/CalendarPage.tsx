@@ -49,7 +49,7 @@ export default function CalendarPage() {
   const { data, isPending, isError } = useEventsQuery(
     startAt,
     endAt,
-    filterTagId ?? undefined,
+    filterTagId,
   )
 
   const calendarEvents: CalendarEvent[] = (data?.events ?? []).map((e) => ({

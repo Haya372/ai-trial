@@ -3,7 +3,11 @@ import { getEvents } from '../api/generated'
 import { eventsKeys } from '../lib/queryKeys'
 
 // 検索範囲 [startAt, endAt) をUTCで送る（ADR-036）
-export function useEventsQuery(startAt: Date, endAt: Date, tagId?: string) {
+export function useEventsQuery(
+  startAt: Date,
+  endAt: Date,
+  tagId: string | null = null,
+) {
   const startAtIso = startAt.toISOString()
   const endAtIso = endAt.toISOString()
   return useQuery({
@@ -12,7 +16,7 @@ export function useEventsQuery(startAt: Date, endAt: Date, tagId?: string) {
       const res = await getEvents({
         startAt: startAtIso,
         endAt: endAtIso,
-        tagId,
+        ...(tagId !== null && { tagId }),
       })
       if (res.status !== 200) {
         throw res
