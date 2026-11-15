@@ -71,7 +71,12 @@ export default function TagFilterButton({
     return (
       <div className="flex flex-col gap-1">
         <div className="flex">
-          <Button variant="ghost" size="sm" onClick={() => select(null)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-pressed={selectedTagId === null}
+            onClick={() => select(null)}
+          >
             {t('filter.showAll')}
           </Button>
         </div>

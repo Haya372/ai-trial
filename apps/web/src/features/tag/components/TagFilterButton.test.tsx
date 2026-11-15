@@ -86,6 +86,21 @@ describe('TagFilterButton', () => {
     ).toBeInTheDocument()
   })
 
+  it('未絞り込みのときは「すべて表示」を押下状態にする', async () => {
+    mockTags([work])
+    setup()
+
+    await openPopover()
+
+    expect(
+      await screen.findByRole('button', { name: 'すべて表示' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '仕事' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
   it('タグをクリックするとそのタグのIDで onChange を呼び、一覧を閉じる', async () => {
     mockTags([work, hobby])
     const { onChange } = setup()
@@ -149,6 +164,9 @@ describe('TagFilterButton', () => {
         'aria-pressed',
         'true',
       )
+      expect(
+        screen.getByRole('button', { name: 'すべて表示' }),
+      ).toHaveAttribute('aria-pressed', 'false')
       expect(screen.getByRole('button', { name: '趣味' })).toHaveAttribute(
         'aria-pressed',
         'false',
