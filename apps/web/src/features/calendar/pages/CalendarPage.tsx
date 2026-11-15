@@ -50,6 +50,7 @@ export default function CalendarPage() {
     start: new Date(e.startAt),
     end: new Date(e.endAt),
     isSubscribed: e.isSubscribed,
+    tagColors: e.tags.map((tag) => tag.color),
   }))
 
   function openEventDetail(event: EventResponse | null) {

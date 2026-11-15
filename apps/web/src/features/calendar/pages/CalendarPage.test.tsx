@@ -274,6 +274,80 @@ describe('CalendarPage', () => {
     })
   })
 
+  describe('タグ色のカレンダー表示', () => {
+    it('MonthCalendarに渡すイベントのtagColorsがtagsのcolorを付与順に持つ', async () => {
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
+      vi.mocked(useCalendarStore).mockImplementation(
+        (selector: (state: CalendarState) => unknown) => {
+          const state: CalendarState = {
+            view: 'month',
+            currentDate: new Date(2026, 8, 13),
+            setView: vi.fn(),
+            setCurrentDate: vi.fn(),
+          }
+          return selector ? selector(state) : state
+        },
+      )
+
+      const eventWithTags: EventResponse = {
+        ...fullEvent,
+        id: 'event-with-tags',
+        tags: [
+          { id: 'tag-1', name: 'レビュー', color: 'red' as const },
+          { id: 'tag-2', name: '設計', color: 'blue' as const },
+        ],
+      }
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [eventWithTags] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+
+      const { MonthCalendar } = await import('@repo/ui')
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(MonthCalendar)
+      const events = props.events as Array<{ id: string; tagColors?: string[] }>
+      expect(events.find((e) => e.id === 'event-with-tags')?.tagColors).toEqual(
+        ['red', 'blue'],
+      )
+    })
+
+    it('タグなし予定のtagColorsは空配列', async () => {
+      const { useCalendarStore } = await import('../../../stores/calendarStore')
+      vi.mocked(useCalendarStore).mockImplementation(
+        (selector: (state: CalendarState) => unknown) => {
+          const state: CalendarState = {
+            view: 'month',
+            currentDate: new Date(2026, 8, 13),
+            setView: vi.fn(),
+            setCurrentDate: vi.fn(),
+          }
+          return selector ? selector(state) : state
+        },
+      )
+
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [fullEvent] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+
+      const { MonthCalendar } = await import('@repo/ui')
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      const props = getLatestCallProps(MonthCalendar)
+      const events = props.events as Array<{ id: string; tagColors?: string[] }>
+      expect(events.find((e) => e.id === 'event-1')?.tagColors).toEqual([])
+    })
+  })
+
   describe('タグ管理', () => {
     it('ヘッダーにタグ管理ボタンを表示する', async () => {
       const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
