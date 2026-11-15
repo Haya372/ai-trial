@@ -10,6 +10,8 @@ import type {
 import { useEffect, useRef } from 'react'
 import { createDateClickHandler } from './createDateClickHandler'
 import { eventClassNames } from './eventClassNames'
+import { eventColorProps } from './eventColorProps'
+import { renderEventContent } from './renderEventContent'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -48,6 +50,10 @@ export function MonthCalendar({
     start: e.start,
     end: e.end,
     classNames: eventClassNames(e),
+    ...eventColorProps(e),
+    // dayGrid shows timed events as "list-item" (dot + text) by default.
+    // Switch to "block" for tagged events so the tag background color is visible.
+    ...(e.tagColors?.length ? { display: 'block' } : {}),
     extendedProps: { calendarEvent: e },
   }))
 
@@ -73,6 +79,7 @@ export function MonthCalendar({
       initialView="dayGridMonth"
       initialDate={currentDate}
       events={fullCalendarEvents}
+      eventContent={renderEventContent}
       eventClick={handleEventClick}
       dateClick={handleDateClick}
       datesSet={handleDatesSet}
