@@ -92,7 +92,7 @@ ADR-036で選択肢2（バックエンドでの計算）を採用しなかった
 
 ## 検証結果
 
-- Go 1.25.0 で、`time.LoadLocation("America/New_York")` を使い、2026-03-02（月）10:00 から `AddDate(0, 0, 7)` で週ごとに日付を進めた。夏時間の開始日（2026-03-08）をまたいでも、ローカル時刻はすべて10:00で、UTCは `15:00Z` から `14:00Z` に変わることを確認した
+- Go 1.27.3（`apps/backend/go.mod` と同じバージョン）で、`time.LoadLocation("America/New_York")` を使い、2026-03-02（月）10:00 から `AddDate(0, 0, 7)` で週ごとに日付を進めた。夏時間の開始日（2026-03-08）をまたいでも、ローカル時刻はすべて10:00で、UTCは `15:00Z` から `14:00Z` に変わることを確認した
 - `time.LoadLocation("Invalid/Zone")` が `unknown time zone Invalid/Zone` のエラーを返すことを確認した
 - Node.js で `Intl.DateTimeFormat().resolvedOptions().timeZone` が、環境変数 `TZ` に応じて `Asia/Tokyo` や `America/New_York` のIANA名を返すことを確認した
 
