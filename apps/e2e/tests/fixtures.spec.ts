@@ -24,7 +24,9 @@ test('API経由で作成した予定が、ログイン後のカレンダーに�
 
   await signIn(user)
 
-  await expect(page.getByText('固定日の定例')).toBeVisible()
+  // 予定はタイムライン等にも出るため、固定日の月を表示している月カレンダー内に絞る
+  const monthCalendar = page.getByRole('table', { name: /2030年6月/ })
+  await expect(monthCalendar.getByText('固定日の定例')).toBeVisible()
 })
 
 test('別のユーザーには、他のユーザーが作成した予定が表示されない', async ({
@@ -47,6 +49,7 @@ test('別のユーザーには、他のユーザーが作成した予定が表�
 
   await signIn(other)
 
-  await expect(page.getByText('2人目の予定')).toBeVisible()
+  const monthCalendar = page.getByRole('table', { name: /2030年6月/ })
+  await expect(monthCalendar.getByText('2人目の予定')).toBeVisible()
   await expect(page.getByText('1人目だけの予定')).toHaveCount(0)
 })
