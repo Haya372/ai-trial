@@ -21,6 +21,10 @@ TURBO_TELEMETRY_DISABLED = "1"
 run = "bash scripts/git-clean-branches.sh"
 description = "Delete local branches whose remote is gone"
 
+[tasks.go-release-age]
+run = "bash scripts/check-go-release-age.sh"
+description = "Fail if any Go module version is too new (default: 7 days, override via MIN_RELEASE_AGE_DAYS)"
+
 [tasks.actions-lock-setup]
 run = "gh extension install github/gh-actions-lock --pin v0.1.6 --force"
 description = "Install (or pin to the CI version) the gh-actions-lock extension"
