@@ -162,7 +162,7 @@ SPEC-009 では新規エンドポイントを追加せず、既存の SPEC-002�
 | `end.count` | integer | `end.type = count` のとき必須、それ以外は省略 | 2 以上。除外日・スキップ月は含めない | 回数 |
 | `timezone` | string | 必須 | IANA タイムゾーン名（`time.LoadLocation` で解釈可能なもの、例: `Asia/Tokyo`） | シリーズ作成時の端末タイムゾーン |
 
-`recurringSeries`（レスポンス）では上記に加えて `id`（string, uuid）が返る。`recurringSeries` は、対象予定がシリーズに属していないとき `null` を返す。
+`recurringSeries`（レスポンス）では上記に加えて `id`（string, uuid）が返る。`recurringSeries` は、対象予定がシリーズに属していないとき、または共有リンクから追加した予定（`isSubscribed = true`、GET /events を参照）のとき `null` を返す。
 
 曜日・日付は `pattern` に含めない。これらは対象予定の `startAt` を `timezone` のローカル時刻に変換した日・曜日から一意に決まる（例: `pattern.type = weekly` なら、各回は `startAt` と同じ曜日で繰り返す）。クライアントは繰り返し設定の要約（基本フロー「繰り返し予定の表示」）を描画するとき、`startAt` を `recurringSeries.timezone` のローカル時刻に変換して曜日・日付を得る。
 
