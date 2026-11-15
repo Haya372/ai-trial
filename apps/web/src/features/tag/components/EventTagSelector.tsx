@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
   TagBadge,
 } from '@repo/ui'
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EventTagResponse, TagResponse } from '../../../api/generated'
 import { useTagsQuery } from '../hooks/useTagsQuery'
@@ -39,19 +39,25 @@ export default function EventTagSelector({
   // The server can reject a create with TAG_LIMIT_EXCEEDED even when the cached
   // list is below the limit (e.g. tags were added in another tab).
   const [limitExceededByServer, setLimitExceededByServer] = useState(false)
-  const [createdTags, setCreatedTags] = useState<TagResponse[]>([])
+  const [pickedTags, setPickedTags] = useState<EventTagResponse[]>([])
+  // A tag create can finish after the selection changed (e.g. a chip was removed
+  // meanwhile), so the new ID is appended to the latest value, not a stale one.
+  const latestValue = useRef(value)
+  useEffect(() => {
+    latestValue.current = value
+  }, [value])
 
-  // initialTags and createdTags keep tags deleted elsewhere visible so the user
+  // initialTags and pickedTags keep tags deleted elsewhere visible so the user
   // can remove them; otherwise a hidden ID would stay in value and fail every save.
   const tagById = useMemo(
     () =>
       new Map<string, EventTagResponse>(
-        [...initialTags, ...createdTags, ...(tags ?? [])].map((tag) => [
+        [...initialTags, ...pickedTags, ...(tags ?? [])].map((tag) => [
           tag.id,
           tag,
         ]),
       ),
-    [initialTags, createdTags, tags],
+    [initialTags, pickedTags, tags],
   )
   const selectedTags = value.flatMap((id) => {
     const tag = tagById.get(id)
@@ -65,14 +71,18 @@ export default function EventTagSelector({
     onChange(value.filter((id) => id !== tagId))
   }
 
-  function toggle(tagId: string, checked: boolean) {
-    if (checked) onChange([...value, tagId])
-    else remove(tagId)
+  function pick(tag: EventTagResponse) {
+    setPickedTags((prev) => [...prev, tag])
+    onChange([...latestValue.current, tag.id])
+  }
+
+  function toggle(tag: EventTagResponse, checked: boolean) {
+    if (checked) pick(tag)
+    else remove(tag.id)
   }
 
   function handleCreated(tag: TagResponse) {
-    setCreatedTags((prev) => [...prev, tag])
-    onChange([...value, tag.id])
+    pick(tag)
     setCreating(false)
   }
 
@@ -100,7 +110,7 @@ export default function EventTagSelector({
                 <Checkbox
                   checked={checked}
                   disabled={!checked && selectionFull}
-                  onCheckedChange={(next) => toggle(tag.id, next)}
+                  onCheckedChange={(next) => toggle(tag, next)}
                   aria-labelledby={nameId}
                 />
                 <span id={nameId} className="min-w-0">

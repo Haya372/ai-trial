@@ -6,7 +6,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
-import { type ReactNode, useState } from 'react'
+import { act, type ReactNode, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EventTagResponse, TagResponse } from '../../../api/generated'
 import { createTag, listTags } from '../../../api/generated'
@@ -62,7 +62,7 @@ function setup({
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
   render(<Harness />, { wrapper })
-  return { onChange }
+  return { onChange, queryClient }
 }
 
 async function openList() {
@@ -215,6 +215,64 @@ describe('EventTagSelector', () => {
     expect(
       await screen.findByRole('button', { name: '新規を外す' }),
     ).toBeInTheDocument()
+  })
+
+  it('一覧から選んだタグがタグ一覧から消えても、選択中のタグとして表示し続ける', async () => {
+    mockTags([work, hobby])
+    const { queryClient } = setup()
+    const list = await openList()
+    fireEvent.click(await within(list).findByRole('checkbox', { name: '仕事' }))
+
+    // Simulates the tag being deleted in another tab and the list refetching.
+    mockTags([hobby])
+    await act(() => queryClient.invalidateQueries())
+
+    await waitFor(() =>
+      expect(
+        within(list).queryByRole('checkbox', { name: '仕事' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(selectedTagNames()).toEqual(['仕事'])
+  })
+
+  it('タグ作成中に選択を変えても、作成完了時は最新の選択の末尾に追加する', async () => {
+    mockTags([work, hobby])
+    let resolveCreate: (value: unknown) => void = () => {}
+    vi.mocked(createTag).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve
+        }) as never,
+    )
+    const { onChange } = setup({ initialValue: ['tag-1', 'tag-2'] })
+    const list = await openList()
+
+    fireEvent.click(
+      await within(list).findByRole('button', { name: '新しいタグを作成' }),
+    )
+    fireEvent.change(within(list).getByLabelText('タグ名'), {
+      target: { value: '新規' },
+    })
+    fireEvent.click(within(list).getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(createTag).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByRole('button', { name: '仕事を外す' }))
+    expect(onChange).toHaveBeenLastCalledWith(['tag-2'])
+
+    await act(async () => {
+      resolveCreate(
+        response(201, {
+          id: 'tag-new',
+          name: '新規',
+          color: 'red',
+          eventCount: 0,
+        }),
+      )
+    })
+
+    await waitFor(() =>
+      expect(onChange).toHaveBeenLastCalledWith(['tag-2', 'tag-new']),
+    )
   })
 
   it('タグ作成が 409 TAG_LIMIT_EXCEEDED のときは一覧に戻り、上限の旨を表示する', async () => {
