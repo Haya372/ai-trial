@@ -37,9 +37,8 @@ export function CalendarEventContent({
         >
           {dotColors.map((color, i) => (
             <span
-              // index is stable here: dot order mirrors insertion order and never reorders
-              // eslint-disable-next-line react/no-array-index-key
-              key={i}
+              // Same color may appear twice (duplicate colors are allowed), so pair it with the position.
+              key={`${color}-${i}`}
               className="inline-block shrink-0 size-2 rounded-full"
               style={{
                 backgroundColor: tagColorVars(color).background,
