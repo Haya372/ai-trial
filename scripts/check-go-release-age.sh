@@ -21,7 +21,7 @@ if [[ -f "${EXCLUDE_FILE}" ]]; then
 fi
 
 modules="$(cd "${BACKEND_DIR}" && go list -m \
-  -f '{{if not .Main}}{{with .Time}}{{.UTC.Format "2006-01-02T15:04:05Z"}}{{end}} {{.Path}}@{{.Version}}{{end}}' all)"
+  -f '{{if not .Main}}{{with .Time}}{{.UTC.Format "2006-01-02T15:04:05Z"}} {{$.Path}}@{{$.Version}}{{end}}{{end}}' all)"
 
 violations=""
 while read -r published module; do
