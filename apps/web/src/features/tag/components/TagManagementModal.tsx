@@ -68,7 +68,8 @@ export default function TagManagementModal({
     return (
       <TagEditor
         target={target}
-        onDone={() => setEditorTarget(null)}
+        onSaved={() => setEditorTarget(null)}
+        onCancel={() => setEditorTarget(null)}
         onLimitExceeded={handleLimitExceeded}
       />
     )

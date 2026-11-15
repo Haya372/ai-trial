@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
-import { createTag, updateTag } from '../../../api/generated'
+import { createTag, type TagResponse, updateTag } from '../../../api/generated'
 import { useRevalidateOnLanguageChange } from '../../../hooks/useRevalidateOnLanguageChange'
 import { hasErrorCode } from '../../../lib/errorMessage'
 import { eventsKeys, tagsKeys } from '../../../lib/queryKeys'
@@ -22,7 +22,7 @@ function toFormValues(target: TagEditorTarget): TagFormValues {
 
 export function useTagEditorForm(
   target: TagEditorTarget,
-  onSaved: () => void,
+  onSaved: (tag: TagResponse) => void,
   onLimitExceeded: () => void,
 ) {
   const { t } = useTranslation('tag')
@@ -67,7 +67,7 @@ export function useTagEditorForm(
       if (target.mode === 'edit') {
         await queryClient.invalidateQueries({ queryKey: eventsKeys.all })
       }
-      onSaved()
+      onSaved(res.data)
     } catch {
       setSubmitError(t('errors.saveFailed'))
     }
