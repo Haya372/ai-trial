@@ -160,11 +160,13 @@ export default function CalendarPage() {
           )}
 
           {/* While switching the tag filter the previous filter's events stay
-              visible, so they are dimmed to show they are not the result yet. */}
+              visible, so they are dimmed to show they are not the result yet
+              and made unclickable so events outside the new filter cannot be
+              opened. */}
           {!isPending && !isError && (
             <div
               aria-busy={isPlaceholderData}
-              className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
+              className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'pointer-events-none opacity-50' : ''}`}
             >
               {view === CALENDAR_VIEW.MONTH ? (
                 <MonthCalendar

@@ -418,7 +418,7 @@ describe('CalendarPage', () => {
       [true, 'true'],
       [false, 'false'],
     ])(
-      '前のデータを表示中（isPlaceholderData=%s）はカレンダーの aria-busy を %s にする',
+      '前のデータを表示中（isPlaceholderData=%s）はカレンダーの aria-busy を %s にし、取得中は予定をクリックできなくする',
       async (isPlaceholderData, busy) => {
         const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
         vi.mocked(useEventsQuery).mockReturnValue({
@@ -432,9 +432,12 @@ describe('CalendarPage', () => {
 
         render(<CalendarPage />, { wrapper: createWrapper() })
 
-        expect(
-          screen.getByTestId('month-calendar').parentElement,
-        ).toHaveAttribute('aria-busy', busy)
+        const container = screen.getByTestId('month-calendar').parentElement
+        expect(container).toHaveAttribute('aria-busy', busy)
+        // jsdom does not apply CSS, so the class that disables clicks is checked directly.
+        expect(container?.classList.contains('pointer-events-none')).toBe(
+          isPlaceholderData,
+        )
       },
     )
 
