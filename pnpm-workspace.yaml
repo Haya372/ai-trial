@@ -17,6 +17,8 @@ allowBuilds:
   lefthook: true
   protobufjs: true
 auditLevel: moderate
+# サプライチェーン攻撃対策: 公開から7日（分単位）未満のバージョンは解決しない
+minimumReleaseAge: 10080
 overrides:
   # GHSA-g3hv-75wg-m249: 依存元（ts-morph・typedoc・glob）が ^10 を要求したままのため強制する
   minimatch@10: 11.0.5
