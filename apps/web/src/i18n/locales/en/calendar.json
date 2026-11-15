@@ -19,6 +19,7 @@
     "noteLabel": "Note",
     "locationLabel": "Location",
     "urlLabel": "URL",
+    "tagsLabel": "Tags",
     "subscribedBadge": "Read-only",
     "delete": "Delete",
     "edit": "Edit",

@@ -29,7 +29,8 @@
     "titleRequired": "Title is required",
     "startAtRequired": "Start time is required",
     "endAtRequired": "End time is required",
-    "endAtAfterStart": "End time must be after start time"
+    "endAtAfterStart": "End time must be after start time",
+    "tagNotFound": "A selected tag has been deleted. Remove it and save again"
   },
   "errors": {
     "notFound": "Event not found (it may have been deleted)",
