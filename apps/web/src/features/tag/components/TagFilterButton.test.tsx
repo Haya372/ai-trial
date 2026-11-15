@@ -139,12 +139,16 @@ describe('TagFilterButton', () => {
       mockTags([work, hobby])
       setup('tag-1')
 
-      await openPopover(await screen.findByRole('button', { name: '仕事' }))
+      const trigger = await screen.findByRole('button', {
+        name: '絞り込み: 仕事',
+      })
+      expect(trigger).toHaveTextContent('仕事')
+      await openPopover(trigger)
 
-      const workItem = screen
-        .getAllByRole('button', { name: '仕事' })
-        .find((el) => el.hasAttribute('aria-pressed'))
-      expect(workItem).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: '仕事' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      )
       expect(screen.getByRole('button', { name: '趣味' })).toHaveAttribute(
         'aria-pressed',
         'false',
@@ -155,7 +159,9 @@ describe('TagFilterButton', () => {
       mockTags([work, hobby])
       const { onChange } = setup('tag-1')
 
-      await openPopover(await screen.findByRole('button', { name: '仕事' }))
+      await openPopover(
+        await screen.findByRole('button', { name: '絞り込み: 仕事' }),
+      )
       fireEvent.click(await screen.findByRole('button', { name: '趣味' }))
 
       expect(onChange).toHaveBeenCalledWith('tag-2')
@@ -165,7 +171,9 @@ describe('TagFilterButton', () => {
       mockTags([work, hobby])
       const { onChange } = setup('tag-1')
 
-      await openPopover(await screen.findByRole('button', { name: '仕事' }))
+      await openPopover(
+        await screen.findByRole('button', { name: '絞り込み: 仕事' }),
+      )
       fireEvent.click(await screen.findByRole('button', { name: 'すべて表示' }))
 
       expect(onChange).toHaveBeenCalledWith(null)
@@ -191,7 +199,7 @@ describe('TagFilterButton', () => {
     it('タグ一覧が更新されて選択中のタグがなくなったら onChange(null) を呼ぶ', async () => {
       mockTags([work, hobby])
       const { onChange, queryClient } = setup('tag-1')
-      await screen.findByRole('button', { name: '仕事' })
+      await screen.findByRole('button', { name: '絞り込み: 仕事' })
 
       queryClient.setQueryData(tagsKeys.all, [hobby])
 

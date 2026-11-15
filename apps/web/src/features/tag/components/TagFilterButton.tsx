@@ -109,7 +109,18 @@ export default function TagFilterButton({
     <>
       <div className="flex items-center">
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger render={<Button variant="outline" />}>
+          <PopoverTrigger
+            render={
+              <Button
+                variant="outline"
+                aria-label={
+                  selectedTag
+                    ? t('filter.active', { name: selectedTag.name })
+                    : undefined
+                }
+              />
+            }
+          >
             {selectedTag ? (
               <TagBadge
                 name={selectedTag.name}

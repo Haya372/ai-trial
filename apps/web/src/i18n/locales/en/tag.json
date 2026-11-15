@@ -24,6 +24,7 @@
   },
   "filter": {
     "button": "Filter",
+    "active": "Filter: {{name}}",
     "showAll": "Show all",
     "clear": "Clear filter",
     "loading": "Loading...",
