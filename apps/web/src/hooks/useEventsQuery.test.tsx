@@ -144,21 +144,13 @@ describe('useEventsQuery', () => {
       } as never)
       vi.mocked(getEvents).mockImplementation(() => new Promise(() => {}))
 
-      const hook = renderHook(
-        ({
-          start,
-          end,
-          tagId,
-        }: {
-          start: Date
-          end: Date
-          tagId: string | null
-        }) => useEventsQuery(start, end, tagId),
-        {
-          wrapper: createWrapper(),
-          initialProps: { start: startDate, end: endDate, tagId: null },
-        },
-      )
+      const hook = renderHook<
+        ReturnType<typeof useEventsQuery>,
+        { start: Date; end: Date; tagId: string | null }
+      >(({ start, end, tagId }) => useEventsQuery(start, end, tagId), {
+        wrapper: createWrapper(),
+        initialProps: { start: startDate, end: endDate, tagId: null },
+      })
       await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
       return hook
     }
