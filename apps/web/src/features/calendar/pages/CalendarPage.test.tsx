@@ -123,6 +123,18 @@ vi.mock('../../tag/components/TagManagementButton', () => ({
   default: vi.fn(() => <div data-testid="tag-management-button" />),
 }))
 
+// TagFilterButton は個別にテスト済みのためスタブ化し、
+// 絞り込み状態の保持と useEventsQuery への受け渡しだけを検証する
+vi.mock('../../tag/components/TagFilterButton', () => ({
+  default: vi.fn(({ selectedTagId, onChange }) => (
+    <div data-testid="tag-filter-button">
+      selected:{selectedTagId ?? 'none'}
+      <button onClick={() => onChange('tag-1')}>タグ1で絞り込む</button>
+      <button onClick={() => onChange(null)}>絞り込みを解除する</button>
+    </div>
+  )),
+}))
+
 import CalendarPage from './CalendarPage'
 
 function createWrapper() {
@@ -362,6 +374,59 @@ describe('CalendarPage', () => {
       render(<CalendarPage />, { wrapper: createWrapper() })
 
       expect(screen.getByTestId('tag-management-button')).toBeInTheDocument()
+    })
+  })
+
+  describe('タグによる絞り込み', () => {
+    async function mockEmptyEvents() {
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockClear()
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+      return useEventsQuery
+    }
+
+    it('初期状態では絞り込まずに予定を取得する', async () => {
+      const useEventsQuery = await mockEmptyEvents()
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+        'selected:none',
+      )
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeUndefined()
+    })
+
+    it('タグを選ぶとそのタグIDで予定を取得し、選択状態を渡す', async () => {
+      const useEventsQuery = await mockEmptyEvents()
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+      fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBe('tag-1')
+      expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+        'selected:tag-1',
+      )
+    })
+
+    it('絞り込みを解除すると tagId なしで予定を取得する', async () => {
+      const useEventsQuery = await mockEmptyEvents()
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+      fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: '絞り込みを解除する' }),
+      )
+
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeUndefined()
+      expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+        'selected:none',
+      )
     })
   })
 

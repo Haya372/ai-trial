@@ -10,6 +10,7 @@ import EventFormModal from '../../event/components/EventFormModal'
 import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
 import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import type { EventFormMode } from '../../event/types'
+import TagFilterButton from '../../tag/components/TagFilterButton'
 import TagManagementButton from '../../tag/components/TagManagementButton'
 import TodayTimelinePanel from '../../timeline/components/TodayTimelinePanel'
 import CalendarNavigation from '../components/CalendarNavigation'
@@ -32,6 +33,9 @@ export default function CalendarPage() {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<EventFormMode>('create')
   const [initialStart, setInitialStart] = useState<Date | null>(null)
+  // Kept as page-local state so it survives view switches and navigation but
+  // resets on reload and logout (the page unmounts), as SPEC-008 requires.
+  const [filterTagId, setFilterTagId] = useState<string | null>(null)
   const [quickPanel, setQuickPanel] = useState<{
     key: number
     start: Date
@@ -42,7 +46,11 @@ export default function CalendarPage() {
   const quickPanelClickSeqRef = useRef(0)
 
   const { startAt, endAt } = getViewDateRange(view, currentDate)
-  const { data, isPending, isError } = useEventsQuery(startAt, endAt)
+  const { data, isPending, isError } = useEventsQuery(
+    startAt,
+    endAt,
+    filterTagId ?? undefined,
+  )
 
   const calendarEvents: CalendarEvent[] = (data?.events ?? []).map((e) => ({
     id: e.id,
@@ -126,6 +134,10 @@ export default function CalendarPage() {
           <Button variant="primary" onClick={handleCreateClick}>
             {t('page.createButton')}
           </Button>
+          <TagFilterButton
+            selectedTagId={filterTagId}
+            onChange={setFilterTagId}
+          />
           <TagManagementButton />
           <CalendarViewTabs view={view} onViewChange={setView} />
           <LogoutButton />
