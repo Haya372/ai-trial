@@ -25,7 +25,11 @@ test.describe('カレンダー表示', () => {
     await expect(page.getByText(JUNE, { exact: true })).toBeVisible()
     await expect(calendar.getByText('固定日の定例')).toBeVisible()
 
+    // 初期表示の月ビューから切り替えると、今日ではなく月初を含む週が表示される不具合がある（#398）。
+    // 切り替え直後はどの週かを問わず週の期間表示になることだけ確かめ、今日ボタンで固定日の週へ移る
     await page.getByRole('tab', { name: '週', exact: true }).click()
+    await expect(page.getByText(/^\d{4}年\d{1,2}月\d{1,2}日〜/)).toBeVisible()
+    await page.getByRole('button', { name: '今日', exact: true }).click()
     await expect(page.getByText(WEEK_OF_FIXED_DAY, { exact: true })).toBeVisible()
     await expect(calendar.getByText('固定日の定例')).toBeVisible()
 
@@ -98,6 +102,8 @@ test.describe('カレンダー表示', () => {
 
     await signIn(user)
     await page.getByRole('tab', { name: '週', exact: true }).click()
+    // 切り替え直後は月初を含む週が表示される（#398）ため、今日ボタンで固定日の週から始める
+    await page.getByRole('button', { name: '今日', exact: true }).click()
 
     const calendar = page.getByRole('table')
 
