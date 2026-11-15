@@ -11,11 +11,13 @@ import {
   FormLabel,
   FormMessage,
   Input,
+  Label,
   Textarea,
 } from '@repo/ui'
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { EventResponse } from '../../../api/generated'
+import EventTagSelector from '../../tag/components/EventTagSelector'
 import { useEventForm } from '../hooks/useEventForm'
 import type { EventFormMode } from '../types'
 
@@ -34,8 +36,9 @@ export default function EventFormModal({
   initialStart,
   onClose,
 }: EventFormModalProps) {
-  const { t } = useTranslation('event')
-  const { form, onSubmit } = useEventForm(
+  const { t } = useTranslation(['event', 'tag'])
+  const tagLabelId = useId()
+  const { form, onSubmit, tagsEditable } = useEventForm(
     open,
     mode,
     event,
@@ -164,6 +167,25 @@ export default function EventFormModal({
                 </FormItem>
               )}
             />
+            {tagsEditable && (
+              <FormField
+                control={form.control}
+                name="tagIds"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <Label id={tagLabelId}>{t('tag:selector.label')}</Label>
+                    <EventTagSelector
+                      labelId={tagLabelId}
+                      value={field.value}
+                      onChange={field.onChange}
+                      initialTags={event?.tags ?? []}
+                      invalid={!!fieldState.error}
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={onClose}>
                 {t('form.cancelButton')}

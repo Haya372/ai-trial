@@ -13,6 +13,7 @@ const validData = {
   description: '',
   location: '',
   url: '',
+  tagIds: [],
 }
 
 describe('eventFormSchema', () => {
@@ -64,8 +65,25 @@ describe('eventFormSchema', () => {
       title: '定例ミーティング',
       startAt: '2026-09-22T10:00',
       endAt: '2026-09-22T11:00',
+      tagIds: [],
     })
     expect(result.success).toBe(true)
+  })
+
+  it('タグが5件なら成功する', () => {
+    const result = eventFormSchema.safeParse({
+      ...validData,
+      tagIds: ['t1', 't2', 't3', 't4', 't5'],
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('タグが6件以上の場合はエラーになる', () => {
+    const result = eventFormSchema.safeParse({
+      ...validData,
+      tagIds: ['t1', 't2', 't3', 't4', 't5', 't6'],
+    })
+    expect(result.success).toBe(false)
   })
 })
 

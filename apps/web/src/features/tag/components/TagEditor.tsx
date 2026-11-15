@@ -54,7 +54,12 @@ export default function TagEditor({
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={(e) => {
+          // React events bubble through portals, so without this a TagEditor
+          // rendered in a popover inside another form would submit that form too.
+          e.stopPropagation()
+          form.handleSubmit(onSubmit)(e)
+        }}
         className="flex flex-col gap-3 rounded-md border border-border p-3"
       >
         {submitError && (
