@@ -81,6 +81,7 @@
 - 「以降すべて変更」で繰り返し設定を変更せず、元のシリーズの終了条件が「回数を指定」の場合、新しいシリーズの回数は元のシリーズの残りの回数（編集対象の回を含む）とする（例: 10回のシリーズの4回目で変更した場合は7回）
 - タグ（SPEC-008）はシリーズ単位で付与する。「この予定のみ変更」で切り離した予定には、切り離した時点のタグを引き継ぐ
 - 共有リンク（SPEC-004）は、繰り返し予定の回1件を対象に生成する
+- 共有リンクから自分のカレンダーに追加した回（SPEC-004）には、繰り返しアイコンと繰り返し設定の要約を表示しない
 - 過去の回も編集・削除の対象とする（日時による制限なし）
 - 変更範囲・削除範囲の選択ダイアログは省略不可
 - APIエラー時はモーダル内にエラーメッセージを表示し、モーダル・ダイアログは閉じない
@@ -168,7 +169,7 @@ SPEC-009 では新規エンドポイントを追加せず、既存の SPEC-002�
 
 `recurringSeries`（レスポンス）では上記に加えて `id`（string, uuid）が返る。`recurringSeries` は、対象予定がシリーズに属していないとき `null` を返す。
 
-曜日・日付は `pattern` に含めない。これらは対象予定の `startAt` を `timezone` のローカル時刻に変換した日・曜日から一意に決まる（例: `pattern.type = weekly` なら、各回は `startAt` と同じ曜日で繰り返す）。
+曜日・日付は `pattern` に含めない。これらは対象予定の `startAt` を `timezone` のローカル時刻に変換した日・曜日から一意に決まる（例: `pattern.type = weekly` なら、各回は `startAt` と同じ曜日で繰り返す）。クライアントは繰り返し設定の要約（基本フロー「繰り返し予定の表示」）を描画するとき、`startAt` を `recurringSeries.timezone` のローカル時刻に変換して曜日・日付を得る。
 
 #### POST /events（SPEC-009 で追加するフィールド）
 
@@ -198,7 +199,7 @@ SPEC-009 では新規エンドポイントを追加せず、既存の SPEC-002�
 | 400 | `VALIDATION_ERROR` | `OUT_OF_RANGE` | `recurrence.end.count` が 2 未満、`recurrence.end.untilDate` が `startAt` のローカル日付より前、`recurrence.end.untilDate` が `startAt` のローカル日付から2年を超える |
 | 400 | `VALIDATION_ERROR` | `TOO_FEW_OCCURRENCES` | 指定したパターン・終了条件で2年以内に生成される回が 2 回未満（例: `monthly_day` で `startAt` のローカル日付が 30 日・終了日が同月中など） |
 
-`TOO_FEW_OCCURRENCES` は `ValidationErrorDetail.code`（`packages/schema/components/schemas/ValidationErrorDetail.yaml`）の enum に追加する。
+`OUT_OF_RANGE` / `TOO_FEW_OCCURRENCES` は `ValidationErrorDetail.code`（`packages/schema/components/schemas/ValidationErrorDetail.yaml`）の enum に追加する。
 
 #### PUT /events/{id}（SPEC-009 で追加するフィールド）
 
@@ -220,9 +221,9 @@ SPEC-009 では新規エンドポイントを追加せず、既存の SPEC-002�
 | `scope` | 対象予定の状態 | 動作 |
 |---|---|---|
 | `single` / 省略 | 単発 | 対象予定を更新する（SPEC-003 の動作と同じ）。`recurrence` がオブジェクトなら、対象予定を最初の回とする新しいシリーズを作成し、2年以内の回を実体化する（基本フロー「単発の予定を繰り返し予定にする」） |
-| `single` | シリーズに属する | 対象予定をシリーズから切り離し、送られたフィールドで更新する。シリーズに同日付の除外日を追加する（`recurrence` と差分がある場合は 400、`recurrence` が `null` の場合も 400） |
-| `future` | シリーズに属する | 現在のシリーズを対象予定の直前で終了させ（除外日のうち対象予定以降を破棄）、対象予定以降を新しいシリーズとして作り直す。`recurrence` が省略のときは現在のシリーズと同じルールを引き継ぐ（`end.type = count` の場合、`end.count` は対象予定を含む残りの回数にする）。`recurrence` が `null` のときは対象予定を単発に変換して現在のシリーズを終了させる。対象予定が最初の回のときは `scope = all` と同じ扱いにする |
-| `all` | シリーズに属する | シリーズのすべての回を、送られたフィールドで同じ値に更新する。`recurrence` が省略のときはルールを維持し、タイトル・メモ・場所・URL・タグ・時刻（`startAt`/`endAt` の差分だけずらす）を揃える。`recurrence` がオブジェクトのときはルールと除外日を破棄して回を再生成する |
+| `single` | シリーズに属する | 対象予定をシリーズから切り離し、送られたフィールドで更新する。シリーズに同日付の除外日を追加する（`recurrence` のルールに差分がある場合と、`recurrence` が `null` の場合は 400 `SCOPE_NOT_ALLOWED`） |
+| `future` | シリーズに属する | 現在のシリーズを対象予定の直前で終了させ（除外日のうち対象予定以降を破棄）、対象予定以降を新しいシリーズとして作り直す。`recurrence` が省略のときは現在のシリーズと同じルールを引き継ぐ（`end.type = count` の場合、`end.count` は対象予定を含む残りの回数にする）。新しいシリーズの回のタグは、`tagIds` を省略したときは現在のシリーズのタグを引き継ぎ、指定したときはその値にする。`recurrence` が `null` のときは対象予定を単発に変換して現在のシリーズを終了させる。対象予定が最初の回のときは `scope = all` と同じ扱いにする |
+| `all` | シリーズに属する | シリーズのすべての回を、送られたフィールドで同じ値に更新する。`recurrence` が省略のときはルールを維持し、タイトル・メモ・場所・URL・タグ・時刻（`startAt`/`endAt` の差分だけずらす）を揃える。`tagIds` を省略したときは現在のシリーズのタグを維持し、指定したときはすべての回のタグをその値に置き換える。`recurrence` がオブジェクトのときはルールと除外日を破棄して回を再生成する |
 | `future` / `all` | 単発 | 400 `VALIDATION_ERROR`（`NOT_IN_SERIES`） |
 
 ##### レスポンス（200 OK）
@@ -245,8 +246,9 @@ SPEC-003 のエラーに加えて以下を返す。`recurrence` 自体のバリ�
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
 | 400 | `VALIDATION_ERROR` | `INVALID_FORMAT` | `scope` が `single` / `future` / `all` のいずれでもない |
+| 400 | `VALIDATION_ERROR` | `REQUIRED` | 対象予定がシリーズに属するのに `scope` を省略した（`details[].field = "scope"`） |
 | 400 | `VALIDATION_ERROR` | `NOT_IN_SERIES` | 対象予定が単発なのに `scope = future` または `scope = all` を指定した（`details[].field = "scope"`） |
-| 400 | `VALIDATION_ERROR` | `SCOPE_NOT_ALLOWED` | 対象予定がシリーズに属するときに次のいずれか: 繰り返し設定（`recurrence` のルール）を変更する `scope = single`、`recurrence = null` を `scope = all` や省略で送った（`details[].field = "scope"`） |
+| 400 | `VALIDATION_ERROR` | `SCOPE_NOT_ALLOWED` | 対象予定がシリーズに属するときに次のいずれか: (a) 繰り返し設定（`recurrence` のルール）を変更する `scope = single`、(b) `recurrence = null` を `scope = single` / `scope = all` で送った（`scope = future` で `recurrence = null` を送るのは単発への変換として許容する）（`details[].field = "scope"`） |
 
 `NOT_IN_SERIES` / `SCOPE_NOT_ALLOWED` は `ValidationErrorDetail.code` の enum に追加する。
 
@@ -266,7 +268,7 @@ SPEC-003 のエラーに加えて以下を返す。`recurrence` 自体のバリ�
 |---|---|---|
 | `single` / 省略 | 単発 | 対象予定を削除する（SPEC-003 の動作と同じ） |
 | `single` | シリーズに属する | 対象予定を削除し、シリーズに同日付の除外日を追加する |
-| `future` | シリーズに属する | 対象予定と、対象予定より後の同じシリーズの回をすべて削除する。シリーズの `end_type` を `until_date` に、`end_until_date` を対象予定のローカル日付の前日に書き換え、`end_count` を NULL にする。対象予定が最初の回のときは `scope = all` と同じ扱い |
+| `future` | シリーズに属する | 対象予定と、対象予定より後の同じシリーズの回をすべて削除する。シリーズの `end_type` を `until_date` に、`end_until_date` を対象予定のローカル日付の前日に書き換え、`end_count` を NULL にする。除外日のうち対象予定以降のものも削除する。対象予定が最初の回のときは `scope = all` と同じ扱い |
 | `all` | シリーズに属する | シリーズと紐づく回・除外日を一括削除（`ON DELETE CASCADE`） |
 | `future` / `all` | 単発 | 400 `VALIDATION_ERROR`（`NOT_IN_SERIES`） |
 
@@ -283,6 +285,7 @@ SPEC-003 のエラーに加えて以下を返す。
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
 | 400 | `VALIDATION_ERROR` | `INVALID_FORMAT` | クエリの `scope` が `single` / `future` / `all` のいずれでもない |
+| 400 | `VALIDATION_ERROR` | `REQUIRED` | 対象予定がシリーズに属するのにクエリの `scope` を省略した（`details[].field = "scope"`） |
 | 400 | `VALIDATION_ERROR` | `NOT_IN_SERIES` | 対象予定が単発なのに `scope = future` または `scope = all` を指定した（`details[].field = "scope"`） |
 
 #### GET /events（SPEC-009 で追加するフィールド）
@@ -293,9 +296,7 @@ SPEC-003 のエラーに加えて以下を返す。
 
 | フィールド | 型 | null許容 | 説明 |
 |---|---|---|---|
-| `events[].recurringSeries` | object | 可 | 予定がシリーズに属するときは `RecurrenceSpec`（`id` 付き）。単発の予定では `null` |
-
-カレンダーの各セルは `recurringSeries != null` のとき繰り返しアイコンを表示する。詳細表示モーダルは `recurringSeries` の値と、その予定の `startAt` を `recurringSeries.timezone` のローカル時刻に変換した日・曜日から繰り返し設定の要約（「毎週 月曜日・10回」等）を描画する。
+| `events[].recurringSeries` | object | 可 | 予定がシリーズに属するときは `RecurrenceSpec`（`id` 付き）。単発の予定、および共有リンクから追加した予定（`isSubscribed = true`）では `null`。購読は回単位のため、作成者のシリーズID・繰り返し設定・タイムゾーンを購読者に返さない（`tags` を空配列にするのと同じ扱い） |
 
 #### API呼び出しシーケンス
 
