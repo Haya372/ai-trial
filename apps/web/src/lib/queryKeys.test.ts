@@ -2,14 +2,30 @@ import { describe, expect, it } from 'vitest'
 import { eventsKeys, sharesKeys, tagsKeys } from './queryKeys'
 
 describe('eventsKeys', () => {
-  it('list は all の末尾に startAt/endAt を連結したキーを返す', () => {
+  it('list は all の末尾に startAt/endAt と tagId（なしは null）を連結したキーを返す', () => {
     expect(
       eventsKeys.list('2026-08-31T15:00:00.000Z', '2026-09-30T15:00:00.000Z'),
     ).toEqual([
       'events',
       '2026-08-31T15:00:00.000Z',
       '2026-09-30T15:00:00.000Z',
+      null,
     ])
+  })
+
+  it('tagId が異なれば異なるキーを返す', () => {
+    const range = [
+      '2026-08-31T15:00:00.000Z',
+      '2026-09-30T15:00:00.000Z',
+    ] as const
+    expect(eventsKeys.list(...range, 'tag-1')).toEqual([
+      'events',
+      ...range,
+      'tag-1',
+    ])
+    expect(eventsKeys.list(...range, 'tag-1')).not.toEqual(
+      eventsKeys.list(...range),
+    )
   })
 
   it('startAt/endAt が異なれば異なるキーを返す', () => {
