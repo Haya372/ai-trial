@@ -26,14 +26,17 @@ export function CalendarEventContent({
       : undefined
 
   return (
-    <div>
-      {timeText && <span className={timeClass}>{timeText}</span>}
-      <span className={titleClass}>{title}</span>
+    // Fragment, not a wrapper: FullCalendar's theme styles the direct children of
+    // the event inner (gap, column stacking in week view, title truncation).
+    <>
+      {timeText && <div className={timeClass}>{timeText}</div>}
+      <div className={titleClass}>{title}</div>
       {dotColors.length > 0 && (
         <div
           data-slot="calendar-event-tag-dots"
           aria-hidden="true"
-          className="flex h-2 flex-wrap overflow-hidden gap-0.5"
+          // One row tall plus 1px padding so the dot ring isn't clipped; wrapped dots fall outside and are hidden.
+          className="flex h-2.5 min-w-0 flex-wrap gap-0.5 overflow-hidden p-px"
         >
           {dotColors.map((color, i) => (
             <span
@@ -48,6 +51,6 @@ export function CalendarEventContent({
           ))}
         </div>
       )}
-    </div>
+    </>
   )
 }

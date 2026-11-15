@@ -71,10 +71,10 @@ describe('CalendarEventContent', () => {
         tagColors={['red', 'blue']}
       />,
     )
-    // jsdomなしのためclass属性で検証
-    // 高さを1行分に固定しないと、折り返したドットが隠れず省略にならない
+    // 高さを1行分に固定しないと、折り返したドットが隠れず省略にならない。
+    // ドット(8px)の外側に付ける1pxの縁取りが切れないよう、1px余白を含めた10pxにする
     expect(html).toMatch(
-      /data-slot="calendar-event-tag-dots"[^>]*class="[^"]*\bh-2\b/,
+      /data-slot="calendar-event-tag-dots"[^>]*class="[^"]*\bh-2\.5\b[^"]*\bp-px\b/,
     )
     expect(html).toContain('overflow-hidden')
     expect(html).toContain('flex-wrap')
@@ -89,7 +89,22 @@ describe('CalendarEventContent', () => {
         titleClass="fc-title"
       />,
     )
-    expect(html).toContain('<span class="fc-time">10:00</span>')
-    expect(html).toContain('<span class="fc-title">ミーティング</span>')
+    expect(html).toContain('<div class="fc-time">10:00</div>')
+    expect(html).toContain('<div class="fc-title">ミーティング</div>')
+  })
+
+  it('時刻とタイトルをラッパーで包まず兄弟要素として返す', () => {
+    // FullCalendar のテーマは event inner の直下の子要素に間隔・縦並び・省略のスタイルを当てるため
+    const html = renderToStaticMarkup(
+      <CalendarEventContent
+        timeText="10:00"
+        title="ミーティング"
+        timeClass="fc-time"
+        titleClass="fc-title"
+      />,
+    )
+    expect(html).toBe(
+      '<div class="fc-time">10:00</div><div class="fc-title">ミーティング</div>',
+    )
   })
 })
