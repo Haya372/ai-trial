@@ -130,6 +130,33 @@ describe('EventDetailModal', () => {
       expect(screen.queryByText('URL')).not.toBeInTheDocument()
     })
 
+    it('タグを付与順に表示する', () => {
+      renderModal({
+        event: {
+          ...mockEvent,
+          tags: [
+            { id: 'tag-2', name: '趣味', color: 'green' },
+            { id: 'tag-1', name: '仕事', color: 'blue' },
+          ],
+        },
+      })
+      expect(screen.getByText('タグ:', { exact: false })).toBeInTheDocument()
+      const badges = screen
+        .getByRole('dialog')
+        .querySelectorAll('[data-slot="tag-badge"]')
+      expect([...badges].map((badge) => badge.textContent)).toEqual([
+        '趣味',
+        '仕事',
+      ])
+    })
+
+    it('タグがない場合はタグ欄を表示しない', () => {
+      renderModal()
+      expect(
+        screen.queryByText('タグ:', { exact: false }),
+      ).not.toBeInTheDocument()
+    })
+
     it('開始・終了ラベルをコロン区切りで表示する', () => {
       renderModal()
       expect(screen.getByText('開始:', { exact: false })).toBeInTheDocument()

@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  TagBadge,
 } from '@repo/ui'
 import type { TFunction } from 'i18next'
 import { useState } from 'react'
@@ -113,6 +114,20 @@ export default function EventDetailModal({
                 >
                   {event.url}
                 </a>
+              </LabeledField>
+            )}
+            {event.tags.length > 0 && (
+              <LabeledField label={t('eventDetail.tagsLabel')}>
+                <span className="inline-flex flex-wrap gap-1 align-middle">
+                  {event.tags.map((tag) => (
+                    <TagBadge
+                      key={tag.id}
+                      name={tag.name}
+                      color={tag.color}
+                      size="sm"
+                    />
+                  ))}
+                </span>
               </LabeledField>
             )}
           </div>
