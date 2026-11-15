@@ -190,6 +190,33 @@ describe('EventTagSelector', () => {
     expect(createTag).toHaveBeenCalledWith({ name: '新規', color: 'red' })
   })
 
+  it('作成したタグがタグ一覧から消えても、選択中のタグとして表示し続ける', async () => {
+    // Refetched list lacks the new tag, as when it is deleted in another tab.
+    mockTags([work])
+    vi.mocked(createTag).mockResolvedValue(
+      response(201, {
+        id: 'tag-new',
+        name: '新規',
+        color: 'red',
+        eventCount: 0,
+      }),
+    )
+    setup()
+    const list = await openList()
+
+    fireEvent.click(
+      await within(list).findByRole('button', { name: '新しいタグを作成' }),
+    )
+    fireEvent.change(within(list).getByLabelText('タグ名'), {
+      target: { value: '新規' },
+    })
+    fireEvent.click(within(list).getByRole('button', { name: '保存' }))
+
+    expect(
+      await screen.findByRole('button', { name: '新規を外す' }),
+    ).toBeInTheDocument()
+  })
+
   it('タグ作成が 409 TAG_LIMIT_EXCEEDED のときは一覧に戻り、上限の旨を表示する', async () => {
     mockTags([work])
     vi.mocked(createTag).mockResolvedValue(

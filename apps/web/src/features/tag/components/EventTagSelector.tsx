@@ -39,14 +39,19 @@ export default function EventTagSelector({
   // The server can reject a create with TAG_LIMIT_EXCEEDED even when the cached
   // list is below the limit (e.g. tags were added in another tab).
   const [limitExceededByServer, setLimitExceededByServer] = useState(false)
+  const [createdTags, setCreatedTags] = useState<TagResponse[]>([])
 
-  // initialTags keeps tags deleted elsewhere visible so the user can remove them.
+  // initialTags and createdTags keep tags deleted elsewhere visible so the user
+  // can remove them; otherwise a hidden ID would stay in value and fail every save.
   const tagById = useMemo(
     () =>
       new Map<string, EventTagResponse>(
-        [...initialTags, ...(tags ?? [])].map((tag) => [tag.id, tag]),
+        [...initialTags, ...createdTags, ...(tags ?? [])].map((tag) => [
+          tag.id,
+          tag,
+        ]),
       ),
-    [initialTags, tags],
+    [initialTags, createdTags, tags],
   )
   const selectedTags = value.flatMap((id) => {
     const tag = tagById.get(id)
@@ -66,6 +71,7 @@ export default function EventTagSelector({
   }
 
   function handleCreated(tag: TagResponse) {
+    setCreatedTags((prev) => [...prev, tag])
     onChange([...value, tag.id])
     setCreating(false)
   }
