@@ -88,6 +88,52 @@ describe('runEventMutation', () => {
     expect(onSuccess).not.toHaveBeenCalled()
   })
 
+  it('期待しないstatusでhandleErrorがtrueを返した場合、エラートーストを表示しない', async () => {
+    mockToastError.mockClear()
+    const queryClient = createQueryClient()
+    const onSuccess = vi.fn()
+    const handleError = vi.fn().mockReturnValue(true)
+    const errorData = { code: 'VALIDATION_ERROR' }
+
+    await runEventMutation({
+      queryClient,
+      request: Promise.resolve({ status: 400, data: errorData }),
+      expectedStatus: 201,
+      mode: 'create',
+      successMessage: '予定を登録しました',
+      t,
+      onSuccess,
+      handleError,
+    })
+
+    expect(handleError).toHaveBeenCalledWith(errorData)
+    expect(mockToastError).not.toHaveBeenCalled()
+    expect(onSuccess).not.toHaveBeenCalled()
+  })
+
+  it('期待しないstatusでhandleErrorがfalseを返した場合、エラートーストを表示する', async () => {
+    mockToastError.mockClear()
+    const queryClient = createQueryClient()
+
+    await runEventMutation({
+      queryClient,
+      request: Promise.resolve({
+        status: 500,
+        data: { code: 'INTERNAL_ERROR' },
+      }),
+      expectedStatus: 201,
+      mode: 'create',
+      successMessage: '予定を登録しました',
+      t,
+      onSuccess: vi.fn(),
+      handleError: () => false,
+    })
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      'サーバーエラーが発生しました。しばらく経ってから再試行してください',
+    )
+  })
+
   it('requestが例外を投げた場合、エラートーストを表示しonSuccessを呼ばない', async () => {
     const queryClient = createQueryClient()
     const onSuccess = vi.fn()
