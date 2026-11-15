@@ -63,7 +63,7 @@ describe('CalendarEventContent', () => {
     expect(html).toContain('aria-hidden="true"')
   })
 
-  it('ドット列コンテナに省略用クラス（overflow-hidden, flex-wrap）が付いている', () => {
+  it('ドット列コンテナに省略用クラス（1行分の高さ・flex-wrap・overflow-hidden）が付いている', () => {
     const html = renderToStaticMarkup(
       <CalendarEventContent
         timeText="10:00"
@@ -72,7 +72,24 @@ describe('CalendarEventContent', () => {
       />,
     )
     // jsdomなしのためclass属性で検証
+    // 高さを1行分に固定しないと、折り返したドットが隠れず省略にならない
+    expect(html).toMatch(
+      /data-slot="calendar-event-tag-dots"[^>]*class="[^"]*\bh-2\b/,
+    )
     expect(html).toContain('overflow-hidden')
     expect(html).toContain('flex-wrap')
+  })
+
+  it('timeClass・titleClassを時刻・タイトルの要素に適用する', () => {
+    const html = renderToStaticMarkup(
+      <CalendarEventContent
+        timeText="10:00"
+        title="ミーティング"
+        timeClass="fc-time"
+        titleClass="fc-title"
+      />,
+    )
+    expect(html).toContain('<span class="fc-time">10:00</span>')
+    expect(html).toContain('<span class="fc-title">ミーティング</span>')
   })
 })
