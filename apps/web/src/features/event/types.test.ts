@@ -84,6 +84,11 @@ describe('eventFormSchema', () => {
       tagIds: ['t1', 't2', 't3', 't4', 't5', 't6'],
     })
     expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toBe(
+        'タグは1つの予定に5個まで付与できます',
+      )
+    }
   })
 })
 

@@ -275,6 +275,55 @@ describe('EventTagSelector', () => {
     )
   })
 
+  it('作成中に5件まで選んだ場合、作成完了時に6件目として追加しない', async () => {
+    const tags = Array.from({ length: 6 }, (_, i) => tag(`tag-${i}`, `T${i}`))
+    mockTags(tags)
+    let resolveCreate: (value: unknown) => void = () => {}
+    vi.mocked(createTag).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve
+        }) as never,
+    )
+    const { onChange } = setup({
+      initialValue: tags.slice(0, 4).map((t) => t.id),
+    })
+    let list = await openList()
+
+    fireEvent.click(
+      await within(list).findByRole('button', { name: '新しいタグを作成' }),
+    )
+    fireEvent.change(within(list).getByLabelText('タグ名'), {
+      target: { value: '新規' },
+    })
+    fireEvent.click(within(list).getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(createTag).toHaveBeenCalled())
+
+    // Close the popover while the create is in flight, then fill the 5th slot.
+    fireEvent.click(screen.getByRole('button', { name: 'タグを選択' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    )
+    list = await openList()
+    fireEvent.click(await within(list).findByRole('checkbox', { name: 'T4' }))
+    expect(onChange).toHaveBeenLastCalledWith(tags.slice(0, 5).map((t) => t.id))
+
+    await act(async () => {
+      resolveCreate(
+        response(201, {
+          id: 'tag-new',
+          name: '新規',
+          color: 'red',
+          eventCount: 0,
+        }),
+      )
+    })
+
+    await waitFor(() => expect(createTag).toHaveBeenCalledTimes(1))
+    expect(onChange).toHaveBeenLastCalledWith(tags.slice(0, 5).map((t) => t.id))
+    expect(selectedTagNames()).toHaveLength(5)
+  })
+
   it('タグ作成が 409 TAG_LIMIT_EXCEEDED のときは一覧に戻り、上限の旨を表示する', async () => {
     mockTags([work])
     vi.mocked(createTag).mockResolvedValue(

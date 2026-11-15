@@ -12,7 +12,12 @@ export function createEventFormSchema(t: TFunction<'event'>) {
       description: z.string().optional(),
       location: z.string().optional(),
       url: z.string().optional(),
-      tagIds: z.array(z.string()).max(EVENT_TAG_LIMIT),
+      tagIds: z
+        .array(z.string())
+        .max(
+          EVENT_TAG_LIMIT,
+          t('validation.tooManyTags', { max: EVENT_TAG_LIMIT }),
+        ),
     })
     .refine((data) => new Date(data.endAt) > new Date(data.startAt), {
       message: t('validation.endAtAfterStart'),

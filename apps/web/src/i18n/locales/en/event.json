@@ -30,7 +30,8 @@
     "startAtRequired": "Start time is required",
     "endAtRequired": "End time is required",
     "endAtAfterStart": "End time must be after start time",
-    "tagNotFound": "A selected tag has been deleted. Remove it and save again"
+    "tagNotFound": "A selected tag has been deleted. Remove it and save again",
+    "tooManyTags": "You can attach up to {{max}} tags to an event"
   },
   "errors": {
     "notFound": "Event not found (it may have been deleted)",

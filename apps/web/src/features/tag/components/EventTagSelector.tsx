@@ -82,7 +82,9 @@ export default function EventTagSelector({
   }
 
   function handleCreated(tag: TagResponse) {
-    pick(tag)
+    // The popover may have been closed and refilled to the limit while the
+    // create was in flight; the tag still exists and can be picked from the list.
+    if (latestValue.current.length < EVENT_TAG_LIMIT) pick(tag)
     setCreating(false)
   }
 
