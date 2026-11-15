@@ -414,6 +414,30 @@ describe('CalendarPage', () => {
       )
     })
 
+    it.each([
+      [true, 'true'],
+      [false, 'false'],
+    ])(
+      '前のデータを表示中（isPlaceholderData=%s）はカレンダーの aria-busy を %s にする',
+      async (isPlaceholderData, busy) => {
+        const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+        vi.mocked(useEventsQuery).mockReturnValue({
+          data: { events: [] },
+          isPending: false,
+          isError: false,
+          isSuccess: true,
+          isPlaceholderData,
+          error: null,
+        } as never)
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+
+        expect(
+          screen.getByTestId('month-calendar').parentElement,
+        ).toHaveAttribute('aria-busy', busy)
+      },
+    )
+
     it('絞り込みを解除すると tagId なしで予定を取得する', async () => {
       const useEventsQuery = await mockEmptyEvents()
 

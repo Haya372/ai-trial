@@ -47,7 +47,7 @@ export default function CalendarPage() {
   const quickPanelClickSeqRef = useRef(0)
 
   const { startAt, endAt } = getViewDateRange(view, currentDate)
-  const { data, isPending, isError } = useEventsQuery(
+  const { data, isPending, isError, isPlaceholderData } = useEventsQuery(
     startAt,
     endAt,
     filterTagId,
@@ -159,8 +159,13 @@ export default function CalendarPage() {
             </div>
           )}
 
+          {/* While switching the tag filter the previous filter's events stay
+              visible, so they are dimmed to show they are not the result yet. */}
           {!isPending && !isError && (
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div
+              aria-busy={isPlaceholderData}
+              className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
+            >
               {view === CALENDAR_VIEW.MONTH ? (
                 <MonthCalendar
                   events={calendarEvents}
