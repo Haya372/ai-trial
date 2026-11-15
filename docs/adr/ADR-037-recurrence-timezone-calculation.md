@@ -95,7 +95,10 @@ ADR-036で選択肢2（バックエンドでの計算）を採用しなかった
 - Go 1.25.0 で、`time.LoadLocation("America/New_York")` を使い、2026-03-02（月）10:00 から `AddDate(0, 0, 7)` で週ごとに日付を進めた。夏時間の開始日（2026-03-08）をまたいでも、ローカル時刻はすべて10:00で、UTCは `15:00Z` から `14:00Z` に変わることを確認した
 - `time.LoadLocation("Invalid/Zone")` が `unknown time zone Invalid/Zone` のエラーを返すことを確認した
 - Node.js で `Intl.DateTimeFormat().resolvedOptions().timeZone` が、環境変数 `TZ` に応じて `Asia/Tokyo` や `America/New_York` のIANA名を返すことを確認した
-- `time/tzdata` を埋め込んだバイナリが、システムのタイムゾーンデータベースがない環境でも `time.LoadLocation` を解決できることは、`time/tzdata` パッケージのドキュメントで確認した。システムのデータベースがない環境での実行は確認していない
+
+### 既知の制約
+
+- `time/tzdata` を埋め込んだバイナリが、システムのタイムゾーンデータベースがない環境でも `time.LoadLocation` を解決できることは、`time/tzdata` パッケージのドキュメントでのみ確認した。システムのデータベースがない環境では実行していない。バックエンドの実行環境を用意するときに、タイムゾーン名の解決を確認する
 
 ## 結果
 
