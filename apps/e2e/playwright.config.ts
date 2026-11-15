@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { TIMEZONE_ID } from './support/clock'
 
 const webPort = 4173
 const backendPort = 8080
@@ -12,6 +13,7 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${webPort}`,
     locale: 'ja-JP',
+    timezoneId: TIMEZONE_ID,
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
