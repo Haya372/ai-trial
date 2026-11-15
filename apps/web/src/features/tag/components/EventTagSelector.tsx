@@ -75,8 +75,8 @@ export default function EventTagSelector({
     setCreating(false)
   }
 
-  function renderList(tags: TagResponse[]) {
-    if (tags.length === 0) {
+  function renderList(tagList: TagResponse[]) {
+    if (tagList.length === 0) {
       return (
         <p className="py-2 text-center text-sm text-muted-foreground">
           {t('selector.empty')}
@@ -85,7 +85,7 @@ export default function EventTagSelector({
     }
     return (
       <ul className="flex max-h-60 flex-col overflow-y-auto">
-        {tags.map((tag) => {
+        {tagList.map((tag) => {
           const checked = value.includes(tag.id)
           const nameId = `${idPrefix}-${tag.id}`
           return (
