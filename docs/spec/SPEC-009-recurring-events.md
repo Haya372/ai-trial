@@ -108,12 +108,7 @@
 - `Event`（エンティティ）— SPEC-002/SPEC-003 で定義された既存集約。シリーズに属する各回は `Event` として実体化し、属さない予定と同じ仕組みで表示・編集・削除・共有・タグ付与できる。シリーズへの所属は `Event` 側からの参照（`series_id`）で表現する
 - `RecurringEventSeries`（エンティティ）— 繰り返しルール（`RecurrencePattern`）・終了条件（`RecurrenceEnd`）・シリーズ作成時のタイムゾーン（`SeriesTimezone`）・除外日集合（`ExcludedDate` の集合）を持つ別集約のルート。用語・集約の境界・ビジネスルール・エラーは [RecurringEventSeries ドメイン](../domain/recurring_event_series.md) を参照する
 - 実体化方式の採用: シリーズの各回は `events` テーブルの行として物理的に実体化し、シリーズのルールは `recurring_event_series` テーブルに別途保存する（下記のDB設計）。共有リンク（SPEC-004 `event_shares.event_id`）・購読（`event_subscriptions.event_id`）・タグ（SPEC-008 `event_tags.event_id`）・本日タイムライン（SPEC-007）・カレンダー表示（SPEC-002 `GET /events`）がいずれも「単一の `events` 行」を前提に設計されているため、既存の問い合わせ・集約境界をそのまま使える
-- 本仕様で守る不変条件（[Event ドメイン](../domain/event.md) および [RecurringEventSeries ドメイン](../domain/recurring_event_series.md) で定義されるもののうち本仕様に関わる範囲）:
-  - シリーズに属する回は最初の回の開始日から2年以内、所要時間と壁時計時刻はシリーズ内で同一
-  - 「この予定のみ変更」はシリーズから切り離した単発の `Event` と、シリーズ側の除外日の追加として表す
-  - 「以降すべて変更」は現在のシリーズを対象回の直前で終了させ、対象回以降を新しいシリーズとして扱う
-  - 「すべて削除」はシリーズと紐づく回・除外日を一括削除する
-  - タグ付与はシリーズ単位の意味で、シリーズに属するすべての回で Tag 集合を揃える。切り離した回は切り離し時点のタグを保持する
+- 本仕様で守る不変条件は [Event ドメイン](../domain/event.md) と [RecurringEventSeries ドメイン](../domain/recurring_event_series.md) を参照する
 
 ### DB設計
 
