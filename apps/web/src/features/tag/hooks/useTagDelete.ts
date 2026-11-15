@@ -17,11 +17,16 @@ export function useTagDelete(onDeleted: () => void, onFailed: () => void) {
         onFailed()
         return
       }
+      // Drop the tag from the cache before refetching, so a failed refetch still
+      // lets the calendar see it is gone and clear a filter that uses it.
+      queryClient.setQueryData<TagResponse[]>(tagsKeys.all, (tags) =>
+        tags?.filter((tag) => tag.id !== target.id),
+      )
       await queryClient.invalidateQueries({ queryKey: tagsKeys.all })
       // Deleting detaches the tag from every event, which changes their calendar colors.
       // Lists filtered by the deleted tag are skipped: the calendar clears that filter
-      // once the refetched tags no longer include it, so refetching them would only
-      // fetch an empty result.
+      // because the tag is gone from the cache, so refetching them would only fetch
+      // an empty result.
       await queryClient.invalidateQueries({
         queryKey: eventsKeys.all,
         predicate: (query) =>

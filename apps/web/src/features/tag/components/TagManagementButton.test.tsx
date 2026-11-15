@@ -15,7 +15,7 @@ import {
   listTags,
   updateTag,
 } from '../../../api/generated'
-import { eventsKeys } from '../../../lib/queryKeys'
+import { eventsKeys, tagsKeys } from '../../../lib/queryKeys'
 import TagManagementButton from './TagManagementButton'
 
 vi.mock('../../../api/generated', async (importOriginal) => {
@@ -492,6 +492,26 @@ describe('TagManagementButton', () => {
       expect(isInvalidated(null)).toBe(true)
       expect(isInvalidated('tag-2')).toBe(true)
       expect(isInvalidated('tag-1')).toBe(false)
+    })
+
+    it('削除後のタグ一覧の再取得に失敗しても、キャッシュから削除したタグを除く', async () => {
+      vi.mocked(listTags)
+        .mockResolvedValueOnce(response(200, { tags: [work, hobby] }))
+        .mockResolvedValue(response(500))
+      vi.mocked(deleteTag).mockResolvedValue(response(204))
+      const { queryClient } = setup()
+      const dialog = await openModal()
+
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+      expect(queryClient.getQueryData(tagsKeys.all)).toEqual([hobby])
     })
 
     it('付与件数が0件でも件数を表示する', async () => {
