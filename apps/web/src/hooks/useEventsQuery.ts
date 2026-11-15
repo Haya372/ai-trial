@@ -23,6 +23,15 @@ export function useEventsQuery(
       }
       return res.data
     },
+    // タグの絞り込みを切り替えても、取得中にカレンダーがローディング表示へ
+    // 入れ替わらないよう前のデータを残す。期間が変わったときは別の期間の
+    // 予定を見せてしまうため残さない
+    placeholderData: (previousData, previousQuery) => {
+      const [, prevStartAt, prevEndAt] = previousQuery?.queryKey ?? []
+      return prevStartAt === startAtIso && prevEndAt === endAtIso
+        ? previousData
+        : undefined
+    },
     staleTime: 5 * 60 * 1000, // 5分キャッシュ
   })
 }
