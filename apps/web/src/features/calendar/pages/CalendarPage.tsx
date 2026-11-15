@@ -33,8 +33,9 @@ export default function CalendarPage() {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<EventFormMode>('create')
   const [initialStart, setInitialStart] = useState<Date | null>(null)
-  // Kept as page-local state so it survives view switches and navigation but
-  // resets on reload and logout (the page unmounts), as SPEC-008 requires.
+  // Kept as page-local state so it survives month/week switches and prev/next
+  // date navigation but resets whenever this page unmounts (reload, logout, or
+  // leaving the route), as SPEC-008 requires.
   const [filterTagId, setFilterTagId] = useState<string | null>(null)
   const [quickPanel, setQuickPanel] = useState<{
     key: number
