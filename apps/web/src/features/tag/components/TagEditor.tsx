@@ -15,25 +15,28 @@ import {
 } from '@repo/ui'
 import { useEffect, useId, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { TagResponse } from '../../../api/generated'
 import { useTagEditorForm } from '../hooks/useTagEditorForm'
 import type { TagEditorTarget } from '../types'
 
 interface TagEditorProps {
   target: TagEditorTarget
-  onDone: () => void
+  onSaved: (tag: TagResponse) => void
+  onCancel: () => void
   onLimitExceeded: () => void
 }
 
 export default function TagEditor({
   target,
-  onDone,
+  onSaved,
+  onCancel,
   onLimitExceeded,
 }: TagEditorProps) {
   const { t } = useTranslation('tag')
   const colorLabelId = useId()
   const { form, onSubmit, submitError } = useTagEditorForm(
     target,
-    onDone,
+    onSaved,
     onLimitExceeded,
   )
   const colorLabels = useMemo(
@@ -51,7 +54,12 @@ export default function TagEditor({
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={(e) => {
+          // React events bubble through portals, so without this a TagEditor
+          // rendered in a popover inside another form would submit that form too.
+          e.stopPropagation()
+          form.handleSubmit(onSubmit)(e)
+        }}
         className="flex flex-col gap-3 rounded-md border border-border p-3"
       >
         {submitError && (
@@ -91,7 +99,7 @@ export default function TagEditor({
           )}
         />
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onDone}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             {t('editor.cancel')}
           </Button>
           <Button type="submit" loading={form.formState.isSubmitting}>

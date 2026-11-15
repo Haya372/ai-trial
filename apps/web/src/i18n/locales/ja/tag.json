@@ -12,6 +12,16 @@
     "editButton": "編集",
     "deleteButton": "削除"
   },
+  "selector": {
+    "label": "タグ",
+    "open": "タグを選択",
+    "loading": "読み込み中...",
+    "loadError": "タグを読み込めませんでした",
+    "empty": "タグはまだありません",
+    "createTag": "新しいタグを作成",
+    "limitReached": "タグは1つの予定に{{limit}}個まで付与できます",
+    "remove": "{{name}}を外す"
+  },
   "editor": {
     "name": "タグ名",
     "color": "色",

@@ -1,14 +1,58 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import i18n from 'i18next'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
-import type { EventResponse } from '../../../api/generated'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { EventResponse, TagResponse } from '../../../api/generated'
+import {
+  createEvent,
+  createTag,
+  listTags,
+  updateEvent,
+} from '../../../api/generated'
 import EventFormModal from './EventFormModal'
 
 vi.mock('../../../api/generated', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../api/generated')>()
-  return { ...actual, createEvent: vi.fn(), updateEvent: vi.fn() }
+  return {
+    ...actual,
+    createEvent: vi.fn(),
+    updateEvent: vi.fn(),
+    listTags: vi.fn(),
+    createTag: vi.fn(),
+  }
+})
+
+const workTag: TagResponse = {
+  id: 'tag-1',
+  name: '仕事',
+  color: 'blue',
+  eventCount: 0,
+}
+const hobbyTag: TagResponse = {
+  id: 'tag-2',
+  name: '趣味',
+  color: 'green',
+  eventCount: 0,
+}
+
+beforeEach(() => {
+  vi.mocked(createEvent).mockReset()
+  vi.mocked(updateEvent).mockReset()
+  vi.mocked(createTag).mockReset()
+  vi.mocked(listTags).mockReset()
+  vi.mocked(listTags).mockResolvedValue({
+    data: { tags: [workTag, hobbyTag] },
+    status: 200,
+    headers: new Headers(),
+  } as never)
+  mockToastError.mockClear()
 })
 
 const { mockToastError, mockToastSuccess } = vi.hoisted(() => ({
@@ -98,7 +142,6 @@ describe('EventFormModal', () => {
 
   describe('バリデーション', () => {
     it('タイトルが空の場合はエラーを表示し送信しない', async () => {
-      const { createEvent } = await import('../../../api/generated')
       renderModal()
       fireEvent.click(screen.getByRole('button', { name: '保存' }))
       await waitFor(() => {
@@ -145,7 +188,6 @@ describe('EventFormModal', () => {
 
   describe('送信', () => {
     it('createモードで保存するとcreateEventを呼び、成功後にonCloseを呼ぶ', async () => {
-      const { createEvent } = await import('../../../api/generated')
       vi.mocked(createEvent).mockResolvedValueOnce({
         data: { ...existingEvent, id: 'new-event' },
         status: 201,
@@ -174,7 +216,6 @@ describe('EventFormModal', () => {
     })
 
     it('editモードで保存するとupdateEventをidつきで呼ぶ', async () => {
-      const { updateEvent } = await import('../../../api/generated')
       vi.mocked(updateEvent).mockResolvedValueOnce({
         data: existingEvent,
         status: 200,
@@ -197,7 +238,6 @@ describe('EventFormModal', () => {
     })
 
     it('保存失敗時はエラートーストを表示しモーダルを閉じない', async () => {
-      const { createEvent } = await import('../../../api/generated')
       vi.mocked(createEvent).mockResolvedValueOnce({
         data: { code: 'VALIDATION_ERROR', message: 'Validation error' },
         status: 400,
@@ -221,6 +261,169 @@ describe('EventFormModal', () => {
           '入力内容を確認してください',
         )
       })
+      expect(onClose).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('タグ', () => {
+    function fillRequiredFields() {
+      fireEvent.change(screen.getByLabelText('タイトル'), {
+        target: { value: '新しい予定' },
+      })
+      fireEvent.change(screen.getByLabelText('開始日時'), {
+        target: { value: '2026-09-22T10:00' },
+      })
+      fireEvent.change(screen.getByLabelText('終了日時'), {
+        target: { value: '2026-09-22T11:00' },
+      })
+    }
+
+    async function openTagList() {
+      fireEvent.click(screen.getByRole('button', { name: 'タグを選択' }))
+      await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(2))
+      return screen.getAllByRole('dialog')[1]
+    }
+
+    function tagGroup() {
+      return screen.getByRole('group', { name: 'タグ' })
+    }
+
+    it('createモードで選択した順に tagIds を送る', async () => {
+      vi.mocked(createEvent).mockResolvedValueOnce({
+        data: existingEvent,
+        status: 201,
+        headers: new Headers(),
+      } as never)
+      renderModal({ mode: 'create', event: null })
+      fillRequiredFields()
+
+      const list = await openTagList()
+      fireEvent.click(
+        await within(list).findByRole('checkbox', { name: '趣味' }),
+      )
+      fireEvent.click(within(list).getByRole('checkbox', { name: '仕事' }))
+      fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+      await waitFor(() => {
+        expect(createEvent).toHaveBeenCalledWith(
+          expect.objectContaining({ tagIds: ['tag-2', 'tag-1'] }),
+        )
+      })
+    })
+
+    it('editモードでは既存のタグを初期選択し、updateEvent に tagIds を送る', async () => {
+      vi.mocked(updateEvent).mockResolvedValueOnce({
+        data: existingEvent,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      renderModal({
+        mode: 'edit',
+        event: {
+          ...existingEvent,
+          tags: [{ id: 'tag-2', name: '趣味', color: 'green' }],
+        },
+      })
+
+      expect(
+        within(tagGroup()).getByRole('button', { name: '趣味を外す' }),
+      ).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+      await waitFor(() => {
+        expect(updateEvent).toHaveBeenCalledWith(
+          'event-1',
+          expect.objectContaining({ tagIds: ['tag-2'] }),
+        )
+      })
+    })
+
+    it('共有から追加した予定の編集ではタグ選択欄を表示せず、tagIds を送らない', async () => {
+      vi.mocked(updateEvent).mockResolvedValueOnce({
+        data: existingEvent,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      renderModal({
+        mode: 'edit',
+        event: {
+          ...existingEvent,
+          isSubscribed: true,
+          subscriptionId: 'sub-1',
+        },
+      })
+
+      expect(
+        screen.queryByRole('group', { name: 'タグ' }),
+      ).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+      await waitFor(() => expect(updateEvent).toHaveBeenCalled())
+      expect(vi.mocked(updateEvent).mock.calls[0][1]).not.toHaveProperty(
+        'tagIds',
+      )
+    })
+
+    it('タグ選択欄でタグを作成しても予定は保存しない', async () => {
+      const newTag: TagResponse = {
+        id: 'tag-new',
+        name: '新規',
+        color: 'red',
+        eventCount: 0,
+      }
+      vi.mocked(createTag).mockImplementationOnce(async () => {
+        vi.mocked(listTags).mockResolvedValue({
+          data: { tags: [workTag, hobbyTag, newTag] },
+          status: 200,
+          headers: new Headers(),
+        } as never)
+        return { data: newTag, status: 201, headers: new Headers() } as never
+      })
+      renderModal({ mode: 'create', event: null })
+      fillRequiredFields()
+
+      const list = await openTagList()
+      fireEvent.click(
+        await within(list).findByRole('button', { name: '新しいタグを作成' }),
+      )
+      fireEvent.change(within(list).getByLabelText('タグ名'), {
+        target: { value: '新規' },
+      })
+      fireEvent.click(within(list).getByRole('button', { name: '保存' }))
+
+      expect(
+        await within(tagGroup()).findByRole('button', { name: '新規を外す' }),
+      ).toBeInTheDocument()
+      expect(createEvent).not.toHaveBeenCalled()
+    })
+
+    it('削除済みのタグが選択されていたら tagIds 欄にエラーを表示し、トーストは出さない', async () => {
+      vi.mocked(createEvent).mockResolvedValueOnce({
+        data: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation error',
+          details: [
+            { field: 'tagIds', code: 'NOT_FOUND', message: 'not found' },
+          ],
+        },
+        status: 400,
+        headers: new Headers(),
+      } as never)
+      const { onClose } = renderModal({ mode: 'create', event: null })
+      fillRequiredFields()
+
+      const list = await openTagList()
+      fireEvent.click(
+        await within(list).findByRole('checkbox', { name: '仕事' }),
+      )
+      fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+      expect(
+        await screen.findByText(
+          '削除されたタグが選択されています。外してから保存してください',
+        ),
+      ).toBeInTheDocument()
+      expect(mockToastError).not.toHaveBeenCalled()
       expect(onClose).not.toHaveBeenCalled()
     })
   })

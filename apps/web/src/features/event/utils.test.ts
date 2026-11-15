@@ -43,6 +43,7 @@ describe('toFormValues', () => {
     expect(values.description).toBe('')
     expect(values.location).toBe('')
     expect(values.url).toBe('')
+    expect(values.tagIds).toEqual([])
   })
 
   it('eventが渡された場合、既存の値をフォーム値にマッピングする', () => {
@@ -56,9 +57,13 @@ describe('toFormValues', () => {
       url: 'https://example.com',
       isSubscribed: false,
       subscriptionId: null,
-      tags: [],
+      tags: [
+        { id: 'tag-2', name: '趣味', color: 'green' },
+        { id: 'tag-1', name: '仕事', color: 'blue' },
+      ],
     }
     const values = toFormValues(event)
+    expect(values.tagIds).toEqual(['tag-2', 'tag-1'])
     expect(values.title).toBe('デザインレビュー')
     expect(values.description).toBe('メモ')
     expect(values.location).toBe('会議室A')

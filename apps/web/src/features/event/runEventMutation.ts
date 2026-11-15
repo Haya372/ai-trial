@@ -13,6 +13,8 @@ interface RunEventMutationParams {
   successMessage: string
   t: TFunction<['event', 'common']>
   onSuccess: (data: unknown) => void
+  // Returns true when the caller has shown the error itself (e.g. as a field error).
+  handleError?: (data: unknown) => boolean
 }
 
 export async function runEventMutation({
@@ -23,10 +25,12 @@ export async function runEventMutation({
   successMessage,
   t,
   onSuccess,
+  handleError,
 }: RunEventMutationParams): Promise<void> {
   try {
     const res = await request
     if (res.status !== expectedStatus) {
+      if (handleError?.(res.data)) return
       toast.error(getEventErrorMessage(res.data, mode, t))
       return
     }

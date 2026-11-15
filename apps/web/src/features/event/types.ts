@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next'
 import { z } from 'zod'
 import type { EventResponse } from '../../api/generated'
+import { EVENT_TAG_LIMIT } from '../tag/types'
 
 export function createEventFormSchema(t: TFunction<'event'>) {
   return z
@@ -11,6 +12,12 @@ export function createEventFormSchema(t: TFunction<'event'>) {
       description: z.string().optional(),
       location: z.string().optional(),
       url: z.string().optional(),
+      tagIds: z
+        .array(z.string())
+        .max(
+          EVENT_TAG_LIMIT,
+          t('validation.tooManyTags', { max: EVENT_TAG_LIMIT }),
+        ),
     })
     .refine((data) => new Date(data.endAt) > new Date(data.startAt), {
       message: t('validation.endAtAfterStart'),

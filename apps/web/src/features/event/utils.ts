@@ -87,6 +87,7 @@ function defaultFormValues(initialStart?: Date | null): EventFormValues {
     description: '',
     location: '',
     url: '',
+    tagIds: [],
   }
 }
 
@@ -102,6 +103,7 @@ export function toFormValues(
     description: event.description ?? '',
     location: event.location ?? '',
     url: event.url ?? '',
+    tagIds: event.tags.map((tag) => tag.id),
   }
 }
 

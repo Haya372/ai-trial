@@ -12,6 +12,16 @@
     "editButton": "Edit",
     "deleteButton": "Delete"
   },
+  "selector": {
+    "label": "Tags",
+    "open": "Select tags",
+    "loading": "Loading...",
+    "loadError": "Couldn't load tags",
+    "empty": "No tags yet",
+    "createTag": "Create a new tag",
+    "limitReached": "You can attach up to {{limit}} tags to an event",
+    "remove": "Remove {{name}}"
+  },
   "editor": {
     "name": "Tag name",
     "color": "Color",

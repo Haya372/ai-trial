@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { TagResponse } from '../../api/generated'
 
 export const TAG_LIMIT = 50
+export const EVENT_TAG_LIMIT = 5
 const TAG_NAME_MAX_LENGTH = 20
 
 export function createTagFormSchema(t: TFunction<'tag'>) {
