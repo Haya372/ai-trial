@@ -27,8 +27,8 @@ export function useEventsQuery(
     // 入れ替わらないよう前のデータを残す。期間が変わったときは別の期間の
     // 予定を見せてしまうため残さない
     placeholderData: (previousData, previousQuery) => {
-      const [, prevStartAt, prevEndAt] = previousQuery?.queryKey ?? []
-      return prevStartAt === startAtIso && prevEndAt === endAtIso
+      const prev = previousQuery && eventsKeys.parseList(previousQuery.queryKey)
+      return prev?.startAt === startAtIso && prev.endAt === endAtIso
         ? previousData
         : undefined
     },

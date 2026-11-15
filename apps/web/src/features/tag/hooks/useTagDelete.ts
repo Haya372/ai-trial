@@ -24,7 +24,8 @@ export function useTagDelete(onDeleted: () => void, onFailed: () => void) {
       // fetch an empty result.
       await queryClient.invalidateQueries({
         queryKey: eventsKeys.all,
-        predicate: (query) => query.queryKey[3] !== target.id,
+        predicate: (query) =>
+          eventsKeys.parseList(query.queryKey)?.tagId !== target.id,
       })
       onDeleted()
     } catch {

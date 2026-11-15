@@ -49,6 +49,26 @@ describe('eventsKeys', () => {
   })
 })
 
+describe('eventsKeys.parseList', () => {
+  it('list で作ったキーから startAt/endAt/tagId を取り出す', () => {
+    const key = eventsKeys.list(
+      '2026-08-31T15:00:00.000Z',
+      '2026-09-30T15:00:00.000Z',
+      'tag-1',
+    )
+    expect(eventsKeys.parseList(key)).toEqual({
+      startAt: '2026-08-31T15:00:00.000Z',
+      endAt: '2026-09-30T15:00:00.000Z',
+      tagId: 'tag-1',
+    })
+  })
+
+  it('list 以外のキーでは undefined を返す', () => {
+    expect(eventsKeys.parseList(eventsKeys.all)).toBeUndefined()
+    expect(eventsKeys.parseList(['tags'])).toBeUndefined()
+  })
+})
+
 describe('sharesKeys', () => {
   it('all は ["shares"] を返す', () => {
     expect(sharesKeys.all).toEqual(['shares'])
