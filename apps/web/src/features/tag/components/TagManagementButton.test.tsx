@@ -15,6 +15,7 @@ import {
   listTags,
   updateTag,
 } from '../../../api/generated'
+import { eventsKeys } from '../../../lib/queryKeys'
 import TagManagementButton from './TagManagementButton'
 
 vi.mock('../../../api/generated', async (importOriginal) => {
@@ -58,7 +59,7 @@ function setup() {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
   render(<TagManagementButton />, { wrapper })
-  return { invalidateQueries }
+  return { invalidateQueries, queryClient }
 }
 
 function invalidatedKeys(spy: ReturnType<typeof setup>['invalidateQueries']) {
@@ -457,6 +458,40 @@ describe('TagManagementButton', () => {
       await waitFor(() =>
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
       )
+    })
+
+    it('削除したタグで絞り込んだ予定一覧は無効化しない（絞り込みの解除前に空の結果を再取得しないため）', async () => {
+      mockTags([work])
+      vi.mocked(deleteTag).mockResolvedValue(response(204))
+      const { queryClient } = setup()
+      const range = [
+        '2026-08-31T15:00:00.000Z',
+        '2026-09-30T15:00:00.000Z',
+      ] as const
+      queryClient.setQueryData(eventsKeys.list(...range), { events: [] })
+      queryClient.setQueryData(eventsKeys.list(...range, 'tag-1'), {
+        events: [],
+      })
+      queryClient.setQueryData(eventsKeys.list(...range, 'tag-2'), {
+        events: [],
+      })
+      const dialog = await openModal()
+
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+      const isInvalidated = (tagId: string | null) =>
+        queryClient.getQueryState(eventsKeys.list(...range, tagId))
+          ?.isInvalidated
+      expect(isInvalidated(null)).toBe(true)
+      expect(isInvalidated('tag-2')).toBe(true)
+      expect(isInvalidated('tag-1')).toBe(false)
     })
 
     it('付与件数が0件でも件数を表示する', async () => {
