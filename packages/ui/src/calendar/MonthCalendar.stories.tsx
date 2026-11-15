@@ -66,3 +66,37 @@ export const ManyEvents: Story = {
     })),
   },
 }
+
+export const TagColors: Story = {
+  args: {
+    events: [
+      {
+        id: 't1',
+        title: 'タグ1個（赤）',
+        start: new Date(2026, 8, 13, 10, 0),
+        end: new Date(2026, 8, 13, 11, 0),
+        tagColors: ['red'],
+      },
+      {
+        id: 't2',
+        title: 'タグ5個',
+        start: new Date(2026, 8, 15, 14, 0),
+        end: new Date(2026, 8, 15, 16, 0),
+        tagColors: ['blue', 'green', 'orange', 'purple', 'pink'],
+      },
+      {
+        id: 't3',
+        title: '短時間（ドット省略確認）',
+        start: new Date(2026, 8, 20, 10, 0),
+        end: new Date(2026, 8, 20, 10, 15),
+        tagColors: ['teal', 'red', 'yellow'],
+      },
+      {
+        id: 't4',
+        title: 'タグなし（デフォルト色）',
+        start: new Date(2026, 8, 22, 9, 0),
+        end: new Date(2026, 8, 22, 10, 0),
+      },
+    ],
+  },
+}

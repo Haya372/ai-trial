@@ -11,6 +11,8 @@ import type {
 import { useEffect, useRef } from 'react'
 import { extractDateClickResult } from './createDateClickHandler'
 import { eventClassNames } from './eventClassNames'
+import { eventColorProps } from './eventColorProps'
+import { renderEventContent } from './renderEventContent'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -49,6 +51,7 @@ export function WeekCalendar({
     start: e.start,
     end: e.end,
     classNames: eventClassNames(e),
+    ...eventColorProps(e),
     extendedProps: { calendarEvent: e },
   }))
 
@@ -77,6 +80,7 @@ export function WeekCalendar({
       initialView="timeGridWeek"
       initialDate={currentDate}
       events={fullCalendarEvents}
+      eventContent={renderEventContent}
       eventClick={handleEventClick}
       dateClick={handleDateClick}
       datesSet={handleDatesSet}
