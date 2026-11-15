@@ -28,11 +28,7 @@ export default function TagFilterButton({
   const [managementOpen, setManagementOpen] = useState(false)
   // While filtering, the trigger shows the selected tag's name and color, so the
   // list stays subscribed even with the popover closed.
-  const {
-    data: tags,
-    isPending,
-    isError,
-  } = useTagsQuery(open || selectedTagId !== null)
+  const { data: tags, isError } = useTagsQuery(open || selectedTagId !== null)
   const selectedTag = tags?.find((tag) => tag.id === selectedTagId)
 
   // A tag deleted in the management modal or in another tab disappears from the
@@ -99,7 +95,8 @@ export default function TagFilterButton({
   }
 
   function renderContent() {
-    if (isPending) return <Loading label={t('filter.loading')} />
+    // A failed background refetch keeps the last list, which is still pickable.
+    if (tags) return renderList(tags)
     if (isError) {
       return (
         <Alert variant="destructive">
@@ -107,7 +104,7 @@ export default function TagFilterButton({
         </Alert>
       )
     }
-    return renderList(tags)
+    return <Loading label={t('filter.loading')} />
   }
 
   return (

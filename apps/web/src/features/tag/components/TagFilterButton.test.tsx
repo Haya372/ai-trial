@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TagResponse } from '../../../api/generated'
@@ -130,6 +130,23 @@ describe('TagFilterButton', () => {
     expect(
       await screen.findByText('タグを読み込めませんでした'),
     ).toBeInTheDocument()
+  })
+
+  it('再取得に失敗しても、取得済みのタグ一覧があれば一覧を表示する', async () => {
+    vi.mocked(listTags)
+      .mockResolvedValueOnce(response(200, { tags: [work] }))
+      .mockResolvedValue(response(500))
+    const { queryClient } = setup()
+    await openPopover()
+    await screen.findByRole('button', { name: '仕事' })
+
+    await act(() => queryClient.refetchQueries({ queryKey: tagsKeys.all }))
+    // Query results reach components through notifyManager's batched timer.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+
+    expect(queryClient.getQueryState(tagsKeys.all)?.status).toBe('error')
+    expect(screen.getByRole('button', { name: '仕事' })).toBeInTheDocument()
+    expect(screen.queryByText('タグを読み込めませんでした')).toBeNull()
   })
 
   describe('タグが0件', () => {
