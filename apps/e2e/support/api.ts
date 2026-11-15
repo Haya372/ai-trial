@@ -10,7 +10,12 @@ export type CreateEventInput = {
   tagIds?: string[]
 }
 
-export type CreatedEvent = CreateEventInput & { id: string }
+export type CreatedEvent = Omit<CreateEventInput, 'tagIds'> & {
+  id: string
+  isSubscribed: boolean
+  subscriptionId: string | null
+  tags: { id: string; name: string; color: string }[]
+}
 
 /** ログイン済みユーザーのセッション Cookie を持つ APIRequestContext で、UI を経ずにテストデータを用意する */
 export class UserApi {
