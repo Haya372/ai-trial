@@ -14,6 +14,7 @@ on:
       - apps/backend/Makefile
       - apps/backend/sqlc.yaml
       - packages/schema/**
+      - scripts/check-go-release-age.sh
       - .github/workflows/backend-ci.yml
   pull_request:
     paths:
@@ -25,6 +26,7 @@ on:
       - apps/backend/Makefile
       - apps/backend/sqlc.yaml
       - packages/schema/**
+      - scripts/check-go-release-age.sh
       - .github/workflows/backend-ci.yml
 
 permissions:
@@ -125,6 +127,22 @@ jobs:
         with:
           working-directory: apps/backend
           version: v2.15.0
+
+  release-age:
+    name: Release Age
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: apps/backend/go.mod
+          cache: false
+      - name: Check Go module release age
+        run: scripts/check-go-release-age.sh
 
   test:
     name: Test
