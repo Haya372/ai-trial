@@ -43,6 +43,7 @@ gh issue view <number>
 | Infrastructure | DBマイグレーション・リポジトリ実装（Domainのインターフェースを満たす） | `Add event_shares table and repository implementation` |
 | Usecase/Interface | APIエンドポイント（1エンドポイント = 1 Issueを基本とする） | `Implement POST /events/:id/shares endpoint` |
 | Frontend | 画面・コンポーネント単位 | `Add share link generation UI to event detail view` |
+| E2E | ユーザー操作フローのE2Eテスト（`apps/e2e/tests/`） | `Add E2E tests for event share link flow` |
 
 分割の粒度は `docs/guidelines/development-flow.md` の「PR分割ガイドライン」にある独立した関心事の単位（DBスキーマ/APIエンドポイント/フロントエンドUI）にも合わせる。
 
@@ -52,13 +53,19 @@ gh issue view <number>
 - 1つのsub-issueが2つ以上のレイヤーにまたがらないこと
 - 1つのsub-issueが1つのPR（`create-pr`）で完結する大きさであること
 
-**分割順序はADR-001のDependency Rule（依存の向きは常にDomain層へ）に従い、上表の順（Domain → Infrastructure → Usecase/Interface → Frontend）で着手する。**
+E2E Issueは以下の基準で作るかどうかを決める。
+
+- Frontendのsub-issueによって新しいユーザー操作フロー（画面遷移・フォーム送信・API連携を伴う操作）ができる場合は、E2E Issueを1つ作る
+- バックエンドだけの変更や、既存画面の表示だけを変える場合は作らない（既存のE2Eと単体テスト・結合テストで確認する）
+
+**分割順序はADR-001のDependency Rule（依存の向きは常にDomain層へ）に従い、上表の順（Domain → Infrastructure → Usecase/Interface → Frontend → E2E）で着手する。**
 
 - Domain層は何にも依存しないため、まず実装する
 - Infrastructure層はDomain層が定義したインターフェースを満たす実装でしかないため、後で着手する
 - 「DBスキーマ→ドメインモデル」の順にすると、ドメイン設計の結果によってDBスキーマを作り直す（マイグレーションのやり直し）が発生し得るため避ける
 - Usecase/Interface層はInfrastructure層の実装が揃ってから着手する（CRUDであれば操作ごとに1 Issueへ分割する）
 - Frontend層は対応するAPIエンドポイントの完了後に着手する
+- E2E Issueは、テスト対象のフローに関わるすべてのFrontend sub-issueに依存させ、分割案の最後に置く
 
 ### ステップ 4: ADR相当の判断を洗い出す
 
@@ -78,6 +85,9 @@ gh issue view <number>
 |---|---|---|---|---|
 | 1 | ... | Domain | `EventShare` 集約 | なし |
 | 2 | ... | Infrastructure | `event_shares` テーブル | #1 |
+| 3 | ... | Usecase/Interface | `POST /events/:id/shares` | #2 |
+| 4 | ... | Frontend | イベント詳細画面の共有リンク生成UI | #3 |
+| 5 | ... | E2E | 共有リンクを生成して開くフロー | #4 |
 ```
 
 ユーザーから粒度・順序の指摘があれば反映し、合意できるまで繰り返す。承認後は確認を挟まずに起票まで進める。
@@ -93,6 +103,12 @@ gh issue view <number>
 - 依存Issue: #NN（先行Issue）が完了していること（先行Issueがない場合は省略）
 - 後続Issue: #NN（後続Issue）はこの完了後に進める（後続Issueがない場合は省略）
 
+E2E Issueの本文には、さらに以下を含める。
+
+- 対象のユーザーフロー: テストするフローごとに、対応するPRDのユーザーストーリー・仕様書の受け入れ条件を書く
+- テストの配置先: `apps/e2e/tests/`（フレームワークは `docs/adr/ADR-034-e2e-test-framework.md` に従う）
+- PRに `run-e2e` ラベルを付けてE2E CIを実行すること（受け入れ条件に含める）
+
 ### ステップ 7: 依存順にIssueを作成し、前方参照を実番号に更新する
 
 - 依存関係の順（先行Issueから）に `gh issue create` する
@@ -104,6 +120,7 @@ gh issue view <number>
 ## チェックリスト
 
 - [ ] 仕様書がある場合、設計要素がすべてsub-issueに割り当てられているか
+- [ ] E2E Issueが要るか判断し、作る場合はFrontend sub-issueに依存させて最後に置いたか
 - [ ] 分割案をユーザーに提示し承認を得たか
 - [ ] 各sub-issueに「関連Issue: #親Issue（親Issue）」があるか（仕様書がある場合は仕様書の参照も）
 - [ ] 依存関係の順序がDependency Rule（Domain設計が先、Infrastructure実装が後）と整合しているか
