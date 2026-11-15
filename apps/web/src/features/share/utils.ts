@@ -19,10 +19,7 @@ export function toShareDetailError(
 }
 
 // TFunction のブランド型を避けるため、mapErrorToMessage が実際に必要とする callable 型を使う
-type ShareTFunction = (
-  key: ParseKeys<['share', 'common']>,
-  options?: Record<string, unknown>,
-) => string
+type ShareTFunction = (key: ParseKeys<['share', 'common']>) => string
 
 const subscribeCodeToKey: Record<string, ParseKeys<['share', 'common']>> = {
   FORBIDDEN: 'share:errors.subscribeOwnEvent',
