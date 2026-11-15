@@ -61,8 +61,8 @@ function setup({
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
-  render(<Harness />, { wrapper })
-  return { onChange, queryClient }
+  const { unmount } = render(<Harness />, { wrapper })
+  return { onChange, queryClient, unmount }
 }
 
 async function openList() {
@@ -322,6 +322,43 @@ describe('EventTagSelector', () => {
     await waitFor(() => expect(createTag).toHaveBeenCalledTimes(1))
     expect(onChange).toHaveBeenLastCalledWith(tags.slice(0, 5).map((t) => t.id))
     expect(selectedTagNames()).toHaveLength(5)
+  })
+
+  it('作成完了前に閉じられた場合は、作成したタグを選択に追加しない', async () => {
+    mockTags([work])
+    let resolveCreate: (value: unknown) => void = () => {}
+    vi.mocked(createTag).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve
+        }) as never,
+    )
+    const { onChange, unmount } = setup({ initialValue: ['tag-1'] })
+    const list = await openList()
+
+    fireEvent.click(
+      await within(list).findByRole('button', { name: '新しいタグを作成' }),
+    )
+    fireEvent.change(within(list).getByLabelText('タグ名'), {
+      target: { value: '新規' },
+    })
+    fireEvent.click(within(list).getByRole('button', { name: '保存' }))
+    await waitFor(() => expect(createTag).toHaveBeenCalled())
+
+    // The event form closes (and may reopen for another event) mid-request.
+    unmount()
+    await act(async () => {
+      resolveCreate(
+        response(201, {
+          id: 'tag-new',
+          name: '新規',
+          color: 'red',
+          eventCount: 0,
+        }),
+      )
+    })
+
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('タグ作成が 409 TAG_LIMIT_EXCEEDED のときは一覧に戻り、上限の旨を表示する', async () => {

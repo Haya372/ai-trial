@@ -46,6 +46,15 @@ export default function EventTagSelector({
   useEffect(() => {
     latestValue.current = value
   }, [value])
+  // The event form instance outlives this selector, so a create finishing after
+  // the dialog closed must not write into the next event opened in the form.
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   // initialTags and pickedTags keep tags deleted elsewhere visible so the user
   // can remove them; otherwise a hidden ID would stay in value and fail every save.
@@ -82,6 +91,7 @@ export default function EventTagSelector({
   }
 
   function handleCreated(tag: TagResponse) {
+    if (!mounted.current) return
     // The popover may have been closed and refilled to the limit while the
     // create was in flight; the tag still exists and can be picked from the list.
     if (latestValue.current.length < EVENT_TAG_LIMIT) pick(tag)
