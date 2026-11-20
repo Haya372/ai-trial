@@ -61,8 +61,8 @@ gh pr checkout <PR番号>
 |---|---|
 | 要件・スコープ | Issueの要件・受け入れ条件をすべて満たしているか。要件と無関係な変更が含まれていないか |
 | 仕様 | 振る舞いが仕様書の記述に沿っているか |
-| 正しさ | `code-review` スキルを `--comment` なしで呼ぶ（例: `code-review high <PR番号>`） |
-| セキュリティ | `/security-review` を実行する。Claude Code以外では `docs/guidelines/backend-review-criteria.md` の「セキュリティ」に沿って確認する |
+| 正しさ | Claude Codeでは `code-review` スキルを `--comment` なしで呼ぶ（例: `code-review high <PR番号>`）。それ以外のツールでは、対象の差分の変更ごとに、境界値・null・エラー時の分岐・並行実行で誤った結果になる入力がないかをコードを辿って確認する |
+| セキュリティ | Claude Codeでは `/security-review` を実行する。それ以外のツールでは `docs/guidelines/backend-review-criteria.md` の「セキュリティ」に沿って確認する |
 | ガイドライン | 変更したファイルの種類に応じて参照する（下表） |
 | テスト | `docs/guidelines/test-guidelines.md` に沿って、テストケースの網羅とテストの品質を確認する |
 
@@ -98,7 +98,7 @@ gh pr checkout <PR番号>
 
 ### ステップ 5: 投稿する
 
-指摘を1つのレビューとして投稿する。payloadをWriteツールでスクラッチパッドディレクトリ（システムプロンプトに記載の絶対パス）に作成し、その絶対パスを `--input` に渡す。
+指摘を1つのレビューとして投稿する。payloadをJSONファイルに書き、その絶対パスを `--input` に渡す。Claude Codeでは、Writeツールでスクラッチパッドディレクトリ（システムプロンプトに記載の絶対パス）に作成する。それ以外のツールでは `$TMPDIR` に作成する。
 
 | 投稿する指摘 | `comments` | `body` |
 |---|---|---|
@@ -117,7 +117,7 @@ gh pr checkout <PR番号>
 ```
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<scratchpad>/review.json"
+gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<payloadの絶対パス>"
 ```
 
 - 指摘・`body` は日本語で書く。指摘には、問題が起きる具体的な条件と期待する振る舞いを書く
@@ -142,7 +142,7 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<scr
 - [ ] Issueの要件・受け入れ条件、仕様書、既存スレッドを読んだか
 - [ ] 2回目以降は、差分の起点を `last_review_commit_id` から決めたか
 - [ ] 変更したコードの呼び出し元・依存先を確認したか
-- [ ] `code-review` を `--comment` なしで呼んだか
+- [ ] 正しさを確認したか（Claude Codeでは `code-review` を `--comment` なしで呼んだか）
 - [ ] 返信済みスレッドと同じ指摘を除いたか
 - [ ] 仕様どおりの振る舞いへの指摘を、仕様への質問としてユーザーに伝えたか
 - [ ] 投稿する指摘の確信度を判断し、高のものだけを投稿したか
