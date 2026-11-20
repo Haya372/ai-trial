@@ -100,7 +100,7 @@ bash scripts/fetch-pr-review-threads.sh <PR番号> > "$TMPDIR/pr-<PR番号>-thre
 {
   "commit_id": "<headRefOid>",
   "event": "COMMENT",
-  "body": "<確認した観点と、指摘件数の要約>",
+  "body": "<!-- pr-review -->\n<確認した観点と、指摘件数の要約>",
   "comments": [
     { "path": "<ファイルパス>", "line": 42, "side": "RIGHT", "body": "<指摘>" }
   ]
@@ -114,7 +114,7 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<scr
 - 指摘・`body` は日本語で書く。指摘には、問題が起きる具体的な条件と期待する振る舞いを書く
 - 複数行への指摘は `start_line` と `line` で範囲を指定する
 - 指摘は `body` に書かず、すべてインラインコメントにする。差分に含まれない行への指摘（呼び出し元への影響など）は、原因になった変更行にコメントし、影響を受ける箇所をファイルパスと行番号で書く。PRで変更していないファイルだけに関わる指摘は、投稿せずステップ6でユーザーに伝える
-- `body` を空にしない。空だと、次回のレビューで `last_review_commit_id` の起点にならない
+- `body` の先頭に `<!-- pr-review -->` を書く。この印のあるレビューだけが、次回のレビューで `last_review_commit_id` の起点になる
 - 既存スレッドへの返信は `gh api repos/{owner}/{repo}/pulls/<PR番号>/comments/<comment_id>/replies --method POST -f body="<返信>"` で投稿する（`comment_id` は `threads[].comments[0].id`）
 
 ### ステップ 6: ユーザーに報告する
@@ -139,3 +139,4 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<scr
 - [ ] 投稿する指摘の確信度を判断し、高のものだけを投稿したか
 - [ ] 指摘をすべてインラインコメントにしたか
 - [ ] 指摘が0件の場合に、確認した観点を添えて「問題なし」を投稿したか
+- [ ] レビューの `body` の先頭に `<!-- pr-review -->` を書いたか
