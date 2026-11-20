@@ -460,7 +460,7 @@ describe('TagManagementButton', () => {
       )
     })
 
-    it('削除したタグで絞り込んだ予定一覧は無効化しない（絞り込みの解除前に空の結果を再取得しないため）', async () => {
+    it('削除したタグで絞り込んだ予定一覧はキャッシュから除き、それ以外の予定一覧は無効化する', async () => {
       mockTags([work])
       vi.mocked(deleteTag).mockResolvedValue(response(204))
       const { queryClient } = setup()
@@ -486,12 +486,12 @@ describe('TagManagementButton', () => {
       await waitFor(() =>
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
       )
-      const isInvalidated = (tagId: string | null) =>
+      const queryState = (tagId: string | null) =>
         queryClient.getQueryState(eventsKeys.list(...range, tagId))
-          ?.isInvalidated
-      expect(isInvalidated(null)).toBe(true)
-      expect(isInvalidated('tag-2')).toBe(true)
-      expect(isInvalidated('tag-1')).toBe(false)
+      expect(queryState(null)?.isInvalidated).toBe(true)
+      expect(queryState('tag-2')?.isInvalidated).toBe(true)
+      // Left in the cache, it would keep events carrying the deleted tag until gc.
+      expect(queryState('tag-1')).toBeUndefined()
     })
 
     it('削除後のタグ一覧の再取得に失敗しても、キャッシュから削除したタグを除く', async () => {
