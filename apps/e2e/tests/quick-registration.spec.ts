@@ -31,7 +31,7 @@ test.describe('クイック登録', () => {
     const calendar = page.getByRole('table')
 
     await clickTimeSlot(page, NEXT_DAY, '14:00:00')
-    const panel = page.getByRole('dialog')
+    const panel = page.getByRole('dialog', { name: 'クイック登録', exact: true })
     const titleInput = panel.getByLabel('タイトル')
     // タイトル入力欄に自動でフォーカスが当たる
     await expect(titleInput).toBeFocused()
@@ -56,7 +56,7 @@ test.describe('クイック登録', () => {
     await openWeekViewOfFixedDay(page)
 
     await clickTimeSlot(page, NEXT_DAY, '10:30:00')
-    const panel = page.getByRole('dialog')
+    const panel = page.getByRole('dialog', { name: 'クイック登録', exact: true })
     await panel.getByLabel('タイトル').fill('あとで詳細を書く予定')
     await panel.getByRole('button', { name: '保存', exact: true }).click()
 
@@ -82,7 +82,7 @@ test.describe('クイック登録', () => {
     await openWeekViewOfFixedDay(page)
 
     await clickTimeSlot(page, NEXT_DAY, '14:00:00')
-    const panel = page.getByRole('dialog')
+    const panel = page.getByRole('dialog', { name: 'クイック登録', exact: true })
     await panel.getByLabel('タイトル').press('Enter')
 
     await expect(panel.getByText('タイトルを入力してください')).toBeVisible()
@@ -101,7 +101,7 @@ test.describe('クイック登録', () => {
     await openWeekViewOfFixedDay(page)
 
     await clickTimeSlot(page, NEXT_DAY, '14:00:00')
-    const panel = page.getByRole('dialog')
+    const panel = page.getByRole('dialog', { name: 'クイック登録', exact: true })
     await panel.getByLabel('タイトル').fill('破棄する予定')
     await page.keyboard.press('Escape')
 

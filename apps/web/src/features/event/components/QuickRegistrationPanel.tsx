@@ -50,7 +50,10 @@ export default function QuickRegistrationPanel({
         anchor={virtualAnchor}
         side="bottom"
         align="start"
-        popupProps={{ initialFocus: titleInputRef }}
+        popupProps={{
+          initialFocus: titleInputRef,
+          'aria-label': t('quickRegistration.panelLabel'),
+        }}
       >
         {phase.status === 'input' ? (
           <Form {...form}>

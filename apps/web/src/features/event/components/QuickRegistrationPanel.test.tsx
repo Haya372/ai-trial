@@ -59,6 +59,13 @@ function renderPanel(
 
 describe('QuickRegistrationPanel', () => {
   describe('表示', () => {
+    it('パネルを「クイック登録」という名前のダイアログとして表示する', () => {
+      renderPanel()
+      expect(
+        screen.getByRole('dialog', { name: 'クイック登録' }),
+      ).toBeInTheDocument()
+    })
+
     it('タイトル入力欄を表示する', () => {
       renderPanel()
       expect(screen.getByLabelText('タイトル')).toBeInTheDocument()

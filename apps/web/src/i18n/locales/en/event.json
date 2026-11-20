@@ -14,6 +14,7 @@
     "submitButton": "Save"
   },
   "quickRegistration": {
+    "panelLabel": "Quick add",
     "titlePlaceholder": "Enter a title",
     "submitButton": "Save",
     "successMessage": "Event created",
