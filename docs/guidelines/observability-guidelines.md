@@ -100,23 +100,9 @@ logger.Warn("user login failed", "user_id", userID, "reason", "invalid_password"
 | `status` | int | HTTPステータスコード |
 | `duration_ms` | int | 処理時間（ミリ秒） |
 
-### ログに含めてはならない情報
+### ログに出す情報
 
-| 禁止情報 | 具体例 |
-|---|---|
-| 認証情報 | パスワード、APIキー、JWTトークンの中身 |
-| URLに含まれる秘密 | 共有トークン等のパスパラメーター（生のパスではなくルートパターンを出す） |
-| 個人情報 | メールアドレス、氏名、住所、電話番号 |
-| DBの内部詳細 | SQLクエリ文字列、DBエラーメッセージそのもの |
-| スタックトレース | `runtime/debug.Stack()` の出力（障害調査時のデバッグログを除く） |
-
-```go
-// NG: 認証情報をそのまま記録
-logger.Info("user logged in", "password", req.Password)  // 絶対禁止
-
-// OK: IDのみ記録
-logger.Info("user logged in", "user_id", user.ID)
-```
+ログに出してよい情報と、出せない情報の代わりに記録するものは [情報取り扱いガイドライン](data-handling-guidelines.md) に従う。
 
 ### エラーログは末端で1回だけ出す
 
@@ -247,7 +233,8 @@ attrs := []attribute.KeyValue{
 
 - スパン名は `<コンポーネント>.<操作>` の形式（例: `db.query`, `http.request`）
 - HTTPスパンには `http.method`, `http.route`, `http.status_code` を付与する
-- DBスパンには `db.system`, `db.operation`, `db.table` を付与する（SQLクエリ文字列は含めない）
+- DBスパンには `db.system`, `db.operation`, `db.table` を付与する
+- 属性・ステータスに出してよい情報は [情報取り扱いガイドライン](data-handling-guidelines.md) に従う
 
 ```go
 ctx, span := tracer.Start(ctx, "db.query")
@@ -257,7 +244,6 @@ span.SetAttributes(
     attribute.String("db.system", "postgresql"),
     attribute.String("db.operation", "SELECT"),
     attribute.String("db.table", "users"),
-    // NG: attribute.String("db.statement", query) ← SQLは含めない
 )
 
 if err != nil {
