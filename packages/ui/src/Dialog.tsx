@@ -26,6 +26,8 @@ function DialogContent({ children, ...props }: DialogContentProps) {
         className={cn(
           'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
           'w-full max-w-lg',
+          // 中央に固定しているため、内容が画面より高いと上下がはみ出してスクロールでも届かなくなる
+          'max-h-[calc(100dvh-2rem)] overflow-y-auto',
           'rounded-xl border border-border bg-background shadow-xl',
           'p-6',
           'focus:outline-none',
