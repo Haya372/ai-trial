@@ -117,6 +117,10 @@ export default function TagFilterButton({
                 color={selectedTag.color}
                 size="sm"
               />
+            ) : selectedTagId !== null ? (
+              // The tag list is loading or failed, so only the fact that a
+              // filter is active can be shown.
+              t('filter.activeUnknown')
             ) : (
               t('filter.button')
             )}

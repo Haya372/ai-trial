@@ -167,6 +167,22 @@ describe('TagFilterButton', () => {
   })
 
   describe('絞り込み中', () => {
+    it.each([
+      ['取得中', () => new Promise(() => {})],
+      ['取得失敗', () => Promise.resolve(response(500))],
+    ])(
+      'タグ一覧が%sでタグ名が分からなくても、ボタンで絞り込み中だとわかる',
+      async (_, impl) => {
+        vi.mocked(listTags).mockImplementation(impl as never)
+        setup('tag-1')
+
+        const trigger = await screen.findByRole('button', {
+          name: '絞り込み中',
+        })
+        expect(trigger).toHaveTextContent('絞り込み中')
+      },
+    )
+
     it('ボタンに選択中のタグ名を表示し、一覧では選択中のタグを押下状態にする', async () => {
       mockTags([work, hobby])
       setup('tag-1')

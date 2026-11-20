@@ -25,6 +25,7 @@
   "filter": {
     "button": "Filter",
     "active": "Filter: {{name}}",
+    "activeUnknown": "Filtering",
     "showAll": "Show all",
     "clear": "Clear filter",
     "loading": "Loading...",
