@@ -26,6 +26,13 @@ export class UserApi {
     await expectStatus(res, 201)
     return res.json()
   }
+
+  /** 画面表示に頼らず、サーバーに登録されている予定を確かめる */
+  async listEvents(range: { startAt: string; endAt: string }): Promise<CreatedEvent[]> {
+    const res = await this.request.get('/api/events', { params: range })
+    await expectStatus(res, 200)
+    return (await res.json()).events
+  }
 }
 
 export async function expectStatus(res: APIResponse, status: number): Promise<void> {

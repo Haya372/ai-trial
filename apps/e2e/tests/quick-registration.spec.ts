@@ -1,7 +1,13 @@
 import type { Page } from '@playwright/test'
-import { expect, test } from '../fixtures'
+import { expect, type TestUser, test } from '../fixtures'
 import { openWeekViewOfFixedDay } from '../support/calendar'
-import { fixedDayDateString, fixedDayInputValue, fixedDayLabel, nextDayAt } from '../support/clock'
+import {
+  atFixedDay,
+  fixedDayDateString,
+  fixedDayInputValue,
+  fixedDayLabel,
+  nextDayAt,
+} from '../support/clock'
 
 const NEXT_DAY = fixedDayDateString(1)
 
@@ -11,12 +17,25 @@ const NEXT_DAY = fixedDayDateString(1)
  */
 async function clickTimeSlot(page: Page, date: string, time: string) {
   const slot = page.locator(`[data-time="${time}"]`).first()
+  // 終日枠と時間枠の両方に同じ data-date のセルがあり、DOM 上は時間枠の列が後に来る
+  const dayColumn = page.locator(`[role="cell"][data-date="${date}"]`).last()
   await slot.scrollIntoViewIfNeeded()
   const slotBox = await slot.boundingBox()
-  // 終日枠と時間枠の両方に同じ data-date のセルがあるが、列の横位置はどちらも同じ
-  const dayBox = await page.locator(`[role="cell"][data-date="${date}"]`).first().boundingBox()
-  if (!slotBox || !dayBox) throw new Error(`時間枠が見つからない: ${date} ${time}`)
-  await page.mouse.click(dayBox.x + dayBox.width / 2, slotBox.y + slotBox.height / 2)
+  const columnBox = await dayColumn.boundingBox()
+  if (!slotBox || !columnBox) throw new Error(`時間枠が見つからない: ${date} ${time}`)
+  // 列内の相対位置で指定し、計測後にスクロールしてもずれず、クリック前の待機も効くようにする
+  await dayColumn.click({
+    position: { x: columnBox.width / 2, y: slotBox.y - columnBox.y + slotBox.height / 2 },
+  })
+}
+
+/** FIXED_NOW の翌日に登録されている予定のタイトル */
+async function nextDayEventTitles(user: TestUser): Promise<string[]> {
+  const events = await user.api.listEvents({
+    startAt: atFixedDay(nextDayAt(0)),
+    endAt: atFixedDay({ dayOffset: 2, hour: 0 }),
+  })
+  return events.map((e) => e.title)
 }
 
 test.describe('クイック登録', () => {
@@ -94,6 +113,8 @@ test.describe('クイック登録', () => {
 
     await expect(panel.getByText('予定を登録しました')).toBeVisible()
     await expect(page.getByRole('table').getByText('入力し直した予定')).toBeVisible()
+    // 空タイトルでの送信が登録されていないことを、サーバー側の件数で確かめる
+    expect(await nextDayEventTitles(user)).toEqual(['入力し直した予定'])
   })
 
   test('保存前にEscで閉じると、予定は登録されない', async ({ page, user, signIn }) => {
@@ -106,10 +127,14 @@ test.describe('クイック登録', () => {
     await page.keyboard.press('Escape')
 
     await expect(panel).toBeHidden()
-    await expect(page.getByText('破棄する予定')).toHaveCount(0)
 
-    // 開き直したパネルに前回の入力が残っていない
+    // 画面に出ていないことは即座に成立してしまうため、続けて登録を完了させてから
+    // サーバー側に破棄した予定が残っていないことを確かめる
     await clickTimeSlot(page, NEXT_DAY, '14:00:00')
-    await expect(panel.getByLabel('タイトル')).toHaveValue('')
+    await panel.getByLabel('タイトル').fill('残す予定')
+    await panel.getByLabel('タイトル').press('Enter')
+    await expect(panel.getByText('予定を登録しました')).toBeVisible()
+
+    expect(await nextDayEventTitles(user)).toEqual(['残す予定'])
   })
 })
