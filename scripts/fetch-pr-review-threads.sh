@@ -37,8 +37,11 @@ gh api graphql --paginate --slurp \
               isOutdated
               path
               line
+              startLine
+              originalLine
+              originalStartLine
               comments(first: 100) {
-                nodes { databaseId author { login } body createdAt url }
+                nodes { databaseId author { login } body createdAt url originalCommit { oid } }
               }
             }
           }
@@ -70,8 +73,13 @@ jq -n \
         is_outdated: .isOutdated,
         path,
         line,
+        start_line: .startLine,
+        # outdatedのスレッドは line が null になるため、コメントした時点の行番号も出す
+        original_line: .originalLine,
+        original_start_line: .originalStartLine,
         comments: [.comments.nodes[] | {
-          id: .databaseId, author: .author.login, body, created_at: .createdAt, url
+          id: .databaseId, author: .author.login, body, created_at: .createdAt, url,
+          original_commit_id: .originalCommit.oid
         }]
       }]
     }
