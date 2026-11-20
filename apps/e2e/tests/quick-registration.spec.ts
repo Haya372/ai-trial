@@ -17,12 +17,12 @@ const NEXT_DAY = fixedDayDateString(NEXT_DAY_OFFSET)
  * FullCalendar はクリック座標から日時を判定するため、日付の列と時刻の行が交わる位置をクリックする
  */
 async function clickTimeSlot(page: Page, date: string, time: string) {
-  const slot = page.locator(`[data-time="${time}"]`).first()
-  // 終日枠と時間枠の両方に同じ data-date のセルがあり、DOM 上は時間枠の列が後に来る
-  const dayColumn = page.locator(`[role="cell"][data-date="${date}"]`).last()
+  // 終日枠の行にも同じ data-date のセルがあるため、時刻の行（data-time）を含む時間枠の行に絞る
+  const timedRow = page.getByRole('row').filter({ has: page.locator('[data-time]') })
+  const slot = timedRow.locator(`[data-time="${time}"]`).first()
+  const dayColumn = timedRow.locator(`[role="cell"][data-date="${date}"]`)
   await slot.scrollIntoViewIfNeeded()
-  const slotBox = await slot.boundingBox()
-  const columnBox = await dayColumn.boundingBox()
+  const [slotBox, columnBox] = await Promise.all([slot.boundingBox(), dayColumn.boundingBox()])
   if (!slotBox || !columnBox) throw new Error(`時間枠が見つからない: ${date} ${time}`)
   // 列内の相対位置で指定し、計測後にスクロールしてもずれず、クリック前の待機も効くようにする
   await dayColumn.click({
