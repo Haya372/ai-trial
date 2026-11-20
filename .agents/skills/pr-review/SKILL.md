@@ -15,11 +15,11 @@ PRの要件・仕様・既存のレビュースレッドと照らし合わせて
 
 ### ステップ 1: 文脈を集める
 
-PR番号が会話から分からない場合は、現在のブランチから取得する。
-
 ```bash
-gh pr view --json number,title,body,headRefOid,baseRefName,closingIssuesReferences
+gh pr view <PR番号> --json number,title,body,headRefOid,baseRefName,closingIssuesReferences
 ```
+
+PR番号が会話から分からない場合は、`<PR番号>` を省略して現在のブランチのPRを取得する。
 
 以下を読む。
 
@@ -28,30 +28,31 @@ gh pr view --json number,title,body,headRefOid,baseRefName,closingIssuesReferenc
 - 既存のレビューとスレッド
 
 ```bash
-bash scripts/fetch-pr-review-threads.sh <PR番号> > "$TMPDIR/pr-<PR番号>-threads.json"
+bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
 ```
 
 出力の `threads[].is_resolved` でスレッドの解決状態、`threads[].comments` で返信の有無を確認する。
 
 ### ステップ 2: レビュー対象の差分を決める
 
-ベースブランチとPRのブランチを最新にする。
+ベースブランチとPRのコミットを取得する。ブランチは切り替えない（PRのブランチを別のworktreeで開いていても動くようにするため）。
 
 ```bash
-git fetch origin <baseRefName>
-gh pr checkout <PR番号>
+git fetch origin <baseRefName> pull/<PR番号>/head
 ```
+
+以降の手順では、作業ツリーやHEADではなく、ステップ1の `headRefOid` をPRの内容として扱う。ファイルは `git show <headRefOid>:<path>` で読み、呼び出し元は `git grep <pattern> <headRefOid>` で探す。
 
 ステップ1の出力の `last_review_commit_id` で、上の行から順に当てはまる条件の対象を使う。
 
 | 条件 | 対象 |
 |---|---|
-| `last_review_commit_id` が `null`（初回） | `git diff origin/<baseRefName>...HEAD` |
-| `git merge-base --is-ancestor <last_review_commit_id> HEAD` が失敗する（リベース・force-push後） | `git diff origin/<baseRefName>...HEAD` と、未解決のスレッド |
-| `git log --merges <last_review_commit_id>..HEAD` が1件以上出力する（ベースブランチをmerge済み） | `git diff origin/<baseRefName>...HEAD` と、未解決のスレッド |
-| 上のどれにも当たらない | `git diff <last_review_commit_id>..HEAD` と、未解決のスレッド |
+| `last_review_commit_id` が `null`（初回） | `git diff origin/<baseRefName>...<headRefOid>` |
+| `git merge-base --is-ancestor <last_review_commit_id> <headRefOid>` が失敗する（リベース・force-push後） | `git diff origin/<baseRefName>...<headRefOid>` と、未解決のスレッド |
+| `git log --merges <last_review_commit_id>..<headRefOid>` が1件以上出力する（ベースブランチをmerge済み） | `git diff origin/<baseRefName>...<headRefOid>` と、未解決のスレッド |
+| 上のどれにも当たらない | `git diff <last_review_commit_id>..<headRefOid>` と、未解決のスレッド |
 
-2回目以降で `last_review_commit_id` からの差分を対象にする場合も、変更した関数・コンポーネント・型の呼び出し元と依存先を `grep` で探し、変更による影響（共有の状態・フック・インターフェースの変化）を確認する。
+2回目以降で `last_review_commit_id` からの差分を対象にする場合も、変更した関数・コンポーネント・型の呼び出し元と依存先を `git grep` で探し、変更による影響（共有の状態・フック・インターフェースの変化）を確認する。
 
 ### ステップ 3: 観点ごとにレビューする
 
@@ -115,6 +116,8 @@ gh pr checkout <PR番号>
   ]
 }
 ```
+
+投稿の直前に `gh pr view <PR番号> --json headRefOid --jq .headRefOid` を実行する。ステップ1の `headRefOid` と異なる場合は、レビュー中にpushされているので、ステップ1からやり直す。
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<payloadの絶対パス>"
