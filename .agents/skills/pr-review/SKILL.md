@@ -81,7 +81,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 |---|---|
 | 既存スレッドと同じ内容で、そのスレッドが解決済み | 除く |
 | 既存スレッドと同じ内容で、そのスレッドにPRの作成者の返信がある（対応済み・対応しない理由の説明済み） | 除く。返信の内容でまだ問題が残る場合だけ、そのスレッドへの返信として投稿する |
-| 既存スレッドと同じ内容で、作成者の返信がなく未解決、かつ `is_outdated` が `true` | 指摘したコード（`git show <comments[0].original_commit_id>:<path>` の `original_line` 行目）が今どうなっているかを確認する。問題が残っていれば、そのスレッドへの返信として投稿する。残っていなければ除く |
+| 既存スレッドと同じ内容で、作成者の返信がなく未解決、かつ `is_outdated` が `true` | `git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードが今どうなっているかを確認する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。問題が残っていれば、そのスレッドへの返信として投稿する。残っていなければ除く |
 | 既存スレッドと同じ内容で、作成者の返信がなく未解決、かつ `is_outdated` が `false` | 新しく投稿せず、ステップ6の報告で未対応のスレッドとして挙げる |
 | ステップ2の対象の差分に含まれない行への指摘で、対象の差分の変更が原因ではない | 除く |
 | 仕様書に定められた振る舞いを問題とする指摘 | 投稿せず、仕様への質問としてステップ6でユーザーに伝える |

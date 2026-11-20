@@ -39,6 +39,7 @@ gh api graphql --paginate --slurp \
               startLine
               originalLine
               originalStartLine
+              diffSide
               comments(first: 100) {
                 nodes { databaseId author { login } body createdAt url originalCommit { oid } }
               }
@@ -76,6 +77,8 @@ jq -n \
         # outdatedのスレッドは line が null になるため、コメントした時点の行番号も出す
         original_line: .originalLine,
         original_start_line: .originalStartLine,
+        # LEFT（削除した行）の場合、行番号はベース側のファイルの行を指す
+        diff_side: .diffSide,
         comments: [.comments.nodes[] | {
           id: .databaseId, author: .author.login, body, created_at: .createdAt, url,
           original_commit_id: .originalCommit.oid
