@@ -1,11 +1,11 @@
 import { expect, test } from '../fixtures'
+import { openWeekViewOfFixedDay, WEEK_OF_FIXED_DAY } from '../support/calendar'
 import { atFixedDay } from '../support/clock'
 
 // FIXED_NOW（2030-06-12 水曜）を基準にした表示期間のラベル。週は日曜始まり
 const JUNE = '2030年6月'
 const MAY = '2030年5月'
 const JULY = '2030年7月'
-const WEEK_OF_FIXED_DAY = '2030年6月9日〜15日'
 const PREV_WEEK = '2030年6月2日〜8日'
 const NEXT_WEEK = '2030年6月16日〜22日'
 
@@ -101,13 +101,10 @@ test.describe('カレンダー表示', () => {
     })
 
     await signIn(user)
-    await page.getByRole('tab', { name: '週', exact: true }).click()
-    // 切り替え直後は月初を含む週が表示される（#398）ため、今日ボタンで固定日の週から始める
-    await page.getByRole('button', { name: '今日', exact: true }).click()
+    await openWeekViewOfFixedDay(page)
 
     const calendar = page.getByRole('table')
 
-    await expect(page.getByText(WEEK_OF_FIXED_DAY, { exact: true })).toBeVisible()
     await expect(calendar.getByText('今週の予定')).toBeVisible()
     await expect(calendar.getByText('前週の予定')).toHaveCount(0)
     await expect(calendar.getByText('翌週の予定')).toHaveCount(0)

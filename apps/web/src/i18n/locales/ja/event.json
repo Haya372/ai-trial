@@ -14,6 +14,7 @@
     "submitButton": "保存"
   },
   "quickRegistration": {
+    "panelLabel": "クイック登録",
     "titlePlaceholder": "タイトルを入力",
     "submitButton": "保存",
     "successMessage": "予定を登録しました",

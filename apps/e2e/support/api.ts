@@ -10,7 +10,8 @@ export type CreateEventInput = {
   tagIds?: string[]
 }
 
-export type CreatedEvent = Omit<CreateEventInput, 'tagIds'> & {
+/** POST /events・GET /events が返す予定（EventResponse） */
+export type EventResponse = Omit<CreateEventInput, 'tagIds'> & {
   id: string
   isSubscribed: boolean
   subscriptionId: string | null
@@ -21,10 +22,17 @@ export type CreatedEvent = Omit<CreateEventInput, 'tagIds'> & {
 export class UserApi {
   constructor(private readonly request: APIRequestContext) {}
 
-  async createEvent(input: CreateEventInput): Promise<CreatedEvent> {
+  async createEvent(input: CreateEventInput): Promise<EventResponse> {
     const res = await this.request.post('/api/events', { data: input })
     await expectStatus(res, 201)
     return res.json()
+  }
+
+  /** 画面表示に頼らず、サーバーに登録されている予定を確かめる */
+  async listEvents(range: { startAt: string; endAt: string }): Promise<EventResponse[]> {
+    const res = await this.request.get('/api/events', { params: range })
+    await expectStatus(res, 200)
+    return (await res.json()).events
   }
 }
 
