@@ -81,6 +81,104 @@ describe('useEventsQuery', () => {
     expect(result.current.data?.events[0].title).toBe('テストイベント')
   })
 
+  it('tagId を渡すとリクエストに tagId を付ける', async () => {
+    const { getEvents } = await import('../api/generated')
+    vi.mocked(getEvents).mockResolvedValueOnce({
+      data: { events: [] },
+      status: 200,
+      headers: new Headers(),
+    } as never)
+
+    const { result } = renderHook(
+      () => useEventsQuery(startDate, endDate, 'tag-1'),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(getEvents).toHaveBeenLastCalledWith({
+      startAt: startDate.toISOString(),
+      endAt: endDate.toISOString(),
+      tagId: 'tag-1',
+    })
+  })
+
+  it.each([
+    ['省略', undefined],
+    ['null', null],
+  ])('tagId が%sのときはリクエストに tagId を含めない', async (_, tagId) => {
+    const { getEvents } = await import('../api/generated')
+    vi.mocked(getEvents).mockResolvedValueOnce({
+      data: { events: [] },
+      status: 200,
+      headers: new Headers(),
+    } as never)
+
+    const { result } = renderHook(
+      () => useEventsQuery(startDate, endDate, tagId),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(vi.mocked(getEvents).mock.lastCall?.[0]).not.toHaveProperty('tagId')
+  })
+
+  describe('取得中に表示するデータ', () => {
+    const previous = {
+      events: [
+        {
+          id: 'event-1',
+          title: '絞り込み前の予定',
+          startAt: '2026-09-13T01:00:00.000Z',
+          endAt: '2026-09-13T02:00:00.000Z',
+        },
+      ],
+    }
+
+    async function renderAndLoad() {
+      const { getEvents } = await import('../api/generated')
+      vi.mocked(getEvents).mockReset()
+      vi.mocked(getEvents).mockResolvedValueOnce({
+        data: previous,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getEvents).mockImplementation(() => new Promise(() => {}))
+
+      const hook = renderHook<
+        ReturnType<typeof useEventsQuery>,
+        { start: Date; end: Date; tagId: string | null }
+      >(({ start, end, tagId }) => useEventsQuery(start, end, tagId), {
+        wrapper: createWrapper(),
+        initialProps: { start: startDate, end: endDate, tagId: null },
+      })
+      await waitFor(() => expect(hook.result.current.isSuccess).toBe(true))
+      return hook
+    }
+
+    it('同じ期間で tagId を切り替えたときは、取得が終わるまで前のデータを表示する', async () => {
+      const { result, rerender } = await renderAndLoad()
+
+      rerender({ start: startDate, end: endDate, tagId: 'tag-1' })
+
+      expect(result.current.isPending).toBe(false)
+      expect(result.current.isPlaceholderData).toBe(true)
+      expect(result.current.data).toEqual(previous)
+    })
+
+    it('期間が変わったときは前の期間のデータを表示しない', async () => {
+      const { result, rerender } = await renderAndLoad()
+
+      rerender({
+        start: new Date(2026, 9, 1),
+        end: new Date(2026, 10, 1),
+        tagId: null,
+      })
+
+      expect(result.current.isPending).toBe(true)
+      expect(result.current.data).toBeUndefined()
+    })
+  })
+
   it('ネットワークエラー時に isError が true になる', async () => {
     const { getEvents } = await import('../api/generated')
     vi.mocked(getEvents).mockRejectedValueOnce(new Error('Network error'))

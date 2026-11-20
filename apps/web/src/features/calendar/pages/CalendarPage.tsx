@@ -10,7 +10,9 @@ import EventFormModal from '../../event/components/EventFormModal'
 import QuickRegistrationPanel from '../../event/components/QuickRegistrationPanel'
 import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import type { EventFormMode } from '../../event/types'
+import TagFilterButton from '../../tag/components/TagFilterButton'
 import TagManagementButton from '../../tag/components/TagManagementButton'
+import { useTagsQuery } from '../../tag/hooks/useTagsQuery'
 import TodayTimelinePanel from '../../timeline/components/TodayTimelinePanel'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
@@ -32,6 +34,17 @@ export default function CalendarPage() {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [formMode, setFormMode] = useState<EventFormMode>('create')
   const [initialStart, setInitialStart] = useState<Date | null>(null)
+  // Kept as page-local state so it survives month/week switches and prev/next
+  // date navigation but resets whenever this page unmounts (reload, logout, or
+  // leaving the route), as SPEC-008 requires.
+  const [filterTagId, setFilterTagId] = useState<string | null>(null)
+  // A tag deleted in the management modal or in another tab drops out of the
+  // tag list, and filtering by it would keep the calendar empty. It is derived
+  // rather than reset, so a stale list that predates a just-created tag does
+  // not lose the user's choice.
+  const { data: tags } = useTagsQuery(filterTagId !== null)
+  const activeTagId =
+    tags && !tags.some((tag) => tag.id === filterTagId) ? null : filterTagId
   const [quickPanel, setQuickPanel] = useState<{
     key: number
     start: Date
@@ -42,7 +55,11 @@ export default function CalendarPage() {
   const quickPanelClickSeqRef = useRef(0)
 
   const { startAt, endAt } = getViewDateRange(view, currentDate)
-  const { data, isPending, isError } = useEventsQuery(startAt, endAt)
+  const { data, isPending, isError, isPlaceholderData } = useEventsQuery(
+    startAt,
+    endAt,
+    activeTagId,
+  )
 
   const calendarEvents: CalendarEvent[] = (data?.events ?? []).map((e) => ({
     id: e.id,
@@ -59,6 +76,9 @@ export default function CalendarPage() {
   }
 
   function handleEventClick(event: CalendarEvent) {
+    // While a filter switch is loading, the events on screen belong to the
+    // previous filter. Mouse and keyboard both go through this handler.
+    if (isPlaceholderData) return
     openEventDetail(data?.events.find((e) => e.id === event.id) ?? null)
   }
 
@@ -126,6 +146,10 @@ export default function CalendarPage() {
           <Button variant="primary" onClick={handleCreateClick}>
             {t('page.createButton')}
           </Button>
+          <TagFilterButton
+            selectedTagId={activeTagId}
+            onChange={setFilterTagId}
+          />
           <TagManagementButton />
           <CalendarViewTabs view={view} onViewChange={setView} />
           <LogoutButton />
@@ -146,8 +170,15 @@ export default function CalendarPage() {
             </div>
           )}
 
+          {/* While switching the tag filter the previous filter's events stay
+              visible, so they are dimmed to show they are not the result yet.
+              Input is not disabled on the calendar itself because the week
+              view scrolls inside it; handleEventClick ignores clicks instead. */}
           {!isPending && !isError && (
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div
+              aria-busy={isPlaceholderData}
+              className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
+            >
               {view === CALENDAR_VIEW.MONTH ? (
                 <MonthCalendar
                   events={calendarEvents}

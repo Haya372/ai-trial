@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EventResponse } from '../../../api/generated'
 import type { CalendarState } from '../../../stores/calendarStore'
 
@@ -118,9 +118,26 @@ vi.mock('../../timeline/components/TodayTimelinePanel', () => ({
   )),
 }))
 
+// タグ一覧は絞り込み中のタグがまだ存在するかの判定にだけ使う（初期値: 未取得）
+vi.mock('../../tag/hooks/useTagsQuery', () => ({
+  useTagsQuery: vi.fn(() => ({ data: undefined })),
+}))
+
 // TagManagementButton は個別にテスト済みのためスタブ化し、ヘッダーへの配置だけを検証する
 vi.mock('../../tag/components/TagManagementButton', () => ({
   default: vi.fn(() => <div data-testid="tag-management-button" />),
+}))
+
+// TagFilterButton は個別にテスト済みのためスタブ化し、
+// 絞り込み状態の保持と useEventsQuery への受け渡しだけを検証する
+vi.mock('../../tag/components/TagFilterButton', () => ({
+  default: vi.fn(({ selectedTagId, onChange }) => (
+    <div data-testid="tag-filter-button">
+      selected:{selectedTagId ?? 'none'}
+      <button onClick={() => onChange('tag-1')}>タグ1で絞り込む</button>
+      <button onClick={() => onChange(null)}>絞り込みを解除する</button>
+    </div>
+  )),
 }))
 
 import CalendarPage from './CalendarPage'
@@ -362,6 +379,174 @@ describe('CalendarPage', () => {
       render(<CalendarPage />, { wrapper: createWrapper() })
 
       expect(screen.getByTestId('tag-management-button')).toBeInTheDocument()
+    })
+  })
+
+  describe('タグによる絞り込み', () => {
+    async function mockEmptyEvents() {
+      const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+      vi.mocked(useEventsQuery).mockClear()
+      vi.mocked(useEventsQuery).mockReturnValue({
+        data: { events: [] },
+        isPending: false,
+        isError: false,
+        isSuccess: true,
+        error: null,
+      } as never)
+      return useEventsQuery
+    }
+
+    it('初期状態では絞り込まずに予定を取得する', async () => {
+      const useEventsQuery = await mockEmptyEvents()
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+
+      expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+        'selected:none',
+      )
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeNull()
+    })
+
+    it('タグを選ぶとそのタグIDで予定を取得し、選択状態を渡す', async () => {
+      const useEventsQuery = await mockEmptyEvents()
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+      fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBe('tag-1')
+      expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+        'selected:tag-1',
+      )
+    })
+
+    describe('絞り込み中のタグがタグ一覧にない（削除された）とき', () => {
+      const tag = (id: string) => ({
+        id,
+        name: id,
+        color: 'blue',
+        eventCount: 0,
+      })
+
+      async function mockTags(tags: ReturnType<typeof tag>[] | undefined) {
+        const { useTagsQuery } = await import('../../tag/hooks/useTagsQuery')
+        vi.mocked(useTagsQuery).mockReturnValue({ data: tags } as never)
+        return useTagsQuery
+      }
+
+      afterEach(() => mockTags(undefined))
+
+      it('絞り込み中はタグ一覧を購読する', async () => {
+        await mockEmptyEvents()
+        const useTagsQuery = await mockTags(undefined)
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+        expect(vi.mocked(useTagsQuery).mock.calls.at(-1)?.[0]).toBe(false)
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+        expect(vi.mocked(useTagsQuery).mock.calls.at(-1)?.[0]).toBe(true)
+      })
+
+      it('タグ一覧に含まれなければ、最初の描画から絞り込まずに予定を取得する', async () => {
+        const useEventsQuery = await mockEmptyEvents()
+        await mockTags([tag('tag-2')])
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+        expect(
+          vi
+            .mocked(useEventsQuery)
+            .mock.calls.some(([, , id]) => id === 'tag-1'),
+        ).toBe(false)
+        expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+          'selected:none',
+        )
+      })
+
+      it('タグ一覧が未取得のうちは選択中のタグで絞り込む', async () => {
+        const useEventsQuery = await mockEmptyEvents()
+        await mockTags(undefined)
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+        expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBe('tag-1')
+      })
+
+      it('作成前の古いタグ一覧で外れても、選択を保持し、タグを含む一覧に更新されると絞り込みに戻る', async () => {
+        const useEventsQuery = await mockEmptyEvents()
+        await mockTags([tag('tag-2')])
+
+        const { rerender } = render(<CalendarPage />, {
+          wrapper: createWrapper(),
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+        await mockTags([tag('tag-1'), tag('tag-2')])
+        rerender(<CalendarPage />)
+
+        expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBe('tag-1')
+        expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+          'selected:tag-1',
+        )
+      })
+    })
+
+    it.each([
+      [true, 'true'],
+      [false, 'false'],
+    ])(
+      '前のデータを表示中（isPlaceholderData=%s）はカレンダーの aria-busy を %s にし、取得中は予定を操作できなくする',
+      async (isPlaceholderData, busy) => {
+        const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
+        vi.mocked(useEventsQuery).mockReturnValue({
+          data: { events: [fullEvent] },
+          isPending: false,
+          isError: false,
+          isSuccess: true,
+          isPlaceholderData,
+          error: null,
+        } as never)
+        const { MonthCalendar } = await import('@repo/ui')
+
+        const { container } = render(<CalendarPage />, {
+          wrapper: createWrapper(),
+        })
+
+        expect(
+          screen.getByTestId('month-calendar').parentElement,
+        ).toHaveAttribute('aria-busy', busy)
+        // The week view scrolls inside FullCalendar, so disabling input on the
+        // calendar (inert / pointer-events) would also block scrolling.
+        expect(container.querySelector('[inert]')).toBeNull()
+        expect(container.querySelector('.pointer-events-none')).toBeNull()
+
+        act(() => {
+          getLatestCallProps(MonthCalendar).onEventClick({
+            id: fullEvent.id,
+            title: fullEvent.title,
+            start: new Date(fullEvent.startAt),
+            end: new Date(fullEvent.endAt),
+          })
+        })
+        expect(screen.queryByTestId('event-detail-modal') !== null).toBe(
+          !isPlaceholderData,
+        )
+      },
+    )
+
+    it('絞り込みを解除すると tagId なしで予定を取得する', async () => {
+      const useEventsQuery = await mockEmptyEvents()
+
+      render(<CalendarPage />, { wrapper: createWrapper() })
+      fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+      fireEvent.click(
+        screen.getByRole('button', { name: '絞り込みを解除する' }),
+      )
+
+      expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBeNull()
+      expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+        'selected:none',
+      )
     })
   })
 

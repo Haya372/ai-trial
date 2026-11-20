@@ -2,14 +2,38 @@ import { describe, expect, it } from 'vitest'
 import { eventsKeys, sharesKeys, tagsKeys } from './queryKeys'
 
 describe('eventsKeys', () => {
-  it('list は all の末尾に startAt/endAt を連結したキーを返す', () => {
+  it('list は all の末尾に startAt/endAt と tagId（なしは null）を連結したキーを返す', () => {
     expect(
       eventsKeys.list('2026-08-31T15:00:00.000Z', '2026-09-30T15:00:00.000Z'),
     ).toEqual([
       'events',
       '2026-08-31T15:00:00.000Z',
       '2026-09-30T15:00:00.000Z',
+      null,
     ])
+  })
+
+  it('tagId が異なれば異なるキーを返す', () => {
+    const range = [
+      '2026-08-31T15:00:00.000Z',
+      '2026-09-30T15:00:00.000Z',
+    ] as const
+    expect(eventsKeys.list(...range, 'tag-1')).toEqual([
+      'events',
+      ...range,
+      'tag-1',
+    ])
+    expect(eventsKeys.list(...range, 'tag-1')).not.toEqual(
+      eventsKeys.list(...range),
+    )
+  })
+
+  it('tagId に null を渡すと省略したときと同じキーを返す', () => {
+    const range = [
+      '2026-08-31T15:00:00.000Z',
+      '2026-09-30T15:00:00.000Z',
+    ] as const
+    expect(eventsKeys.list(...range, null)).toEqual(eventsKeys.list(...range))
   })
 
   it('startAt/endAt が異なれば異なるキーを返す', () => {
@@ -22,6 +46,26 @@ describe('eventsKeys', () => {
       '2026-10-31T15:00:00.000Z',
     )
     expect(key1).not.toEqual(key2)
+  })
+})
+
+describe('eventsKeys.parseList', () => {
+  it('list で作ったキーから startAt/endAt/tagId を取り出す', () => {
+    const key = eventsKeys.list(
+      '2026-08-31T15:00:00.000Z',
+      '2026-09-30T15:00:00.000Z',
+      'tag-1',
+    )
+    expect(eventsKeys.parseList(key)).toEqual({
+      startAt: '2026-08-31T15:00:00.000Z',
+      endAt: '2026-09-30T15:00:00.000Z',
+      tagId: 'tag-1',
+    })
+  })
+
+  it('list 以外のキーでは undefined を返す', () => {
+    expect(eventsKeys.parseList(eventsKeys.all)).toBeUndefined()
+    expect(eventsKeys.parseList(['tags'])).toBeUndefined()
   })
 })
 

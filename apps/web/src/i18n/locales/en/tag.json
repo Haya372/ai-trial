@@ -22,6 +22,17 @@
     "limitReached": "You can attach up to {{limit}} tags to an event",
     "remove": "Remove {{name}}"
   },
+  "filter": {
+    "button": "Filter",
+    "active": "Filter: {{name}}",
+    "activeUnknown": "Filtering",
+    "showAll": "Show all",
+    "clear": "Clear filter",
+    "loading": "Loading...",
+    "loadError": "Couldn't load tags",
+    "empty": "No tags yet",
+    "openManagement": "Manage tags"
+  },
   "editor": {
     "name": "Tag name",
     "color": "Color",

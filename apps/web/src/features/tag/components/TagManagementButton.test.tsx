@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/react-query'
 import {
   fireEvent,
   render,
@@ -15,6 +19,7 @@ import {
   listTags,
   updateTag,
 } from '../../../api/generated'
+import { eventsKeys, tagsKeys } from '../../../lib/queryKeys'
 import TagManagementButton from './TagManagementButton'
 
 vi.mock('../../../api/generated', async (importOriginal) => {
@@ -58,7 +63,7 @@ function setup() {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   )
   render(<TagManagementButton />, { wrapper })
-  return { invalidateQueries }
+  return { invalidateQueries, queryClient }
 }
 
 function invalidatedKeys(spy: ReturnType<typeof setup>['invalidateQueries']) {
@@ -457,6 +462,93 @@ describe('TagManagementButton', () => {
       await waitFor(() =>
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
       )
+    })
+
+    it('削除したタグで絞り込んだ予定一覧はキャッシュから除き、それ以外の予定一覧は無効化する', async () => {
+      mockTags([work])
+      vi.mocked(deleteTag).mockResolvedValue(response(204))
+      const { queryClient } = setup()
+      const range = [
+        '2026-08-31T15:00:00.000Z',
+        '2026-09-30T15:00:00.000Z',
+      ] as const
+      queryClient.setQueryData(eventsKeys.list(...range), { events: [] })
+      queryClient.setQueryData(eventsKeys.list(...range, 'tag-1'), {
+        events: [],
+      })
+      queryClient.setQueryData(eventsKeys.list(...range, 'tag-2'), {
+        events: [],
+      })
+      const dialog = await openModal()
+
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+      const queryState = (tagId: string | null) =>
+        queryClient.getQueryState(eventsKeys.list(...range, tagId))
+      expect(queryState(null)?.isInvalidated).toBe(true)
+      expect(queryState('tag-2')?.isInvalidated).toBe(true)
+      // Left in the cache, it would keep events carrying the deleted tag until gc.
+      expect(queryState('tag-1')).toBeUndefined()
+    })
+
+    it('削除したタグで絞り込んだ予定一覧でも、まだ表示中ならキャッシュから除かずに再取得する', async () => {
+      mockTags([work])
+      vi.mocked(deleteTag).mockResolvedValue(response(204))
+      const { queryClient } = setup()
+      const key = eventsKeys.list(
+        '2026-08-31T15:00:00.000Z',
+        '2026-09-30T15:00:00.000Z',
+        'tag-1',
+      )
+      const queryFn = vi.fn().mockResolvedValue({ events: [] })
+      // Stands in for the calendar if it has not re-rendered without the filter yet.
+      const unsubscribe = new QueryObserver(queryClient, {
+        queryKey: key,
+        queryFn,
+        staleTime: Number.POSITIVE_INFINITY,
+      }).subscribe(() => {})
+      await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1))
+      const dialog = await openModal()
+
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+      expect(queryClient.getQueryCache().find({ queryKey: key })).toBeDefined()
+      expect(queryFn).toHaveBeenCalledTimes(2)
+      unsubscribe()
+    })
+
+    it('削除後のタグ一覧の再取得に失敗しても、キャッシュから削除したタグを除く', async () => {
+      vi.mocked(listTags)
+        .mockResolvedValueOnce(response(200, { tags: [work, hobby] }))
+        .mockResolvedValue(response(500))
+      vi.mocked(deleteTag).mockResolvedValue(response(204))
+      const { queryClient } = setup()
+      const dialog = await openModal()
+
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+      expect(queryClient.getQueryData(tagsKeys.all)).toEqual([hobby])
     })
 
     it('付与件数が0件でも件数を表示する', async () => {
