@@ -66,11 +66,7 @@ writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 
 #### セキュリティ制約
 
-レスポンスに含めてはならない情報:
-
-- スタックトレース・ファイルパス・行番号
-- SQLクエリ・テーブル名・DBのエラーメッセージ
-- 使用ライブラリの名称やバージョン
+レスポンスに出してよい情報は [情報取り扱いガイドライン](data-handling-guidelines.md) に従う。
 
 `500 Internal Server Error` の `message` は常に `"Internal server error"` 固定とし、詳細はログにのみ記録する。
 

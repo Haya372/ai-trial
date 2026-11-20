@@ -7,6 +7,7 @@
 - `docs/guidelines/guidelines.md` — 設計原則（SOLID・DRY・YAGNI・KISS・コメント）
 - `docs/guidelines/design-guidelines.md` — バックエンド設計（レイヤー・API設計・エラー定義）
 - `docs/guidelines/observability-guidelines.md` — ログ・メトリクス・トレーシング
+- `docs/guidelines/data-handling-guidelines.md` — 情報のDBへの保存方法と、APIレスポンス・ログ・トレースに出してよい情報
 - `docs/guidelines/transaction-guidelines.md` — トランザクション管理（DBへの書き込みを伴うCommandの実装）
 
 ## レビュー固有の観点
