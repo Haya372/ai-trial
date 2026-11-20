@@ -422,25 +422,37 @@ describe('CalendarPage', () => {
       async (isPlaceholderData, busy) => {
         const { useEventsQuery } = await import('../../../hooks/useEventsQuery')
         vi.mocked(useEventsQuery).mockReturnValue({
-          data: { events: [] },
+          data: { events: [fullEvent] },
           isPending: false,
           isError: false,
           isSuccess: true,
           isPlaceholderData,
           error: null,
         } as never)
+        const { MonthCalendar } = await import('@repo/ui')
 
-        render(<CalendarPage />, { wrapper: createWrapper() })
+        const { container } = render(<CalendarPage />, {
+          wrapper: createWrapper(),
+        })
 
-        const content = screen.getByTestId('month-calendar').parentElement
-        const scrollContainer = content?.parentElement
-        expect(scrollContainer).toHaveAttribute('aria-busy', busy)
-        // inert blocks keyboard focus as well as clicks. It sits on the content
-        // rather than the scroll container so wheel and touch scrolling still work.
-        expect(content?.hasAttribute('inert')).toBe(isPlaceholderData)
-        expect(scrollContainer?.hasAttribute('inert')).toBe(false)
-        expect(scrollContainer?.classList.contains('pointer-events-none')).toBe(
-          false,
+        expect(
+          screen.getByTestId('month-calendar').parentElement,
+        ).toHaveAttribute('aria-busy', busy)
+        // The week view scrolls inside FullCalendar, so disabling input on the
+        // calendar (inert / pointer-events) would also block scrolling.
+        expect(container.querySelector('[inert]')).toBeNull()
+        expect(container.querySelector('.pointer-events-none')).toBeNull()
+
+        act(() => {
+          getLatestCallProps(MonthCalendar).onEventClick({
+            id: fullEvent.id,
+            title: fullEvent.title,
+            start: new Date(fullEvent.startAt),
+            end: new Date(fullEvent.endAt),
+          })
+        })
+        expect(screen.queryByTestId('event-detail-modal') !== null).toBe(
+          !isPlaceholderData,
         )
       },
     )

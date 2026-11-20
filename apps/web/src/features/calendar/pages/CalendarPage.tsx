@@ -68,6 +68,9 @@ export default function CalendarPage() {
   }
 
   function handleEventClick(event: CalendarEvent) {
+    // While a filter switch is loading, the events on screen belong to the
+    // previous filter. Mouse and keyboard both go through this handler.
+    if (isPlaceholderData) return
     openEventDetail(data?.events.find((e) => e.id === event.id) ?? null)
   }
 
@@ -160,34 +163,31 @@ export default function CalendarPage() {
           )}
 
           {/* While switching the tag filter the previous filter's events stay
-              visible, so they are dimmed to show they are not the result yet
-              and made inert so events outside the new filter cannot be opened
-              by mouse or keyboard. Only the content is inert, so the
-              container can still be scrolled. */}
+              visible, so they are dimmed to show they are not the result yet.
+              Input is not disabled on the calendar itself because the week
+              view scrolls inside it; handleEventClick ignores clicks instead. */}
           {!isPending && !isError && (
             <div
               aria-busy={isPlaceholderData}
               className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
             >
-              <div className="h-full" inert={isPlaceholderData}>
-                {view === CALENDAR_VIEW.MONTH ? (
-                  <MonthCalendar
-                    events={calendarEvents}
-                    currentDate={currentDate}
-                    onEventClick={handleEventClick}
-                    onDateClick={handleDateClick}
-                    onDateChange={setCurrentDate}
-                  />
-                ) : (
-                  <WeekCalendar
-                    events={calendarEvents}
-                    currentDate={currentDate}
-                    onEventClick={handleEventClick}
-                    onTimeSlotClick={handleTimeSlotClick}
-                    onDateChange={setCurrentDate}
-                  />
-                )}
-              </div>
+              {view === CALENDAR_VIEW.MONTH ? (
+                <MonthCalendar
+                  events={calendarEvents}
+                  currentDate={currentDate}
+                  onEventClick={handleEventClick}
+                  onDateClick={handleDateClick}
+                  onDateChange={setCurrentDate}
+                />
+              ) : (
+                <WeekCalendar
+                  events={calendarEvents}
+                  currentDate={currentDate}
+                  onEventClick={handleEventClick}
+                  onTimeSlotClick={handleTimeSlotClick}
+                  onDateChange={setCurrentDate}
+                />
+              )}
             </div>
           )}
         </div>
