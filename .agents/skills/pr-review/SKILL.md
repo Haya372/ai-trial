@@ -101,10 +101,11 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 
 指摘を1つのレビューとして投稿する。payloadをJSONファイルに書き、その絶対パスを `--input` に渡す。Claude Codeでは、Writeツールでスクラッチパッドディレクトリ（システムプロンプトに記載の絶対パス）に作成する。それ以外のツールでは `$TMPDIR` に作成する。
 
-| 投稿する指摘 | `comments` | `body` |
+| 投稿する内容 | `comments` | `body` |
 |---|---|---|
-| 1件以上 | 指摘を1件ずつインラインコメントにする | 確認した観点と指摘の件数 |
-| 0件 | 空配列 | 確認した観点を挙げ、「問題なし」と書く |
+| 新しい指摘が1件以上 | 指摘を1件ずつインラインコメントにする | 確認した観点と指摘の件数 |
+| 新しい指摘が0件で、既存スレッドへの返信が1件以上 | 空配列 | 確認した観点と、問題が残っているとして返信したスレッドの件数 |
+| 新しい指摘も既存スレッドへの返信も0件 | 空配列 | 確認した観点を挙げ、「問題なし」と書く |
 
 ```json
 {
@@ -127,7 +128,7 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<pay
 - 複数行への指摘は `start_line` と `line` で範囲を指定する
 - 指摘は `body` に書かず、すべてインラインコメントにする。差分に含まれない行への指摘（呼び出し元への影響など）は、原因になった変更行にコメントし、影響を受ける箇所をファイルパスと行番号で書く。PRで変更していないファイルだけに関わる指摘は、投稿せずステップ6でユーザーに伝える
 - `body` の先頭に `<!-- pr-review -->` を書く。この印のあるレビューだけが、次回のレビューで `last_review_commit_id` の起点になる
-- 既存スレッドへの返信は `gh api repos/{owner}/{repo}/pulls/<PR番号>/comments/<comment_id>/replies --method POST -f body="<返信>"` で投稿する（`comment_id` は `threads[].comments[0].id`）
+- 既存スレッドへの返信は、本文をpayloadと同じ場所のファイルに書き、`gh api repos/{owner}/{repo}/pulls/<PR番号>/comments/<comment_id>/replies --method POST -F body=@<返信ファイルの絶対パス>` で投稿する（`comment_id` は `threads[].comments[0].id`）。本文をコマンドラインに書くと、バッククォートがシェルのコマンド置換として実行される
 
 ### ステップ 6: ユーザーに報告する
 
