@@ -161,30 +161,33 @@ export default function CalendarPage() {
 
           {/* While switching the tag filter the previous filter's events stay
               visible, so they are dimmed to show they are not the result yet
-              and made unclickable so events outside the new filter cannot be
-              opened. */}
+              and made inert so events outside the new filter cannot be opened
+              by mouse or keyboard. Only the content is inert, so the
+              container can still be scrolled. */}
           {!isPending && !isError && (
             <div
               aria-busy={isPlaceholderData}
-              className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'pointer-events-none opacity-50' : ''}`}
+              className={`min-h-0 flex-1 overflow-y-auto transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
             >
-              {view === CALENDAR_VIEW.MONTH ? (
-                <MonthCalendar
-                  events={calendarEvents}
-                  currentDate={currentDate}
-                  onEventClick={handleEventClick}
-                  onDateClick={handleDateClick}
-                  onDateChange={setCurrentDate}
-                />
-              ) : (
-                <WeekCalendar
-                  events={calendarEvents}
-                  currentDate={currentDate}
-                  onEventClick={handleEventClick}
-                  onTimeSlotClick={handleTimeSlotClick}
-                  onDateChange={setCurrentDate}
-                />
-              )}
+              <div className="h-full" inert={isPlaceholderData}>
+                {view === CALENDAR_VIEW.MONTH ? (
+                  <MonthCalendar
+                    events={calendarEvents}
+                    currentDate={currentDate}
+                    onEventClick={handleEventClick}
+                    onDateClick={handleDateClick}
+                    onDateChange={setCurrentDate}
+                  />
+                ) : (
+                  <WeekCalendar
+                    events={calendarEvents}
+                    currentDate={currentDate}
+                    onEventClick={handleEventClick}
+                    onTimeSlotClick={handleTimeSlotClick}
+                    onDateChange={setCurrentDate}
+                  />
+                )}
+              </div>
             </div>
           )}
         </div>
