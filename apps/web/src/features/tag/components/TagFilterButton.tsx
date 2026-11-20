@@ -8,7 +8,7 @@ import {
   PopoverTrigger,
   TagBadge,
 } from '@repo/ui'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TagResponse } from '../../../api/generated'
 import { useTagsQuery } from '../hooks/useTagsQuery'
@@ -30,18 +30,6 @@ export default function TagFilterButton({
   // list stays subscribed even with the popover closed.
   const { data: tags, isError } = useTagsQuery(open || selectedTagId !== null)
   const selectedTag = tags?.find((tag) => tag.id === selectedTagId)
-
-  // A tag deleted in the management modal or in another tab disappears from the
-  // refetched list; filtering by it would keep the calendar empty.
-  useEffect(() => {
-    if (
-      selectedTagId !== null &&
-      tags &&
-      !tags.some((tag) => tag.id === selectedTagId)
-    ) {
-      onChange(null)
-    }
-  }, [selectedTagId, tags, onChange])
 
   function select(tagId: string | null) {
     onChange(tagId)

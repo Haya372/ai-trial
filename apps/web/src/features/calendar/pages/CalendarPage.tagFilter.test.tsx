@@ -28,6 +28,10 @@ vi.mock('../../tag/components/TagFilterButton', () => ({
   )),
 }))
 
+vi.mock('../../tag/hooks/useTagsQuery', () => ({
+  useTagsQuery: vi.fn(() => ({ data: undefined })),
+}))
+
 vi.mock('../../tag/components/TagManagementButton', () => ({
   default: vi.fn(() => null),
 }))

@@ -1,4 +1,8 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+} from '@tanstack/react-query'
 import {
   fireEvent,
   render,
@@ -492,6 +496,39 @@ describe('TagManagementButton', () => {
       expect(queryState('tag-2')?.isInvalidated).toBe(true)
       // Left in the cache, it would keep events carrying the deleted tag until gc.
       expect(queryState('tag-1')).toBeUndefined()
+    })
+
+    it('削除したタグで絞り込んだ予定一覧でも、まだ表示中ならキャッシュから除かずに再取得する', async () => {
+      mockTags([work])
+      vi.mocked(deleteTag).mockResolvedValue(response(204))
+      const { queryClient } = setup()
+      const key = eventsKeys.list(
+        '2026-08-31T15:00:00.000Z',
+        '2026-09-30T15:00:00.000Z',
+        'tag-1',
+      )
+      const queryFn = vi.fn().mockResolvedValue({ events: [] })
+      // Stands in for the calendar if it has not re-rendered without the filter yet.
+      const unsubscribe = new QueryObserver(queryClient, {
+        queryKey: key,
+        queryFn,
+        staleTime: Number.POSITIVE_INFINITY,
+      }).subscribe(() => {})
+      await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1))
+      const dialog = await openModal()
+
+      fireEvent.click(
+        await within(dialog).findByRole('button', { name: '仕事を削除' }),
+      )
+      const confirm = await screen.findByRole('alertdialog')
+      fireEvent.click(within(confirm).getByRole('button', { name: '削除する' }))
+
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument(),
+      )
+      expect(queryClient.getQueryCache().find({ queryKey: key })).toBeDefined()
+      expect(queryFn).toHaveBeenCalledTimes(2)
+      unsubscribe()
     })
 
     it('削除後のタグ一覧の再取得に失敗しても、キャッシュから削除したタグを除く', async () => {

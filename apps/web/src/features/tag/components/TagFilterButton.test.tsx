@@ -224,27 +224,15 @@ describe('TagFilterButton', () => {
       expect(screen.queryByRole('dialog')).toBeNull()
     })
 
-    it('取得したタグ一覧に選択中のタグが含まれなければ onChange(null) を呼ぶ', async () => {
+    // Whether a deleted tag still filters is derived by CalendarPage; resetting
+    // the selection here would drop a just-created tag on a stale list.
+    it('取得したタグ一覧に選択中のタグが含まれなくても onChange を呼ばない', async () => {
       mockTags([hobby])
-      const { onChange } = setup('tag-1')
-
-      await waitFor(() => expect(onChange).toHaveBeenCalledWith(null))
-    })
-
-    it('タグ一覧が更新されて選択中のタグがなくなったら onChange(null) を呼ぶ', async () => {
-      mockTags([work, hobby])
       const { onChange, queryClient } = setup('tag-1')
-      await screen.findByRole('button', { name: '絞り込み: 仕事' })
 
-      queryClient.setQueryData(tagsKeys.all, [hobby])
-
-      await waitFor(() => expect(onChange).toHaveBeenCalledWith(null))
-    })
-
-    it('タグ一覧が未取得のうちは解除しない', () => {
-      mockTags([work])
-      const { onChange } = setup('tag-1')
-
+      await waitFor(() =>
+        expect(queryClient.getQueryData(tagsKeys.all)).toEqual([hobby]),
+      )
       expect(onChange).not.toHaveBeenCalled()
     })
   })

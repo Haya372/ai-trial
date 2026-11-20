@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { EventResponse } from '../../../api/generated'
 import type { CalendarState } from '../../../stores/calendarStore'
 
@@ -116,6 +116,11 @@ vi.mock('../../timeline/components/TodayTimelinePanel', () => ({
       </button>
     </div>
   )),
+}))
+
+// タグ一覧は絞り込み中のタグがまだ存在するかの判定にだけ使う（初期値: 未取得）
+vi.mock('../../tag/hooks/useTagsQuery', () => ({
+  useTagsQuery: vi.fn(() => ({ data: undefined })),
 }))
 
 // TagManagementButton は個別にテスト済みのためスタブ化し、ヘッダーへの配置だけを検証する
@@ -412,6 +417,78 @@ describe('CalendarPage', () => {
       expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
         'selected:tag-1',
       )
+    })
+
+    describe('絞り込み中のタグがタグ一覧にない（削除された）とき', () => {
+      const tag = (id: string) => ({
+        id,
+        name: id,
+        color: 'blue',
+        eventCount: 0,
+      })
+
+      async function mockTags(tags: ReturnType<typeof tag>[] | undefined) {
+        const { useTagsQuery } = await import('../../tag/hooks/useTagsQuery')
+        vi.mocked(useTagsQuery).mockReturnValue({ data: tags } as never)
+        return useTagsQuery
+      }
+
+      afterEach(() => mockTags(undefined))
+
+      it('絞り込み中はタグ一覧を購読する', async () => {
+        await mockEmptyEvents()
+        const useTagsQuery = await mockTags(undefined)
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+        expect(vi.mocked(useTagsQuery).mock.calls.at(-1)?.[0]).toBe(false)
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+        expect(vi.mocked(useTagsQuery).mock.calls.at(-1)?.[0]).toBe(true)
+      })
+
+      it('タグ一覧に含まれなければ、最初の描画から絞り込まずに予定を取得する', async () => {
+        const useEventsQuery = await mockEmptyEvents()
+        await mockTags([tag('tag-2')])
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+        expect(
+          vi
+            .mocked(useEventsQuery)
+            .mock.calls.some(([, , id]) => id === 'tag-1'),
+        ).toBe(false)
+        expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+          'selected:none',
+        )
+      })
+
+      it('タグ一覧が未取得のうちは選択中のタグで絞り込む', async () => {
+        const useEventsQuery = await mockEmptyEvents()
+        await mockTags(undefined)
+
+        render(<CalendarPage />, { wrapper: createWrapper() })
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+
+        expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBe('tag-1')
+      })
+
+      it('作成前の古いタグ一覧で外れても、選択を保持し、タグを含む一覧に更新されると絞り込みに戻る', async () => {
+        const useEventsQuery = await mockEmptyEvents()
+        await mockTags([tag('tag-2')])
+
+        const { rerender } = render(<CalendarPage />, {
+          wrapper: createWrapper(),
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'タグ1で絞り込む' }))
+        await mockTags([tag('tag-1'), tag('tag-2')])
+        rerender(<CalendarPage />)
+
+        expect(vi.mocked(useEventsQuery).mock.calls.at(-1)?.[2]).toBe('tag-1')
+        expect(screen.getByTestId('tag-filter-button')).toHaveTextContent(
+          'selected:tag-1',
+        )
+      })
     })
 
     it.each([

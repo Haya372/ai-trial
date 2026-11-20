@@ -12,6 +12,7 @@ import ShareLinkDialog from '../../event/components/ShareLinkDialog'
 import type { EventFormMode } from '../../event/types'
 import TagFilterButton from '../../tag/components/TagFilterButton'
 import TagManagementButton from '../../tag/components/TagManagementButton'
+import { useTagsQuery } from '../../tag/hooks/useTagsQuery'
 import TodayTimelinePanel from '../../timeline/components/TodayTimelinePanel'
 import CalendarNavigation from '../components/CalendarNavigation'
 import CalendarViewTabs from '../components/CalendarViewTabs'
@@ -37,6 +38,13 @@ export default function CalendarPage() {
   // date navigation but resets whenever this page unmounts (reload, logout, or
   // leaving the route), as SPEC-008 requires.
   const [filterTagId, setFilterTagId] = useState<string | null>(null)
+  // A tag deleted in the management modal or in another tab drops out of the
+  // tag list, and filtering by it would keep the calendar empty. It is derived
+  // rather than reset, so a stale list that predates a just-created tag does
+  // not lose the user's choice.
+  const { data: tags } = useTagsQuery(filterTagId !== null)
+  const activeTagId =
+    tags && !tags.some((tag) => tag.id === filterTagId) ? null : filterTagId
   const [quickPanel, setQuickPanel] = useState<{
     key: number
     start: Date
@@ -50,7 +58,7 @@ export default function CalendarPage() {
   const { data, isPending, isError, isPlaceholderData } = useEventsQuery(
     startAt,
     endAt,
-    filterTagId,
+    activeTagId,
   )
 
   const calendarEvents: CalendarEvent[] = (data?.events ?? []).map((e) => ({
@@ -139,7 +147,7 @@ export default function CalendarPage() {
             {t('page.createButton')}
           </Button>
           <TagFilterButton
-            selectedTagId={filterTagId}
+            selectedTagId={activeTagId}
             onChange={setFilterTagId}
           />
           <TagManagementButton />
