@@ -17,17 +17,24 @@ const NEXT_DAY = fixedDayDateString(NEXT_DAY_OFFSET)
  * FullCalendar はクリック座標から日時を判定するため、日付の列と時刻の行が交わる位置をクリックする
  */
 async function clickTimeSlot(page: Page, date: string, time: string) {
-  // 終日枠の行にも同じ data-date のセルがあるため、時刻の行（data-time）を含む時間枠の行に絞る
-  const timedRow = page.getByRole('row').filter({ has: page.locator('[data-time]') })
-  const slot = timedRow.locator(`[data-time="${time}"]`).first()
-  const dayColumn = timedRow.locator(`[role="cell"][data-date="${date}"]`)
+  const slot = page.locator(`[data-time="${time}"]`).first()
   await slot.scrollIntoViewIfNeeded()
-  const [slotBox, columnBox] = await Promise.all([slot.boundingBox(), dayColumn.boundingBox()])
-  if (!slotBox || !columnBox) throw new Error(`時間枠が見つからない: ${date} ${time}`)
-  // 列内の相対位置で指定し、計測後にスクロールしてもずれず、クリック前の待機も効くようにする
-  await dayColumn.click({
-    position: { x: columnBox.width / 2, y: slotBox.y - columnBox.y + slotBox.height / 2 },
+  // 終日枠と時間枠の両方に同じ data-date のセルがあり、DOM 上の順序や見出しの文言では
+  // 安定して区別できないため、時刻の行の縦位置を含むセルを時間枠の列とみなす
+  const cells = await page.locator(`[role="cell"][data-date="${date}"]`).all()
+  const [slotBox, ...cellBoxes] = await Promise.all([slot.boundingBox(), ...cells.map((c) => c.boundingBox())])
+  if (!slotBox) throw new Error(`時刻の行が見つからない: ${time}`)
+  const slotCenterY = slotBox.y + slotBox.height / 2
+  const columns = cells.flatMap((cell, i) => {
+    const box = cellBoxes[i]
+    return box && box.y <= slotCenterY && slotCenterY <= box.y + box.height ? [{ cell, box }] : []
   })
+  if (columns.length !== 1) {
+    throw new Error(`${date} ${time} を含む時間枠の列が1つに定まらない（${columns.length}件）`)
+  }
+  const [{ cell, box }] = columns
+  // 列内の相対位置で指定し、計測後にスクロールしてもずれず、クリック前の待機も効くようにする
+  await cell.click({ position: { x: box.width / 2, y: slotCenterY - box.y } })
 }
 
 /** FIXED_NOW の翌日に登録されている予定のタイトル */
