@@ -76,7 +76,6 @@ test.describe('予定管理', () => {
     await expect(form.getByText('終了日時は開始日時より後に設定してください')).toBeVisible()
     await expect(form).toBeVisible()
 
-    // エラーを解消すれば保存できる
     await form.getByLabel('終了日時').fill(fixedDayInputValue(nextDayAt(16)))
     await form.getByRole('button', { name: '保存', exact: true }).click()
 
