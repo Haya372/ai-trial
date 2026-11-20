@@ -9,23 +9,22 @@ if [[ $# -ne 1 || ! "$1" =~ ^[0-9]+$ ]]; then
 fi
 
 PR="$1"
-REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-OWNER="${REPO%/*}"
-NAME="${REPO#*/}"
 
 # レスポンスが大きいとコマンドライン引数の長さの上限を超えるため、ファイル経由でjqに渡す
 # macOSの mktemp -d はテンプレートを省略すると $TMPDIR を使わないため、明示する
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/fetch-pr-review-threads.XXXXXX")
 trap 'rm -rf "$WORK_DIR"' EXIT
 
+# {owner}/{repo} はgh apiがカレントディレクトリのリポジトリで置き換える
 # --paginate と --slurp でページをまたいで全件を1つの配列にまとめる
-gh api "repos/$REPO/pulls/$PR/reviews" --paginate --slurp > "$WORK_DIR/reviews.json"
-gh api "repos/$REPO/issues/$PR/comments" --paginate --slurp > "$WORK_DIR/issue_comments.json"
+gh api "repos/{owner}/{repo}/pulls/$PR/reviews" --paginate --slurp > "$WORK_DIR/reviews.json"
+gh api "repos/{owner}/{repo}/issues/$PR/comments" --paginate --slurp > "$WORK_DIR/issue_comments.json"
 
 # スレッドの解決状態はRESTでは取得できないため、GraphQLの reviewThreads を使う
+# プレースホルダは -f では置き換えられないため -F で渡す（数値変換より後に置き換えるので文字列のまま渡る）
 # shellcheck disable=SC2016 # GraphQLの変数をシェルで展開しない
 gh api graphql --paginate --slurp \
-  -f owner="$OWNER" -f name="$NAME" -F number="$PR" \
+  -F owner='{owner}' -F name='{repo}' -F number="$PR" \
   -f query='
     query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
       repository(owner: $owner, name: $name) {
