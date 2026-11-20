@@ -35,15 +35,21 @@ bash scripts/fetch-pr-review-threads.sh <PR番号> > "$TMPDIR/pr-<PR番号>-thre
 
 ### ステップ 2: レビュー対象の差分を決める
 
-ステップ1の出力の `last_review_commit_id` で決める。
+ベースブランチとPRのブランチを最新にする。
+
+```bash
+git fetch origin <baseRefName>
+gh pr checkout <PR番号>
+```
+
+ステップ1の出力の `last_review_commit_id` で、上の行から順に当てはまる条件の対象を使う。
 
 | 条件 | 対象 |
 |---|---|
 | `last_review_commit_id` が `null`（初回） | `git diff origin/<baseRefName>...HEAD` |
-| `git merge-base --is-ancestor <last_review_commit_id> HEAD` が成功する | `git diff <last_review_commit_id>..HEAD` と、未解決のスレッド |
-| 上のコマンドが失敗する（リベース・force-push後） | `git diff origin/<baseRefName>...HEAD` と、未解決のスレッド |
-
-ローカルのブランチがPRの `headRefOid` と一致していない場合は、先に `gh pr checkout <PR番号>` を実行する。
+| `git merge-base --is-ancestor <last_review_commit_id> HEAD` が失敗する（リベース・force-push後） | `git diff origin/<baseRefName>...HEAD` と、未解決のスレッド |
+| `git log --merges <last_review_commit_id>..HEAD` が1件以上出力する（ベースブランチをmerge済み） | `git diff origin/<baseRefName>...HEAD` と、未解決のスレッド |
+| 上のどれにも当たらない | `git diff <last_review_commit_id>..HEAD` と、未解決のスレッド |
 
 2回目以降で `last_review_commit_id` からの差分を対象にする場合も、変更した関数・コンポーネント・型の呼び出し元と依存先を `grep` で探し、変更による影響（共有の状態・フック・インターフェースの変化）を確認する。
 
