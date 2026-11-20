@@ -2,14 +2,15 @@ import type { Page } from '@playwright/test'
 import { expect, type TestUser, test } from '../fixtures'
 import { openWeekViewOfFixedDay } from '../support/calendar'
 import {
-  atFixedDay,
   fixedDayDateString,
   fixedDayInputValue,
   fixedDayLabel,
+  fixedDayRange,
+  NEXT_DAY_OFFSET,
   nextDayAt,
 } from '../support/clock'
 
-const NEXT_DAY = fixedDayDateString(1)
+const NEXT_DAY = fixedDayDateString(NEXT_DAY_OFFSET)
 
 /**
  * 週ビューの指定日・時刻の時間枠をクリックする。
@@ -31,10 +32,7 @@ async function clickTimeSlot(page: Page, date: string, time: string) {
 
 /** FIXED_NOW の翌日に登録されている予定のタイトル */
 async function nextDayEventTitles(user: TestUser): Promise<string[]> {
-  const events = await user.api.listEvents({
-    startAt: atFixedDay(nextDayAt(0)),
-    endAt: atFixedDay({ dayOffset: 2, hour: 0 }),
-  })
+  const events = await user.api.listEvents(fixedDayRange(NEXT_DAY_OFFSET))
   return events.map((e) => e.title)
 }
 

@@ -33,19 +33,37 @@ function toJstParts(time: FixedDayTime) {
   }
 }
 
-/** FIXED_NOW の翌日の指定時刻。今日のタイムラインに出ない日にして、カレンダー本体だけに予定が表示されるようにする */
-export const nextDayAt = (hour: number, minute = 0): FixedDayTime => ({ dayOffset: 1, hour, minute })
+/** FIXED_NOW の翌日。今日のタイムラインに出ない日にして、カレンダー本体だけに予定が表示されるようにする */
+export const NEXT_DAY_OFFSET = 1
+
+/** FIXED_NOW の翌日の指定時刻 */
+export const nextDayAt = (hour: number, minute = 0): FixedDayTime => ({
+  dayOffset: NEXT_DAY_OFFSET,
+  hour,
+  minute,
+})
+
+function toDateString({ year, month, day }: { year: number; month: number; day: number }): string {
+  return `${year}-${pad(month)}-${pad(day)}`
+}
 
 /** FIXED_NOW の日付（JST）からの日数を指定し、カレンダーの data-date 属性と同じ YYYY-MM-DD 形式で返す */
 export function fixedDayDateString(dayOffset = 0): string {
-  const { year, month, day } = toJstParts({ dayOffset, hour: 0 })
-  return `${year}-${pad(month)}-${pad(day)}`
+  return toDateString(toJstParts({ dayOffset, hour: 0 }))
+}
+
+/** FIXED_NOW の日付（JST）からの日数を指定し、その日1日分を API の期間指定（startAt〜endAt）で返す */
+export function fixedDayRange(dayOffset = 0): { startAt: string; endAt: string } {
+  return {
+    startAt: atFixedDay({ dayOffset, hour: 0 }),
+    endAt: atFixedDay({ dayOffset: dayOffset + 1, hour: 0 }),
+  }
 }
 
 /** フォームの datetime-local 入力欄に入れる値（JST）を返す */
 export function fixedDayInputValue(time: FixedDayTime): string {
-  const { year, month, day, hhmm } = toJstParts(time)
-  return `${year}-${pad(month)}-${pad(day)}T${hhmm}`
+  const parts = toJstParts(time)
+  return `${toDateString(parts)}T${parts.hhmm}`
 }
 
 /** 予定詳細モーダルに表示される日時（JST）を返す */
