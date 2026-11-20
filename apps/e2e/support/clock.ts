@@ -7,7 +7,7 @@ export const FIXED_NOW = new Date('2030-06-12T10:00:00+09:00')
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000
 const DAY_MS = 24 * 60 * 60 * 1000
 
-type FixedDayTime = {
+export type FixedDayTime = {
   /** FIXED_NOW の日付からの日数（前日なら -1） */
   dayOffset?: number
   hour: number
@@ -31,6 +31,15 @@ function toJstParts(time: FixedDayTime) {
     day: jst.getUTCDate(),
     hhmm: `${pad(jst.getUTCHours())}:${pad(jst.getUTCMinutes())}`,
   }
+}
+
+/** FIXED_NOW の翌日の指定時刻。今日のタイムラインに出ない日にして、カレンダー本体だけに予定が表示されるようにする */
+export const nextDayAt = (hour: number, minute = 0): FixedDayTime => ({ dayOffset: 1, hour, minute })
+
+/** FIXED_NOW の日付（JST）からの日数を指定し、カレンダーの data-date 属性と同じ YYYY-MM-DD 形式で返す */
+export function fixedDayDateString(dayOffset = 0): string {
+  const { year, month, day } = toJstParts({ dayOffset, hour: 0 })
+  return `${year}-${pad(month)}-${pad(day)}`
 }
 
 /** フォームの datetime-local 入力欄に入れる値（JST）を返す */

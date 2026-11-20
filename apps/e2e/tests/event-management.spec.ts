@@ -1,8 +1,5 @@
 import { expect, test } from '../fixtures'
-import { atFixedDay, fixedDayInputValue, fixedDayLabel } from '../support/clock'
-
-// FIXED_NOW の翌日。今日のタイムラインに出ない日にして、カレンダー本体だけに予定が表示されるようにする
-const nextDayAt = (hour: number, minute = 0) => ({ dayOffset: 1, hour, minute })
+import { atFixedDay, fixedDayInputValue, fixedDayLabel, nextDayAt } from '../support/clock'
 
 test.describe('予定管理', () => {
   test('フォームから予定を作成すると、カレンダーに表示される', async ({ page, user, signIn }) => {

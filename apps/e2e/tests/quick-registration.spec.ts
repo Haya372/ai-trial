@@ -1,18 +1,9 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from '../fixtures'
-import { fixedDayInputValue, fixedDayLabel } from '../support/clock'
+import { openWeekViewOfFixedDay } from '../support/calendar'
+import { fixedDayDateString, fixedDayInputValue, fixedDayLabel, nextDayAt } from '../support/clock'
 
-// FIXED_NOW（2030-06-12 水曜）の翌日。今日のタイムラインに出ない日にして、カレンダー本体だけに予定が表示されるようにする
-const NEXT_DAY = '2030-06-13'
-const nextDayAt = (hour: number, minute = 0) => ({ dayOffset: 1, hour, minute })
-
-/** 週ビューを開き、FIXED_NOW を含む週を表示する */
-async function openWeekView(page: Page) {
-  await page.getByRole('tab', { name: '週', exact: true }).click()
-  // 切り替え直後は月初を含む週が表示される（#398）ため、今日ボタンで固定日の週へ移る
-  await page.getByRole('button', { name: '今日', exact: true }).click()
-  await expect(page.getByText('2030年6月9日〜15日', { exact: true })).toBeVisible()
-}
+const NEXT_DAY = fixedDayDateString(1)
 
 /**
  * 週ビューの指定日・時刻の時間枠をクリックする。
@@ -35,7 +26,7 @@ test.describe('クイック登録', () => {
     signIn,
   }) => {
     await signIn(user)
-    await openWeekView(page)
+    await openWeekViewOfFixedDay(page)
 
     const calendar = page.getByRole('table')
 
@@ -62,7 +53,7 @@ test.describe('クイック登録', () => {
 
   test('保存ボタンで登録した後、「詳細を編集」から編集フォームを開ける', async ({ page, user, signIn }) => {
     await signIn(user)
-    await openWeekView(page)
+    await openWeekViewOfFixedDay(page)
 
     await clickTimeSlot(page, NEXT_DAY, '10:30:00')
     const panel = page.getByRole('dialog')
@@ -88,7 +79,7 @@ test.describe('クイック登録', () => {
 
   test('タイトルが空の場合は、登録されずパネル内にエラーが表示される', async ({ page, user, signIn }) => {
     await signIn(user)
-    await openWeekView(page)
+    await openWeekViewOfFixedDay(page)
 
     await clickTimeSlot(page, NEXT_DAY, '14:00:00')
     const panel = page.getByRole('dialog')
@@ -107,7 +98,7 @@ test.describe('クイック登録', () => {
 
   test('保存前にEscで閉じると、予定は登録されない', async ({ page, user, signIn }) => {
     await signIn(user)
-    await openWeekView(page)
+    await openWeekViewOfFixedDay(page)
 
     await clickTimeSlot(page, NEXT_DAY, '14:00:00')
     const panel = page.getByRole('dialog')
