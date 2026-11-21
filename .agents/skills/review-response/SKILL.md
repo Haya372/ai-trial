@@ -18,14 +18,14 @@ PRについているレビューコメントを整理し、対応するものは
 PR番号が会話から分からない場合は現在のブランチから取得する。
 
 ```bash
-# 現在のブランチに対応するPR番号を取得
-gh pr view --json number,title,url
+# 現在のブランチに対応するPR番号と作成者を取得
+gh pr view --json number,title,url,author
 
 # レビュー本文・通常コメント・レビュースレッド（インラインコメント）を全件取得
 bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
 ```
 
-出力の `reviews`・`issue_comments`・`threads` を一覧にして整理する。各コメントについて以下を記録する。スレッドは最初のコメント（`threads[].comments[0]`）を指摘として記録し、2件目以降は返信として内容の把握に使う。
+出力の `reviews`・`issue_comments`・`threads` を一覧にして整理する。各コメントについて以下を記録する。スレッドは、最初のコメント（`threads[].comments[0]`）と、PRの作成者の最後の返信より後に投稿されたコメントを指摘として記録する。それ以外のコメントは、返信の経緯として内容の把握に使う。PRの作成者の返信は、`author` が `author.login` と一致し、本文の先頭が `<!-- pr-review -->` で始まらないコメントとする（作成者と `pr-review` の投稿者が同じアカウントの場合があるため）。
 
 | フィールド | 内容 |
 |---|---|
