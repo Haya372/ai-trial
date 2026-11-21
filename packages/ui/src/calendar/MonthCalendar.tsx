@@ -39,6 +39,7 @@ export function MonthCalendar({
   const currentDateRef = useRef(currentDate)
 
   useEffect(() => {
+    // gotoDateはその場でdatesSetを発火させるため、判定に使うrefを先に更新しておく
     currentDateRef.current = currentDate
     const api = calendarRef.current?.getApi()
     if (!api) return
