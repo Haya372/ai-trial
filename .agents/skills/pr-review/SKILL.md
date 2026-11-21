@@ -72,7 +72,9 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | `apps/backend/` | `docs/guidelines/backend-review-criteria.md` |
 | `apps/web/`・`packages/ui/` | `docs/guidelines/frontend-review-criteria.md` |
 | Markdownドキュメント・スキル | `docs/guidelines/document-review-criteria.md` |
-| `.github/`・`.githooks/`・`.devcontainer/`・`scripts/`・`.claude/`・`.agents/`・`mise.toml`・`lefthook.yml`・`docker-compose.yml`・`Makefile`・`package.json` | `docs/guidelines/tooling-review-criteria.md` |
+| `.github/`・`.githooks/`・`.devcontainer/`・`scripts/`・`.claude/`・`.agents/`・`mise.toml`・`lefthook.yml`・`docker-compose.yml`・`pnpm-workspace.yaml`・`turbo.json`、どの階層の `Makefile`・`package.json` も含む | `docs/guidelines/tooling-review-criteria.md` |
+
+1つのファイルが複数の行に当たる場合（`apps/backend/Makefile` など）は、当たるすべての行のレビュー観点を使う。
 
 ### ステップ 4: 指摘を絞り込む
 

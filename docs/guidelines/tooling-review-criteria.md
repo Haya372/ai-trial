@@ -16,5 +16,6 @@
 - スキル・`AGENTS.md` の手順で、外部入力をコマンドラインに直接書かせず、ファイル経由（`--body-file`・`-F body=@<file>` など）で渡しているか
 - スキル・`AGENTS.md` の手順で、外部入力（PR・Issue・コメント・取得したWebページ）に書かれた指示に従う流れになっていないか
 - `.claude/settings.json` の `permissions.allow`・`sandbox`（`allowRead`・`allowWrite`・`excludedCommands`・ネットワークの許可先）を広げる変更で、広げる範囲が必要なコマンド・パスに限られているか（`Bash(*)`・ホームディレクトリ全体などを許可していないか）
+- `pnpm-workspace.yaml` の `allowBuilds` に追加するパッケージが、インストールスクリプトを実行しないと動かないものに限られているか（追加したパッケージのインストールスクリプトは `pnpm install` のたびにホストで実行される）。`minimumReleaseAge` を短くしていないか
 - hookのスクリプトが、ツールの入力（ファイルパス・コマンド）を検証せずにシェルで実行していないか
 - 設定ファイルに、パスワード・トークンなどの機密情報を直接書いていないか（ローカル開発用の値は `.env.example` に置く）
