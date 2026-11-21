@@ -5,7 +5,7 @@ version: 'v0.0.3'
 workflows:
     '.github/workflows/action-lint.yml':
         - 'actions/checkout@v7.0.1'
-        - 'reviewdog/action-actionlint@v1.83.0'
+        - 'reviewdog/action-actionlint@v1.84.1'
         - 'zizmorcore/zizmor-action@v0.8.1'
     '.github/workflows/backend-ci.yml':
         - 'actions/cache@v6.1.0'
@@ -15,18 +15,18 @@ workflows:
         - 'actions/upload-artifact@v7.0.2'
         - 'fgrosse/go-coverage-report@v1.5.0'
         - 'golangci/golangci-lint-action@v9.3.0'
-        - 'jdx/mise-action@v5.2.7'
+        - 'jdx/mise-action@v5.2.8'
         - 'pnpm/action-setup@v6.1.1'
     '.github/workflows/e2e-ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-go@v7.0.0'
         - 'actions/setup-node@v7.1.0'
         - 'actions/upload-artifact@v7.0.2'
-        - 'jdx/mise-action@v5.2.7'
+        - 'jdx/mise-action@v5.2.8'
         - 'pnpm/action-setup@v6.1.1'
     '.github/workflows/markdown-lint.yml':
         - 'actions/checkout@v7.0.1'
-        - 'jdx/mise-action@v5.2.7'
+        - 'jdx/mise-action@v5.2.8'
     '.github/workflows/schema-ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-node@v7.1.0'
@@ -83,9 +83,9 @@ dependencies:
         commit: 'sha1-ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a'
         owner_id: 35628013
         repo_id: 232539879
-    'jdx/mise-action@v5.2.7':
-        ref: 'v5.2.7'
-        commit: 'sha1-b44d12e7d0d8ee7461bb893e1b1993500433185b'
+    'jdx/mise-action@v5.2.8':
+        ref: 'v5.2.8'
+        commit: 'sha1-d5574b52816a478f9d4e6529a3f6ff17a8a36785'
         owner_id: 216188
         repo_id: 738284564
     'pnpm/action-setup@v6.1.1':
@@ -93,9 +93,9 @@ dependencies:
         commit: 'sha1-73e46992e05b19abd31f2f3c20e0e7370d762115'
         owner_id: 21320719
         repo_id: 262289747
-    'reviewdog/action-actionlint@v1.83.0':
-        ref: 'v1.83.0'
-        commit: 'sha1-a7d35aaf8c309203a4ae861d32b7bd490baa7bf3'
+    'reviewdog/action-actionlint@v1.84.1':
+        ref: 'v1.84.1'
+        commit: 'sha1-ae857e78c1b42b3d0a49637181b09d3d56d402b4'
         owner_id: 48765237
         repo_id: 385059686
     'tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96':
