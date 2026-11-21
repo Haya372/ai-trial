@@ -25,7 +25,7 @@ gh pr view <PR番号> --json number,title,url,author,baseRefName
 bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
 ```
 
-出力の `reviews`・`issue_comments`・`threads` を一覧にして整理する。各コメントについて以下を記録する。スレッドは、最初のコメント（`threads[].comments[0]`）と、PRの作成者の最後の返信より後に投稿されたコメントを指摘として記録する。それ以外のコメントは、返信の経緯として内容の把握に使う。PRの作成者の返信は、`author` が `author.login` と一致し、本文の先頭が `<!-- pr-review -->` で始まらないコメントとする（作成者と `pr-review` の投稿者が同じアカウントの場合があるため）。
+出力の `reviews`・`issue_comments`・`threads` を一覧にして整理する。各コメントについて以下を記録する。スレッドは、最初のコメント（`threads[].comments[0]`）と、PRの作成者の最後の返信より後に投稿されたコメントを指摘として記録する。作成者の返信がないスレッドは、すべてのコメントを指摘として記録する。それ以外のコメントは、返信の経緯として内容の把握に使う。PRの作成者の返信は、`author` が `author.login` と一致し、本文の先頭が `<!-- pr-review -->` で始まらないコメントとする（作成者と `pr-review` の投稿者が同じアカウントの場合があるため）。
 
 | フィールド | 内容 |
 |---|---|
