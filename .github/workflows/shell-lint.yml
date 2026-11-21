@@ -1,0 +1,28 @@
+# This workflow is managed by gh actions-lock.
+
+name: Lint shell scripts
+on:
+  pull_request:
+    paths:
+      - "**/*.sh"
+      - .githooks/pre-push
+      - mise.toml
+      - .github/workflows/shell-lint.yml
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v5.2.7
+        with:
+          install: true
+      - name: Run shellcheck
+        run: git ls-files -z '*.sh' .githooks/pre-push | xargs -0 mise exec -- shellcheck -S info

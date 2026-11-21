@@ -11,6 +11,20 @@
 
 ガイドラインに定義されていないが、PRで確認が必要な観点。
 
+### セキュリティ
+
+- `dangerouslySetInnerHTML`・`ref` 経由の `innerHTML`・`insertAdjacentHTML` など、HTMLを直接描画する箇所に渡すユーザー入力・APIレスポンス由来の文字列を、DOMPurifyなどのサニタイズライブラリに通しているか（手書きの置換・正規表現でのタグ除去はサニタイズとみなさない）
+- ユーザー入力を含むURLを `href`・`src` に設定する箇所で、`new URL(v, location.origin)` で解析した `protocol` が `http:`・`https:` であることを確認しているか
+- `eval`・`new Function`・文字列を渡す `setTimeout` に、ユーザー入力・APIレスポンス由来の文字列を渡していないか
+- 遷移先（`navigate`・`redirect`・`window.location`）にクエリパラメータなどのユーザー入力を使う箇所で、`new URL(v, location.origin).origin === location.origin` を確認し、同一オリジンへの遷移だけを許可しているか（ログイン後に元のページへ戻す処理など）。文字列の先頭だけを見る判定は、ブラウザが解析前にタブ・改行を除去するため回避される
+- 認証トークン・機密情報を `localStorage`・`sessionStorage`・JavaScriptから読めるCookieに保存していないか
+- 機密情報（APIキー・シークレット）がクライアントのコードや、ビルド時にバンドルされる環境変数（`VITE_` で始まるもの）に含まれていないか
+- URLに認証情報（共有トークンなど）を含むページに、`Referrer-Policy: no-referrer` をレスポンスヘッダー、または `index.html` の `<head>` 内でリクエストを発生させる要素（`link`・`script` など）より前に置いた静的な `<meta name="referrer" content="no-referrer">` で設定しているか（metaは解析された後のリクエストにだけ効くため、Reactから実行時に挿入したり、`link` の後に置いたりすると、それより前のリクエストでRefererが送られる）
+- URLに認証情報を含むルートがあるアプリで、どのルートでもサードパーティのスクリプトを読み込んでいないか（SPAは全ルートで1つのドキュメントを共有するため、別のルートで読み込んだスクリプトも遷移後に `location.href` からトークンを読める。SRIを付けても防げない）
+- 上の項目に当たらないアプリで外部ドメインのスクリプト・スタイルシートを読み込む場合、npmパッケージとしてバンドルするか、`integrity` 属性（SRI）を付けているか
+- `postMessage` の受信側で `event.origin` を確認し、送信側で `targetOrigin` に `'*'` ではなく送信先のオリジンを指定しているか
+- 権限によって操作を制限する箇所で、ボタンの非表示・無効化だけで制限せず、対応するAPIでも認可しているか
+
 ### パフォーマンス
 
 - 不必要な再レンダリングが発生していないか（メモ化の欠如・依存配列の誤り）
