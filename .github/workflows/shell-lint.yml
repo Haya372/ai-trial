@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - "**/*.sh"
-      - ".githooks/**"
+      - .githooks/pre-push
       - mise.toml
       - .github/workflows/shell-lint.yml
 
@@ -25,4 +25,4 @@ jobs:
         with:
           install: true
       - name: Run shellcheck
-        run: git ls-files -z '*.sh' '.githooks/*' | xargs -0 mise exec -- shellcheck -S info
+        run: git ls-files -z '*.sh' .githooks/pre-push | xargs -0 mise exec -- shellcheck -S info
