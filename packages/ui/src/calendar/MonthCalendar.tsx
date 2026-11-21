@@ -12,6 +12,7 @@ import { createDateClickHandler } from './createDateClickHandler'
 import { eventClassNames } from './eventClassNames'
 import { eventColorProps } from './eventColorProps'
 import { renderEventContent } from './renderEventContent'
+import { shouldNotifyDateChange } from './shouldNotifyDateChange'
 import type { CalendarEvent } from './types'
 
 import '@fullcalendar/react/skeleton.css'
@@ -34,13 +35,14 @@ export function MonthCalendar({
   onDateChange,
 }: MonthCalendarProps) {
   const calendarRef = useRef<CalendarRef>(null)
-  // gotoDate自身が発火させるdatesSetをonDateChangeとして親に伝播させないためのフラグ
-  const isProgrammaticNavRef = useRef(false)
+  // datesSetハンドラから最新のcurrentDateを参照するためのref
+  const currentDateRef = useRef(currentDate)
 
   useEffect(() => {
+    // gotoDateはその場でdatesSetを発火させるため、判定に使うrefを先に更新しておく
+    currentDateRef.current = currentDate
     const api = calendarRef.current?.getApi()
     if (!api) return
-    isProgrammaticNavRef.current = true
     api.gotoDate(currentDate)
   }, [currentDate])
 
@@ -65,10 +67,7 @@ export function MonthCalendar({
   const handleDateClick = createDateClickHandler(onDateClick)
 
   function handleDatesSet(info: DatesSetInfo) {
-    if (isProgrammaticNavRef.current) {
-      isProgrammaticNavRef.current = false
-      return
-    }
+    if (!shouldNotifyDateChange(currentDateRef.current, info)) return
     onDateChange(info.view.currentStart)
   }
 
