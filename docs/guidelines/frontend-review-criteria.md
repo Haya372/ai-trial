@@ -14,12 +14,12 @@
 ### セキュリティ
 
 - `dangerouslySetInnerHTML`・`ref` 経由の `innerHTML`・`insertAdjacentHTML` など、HTMLを直接描画する箇所に渡すユーザー入力・APIレスポンス由来の文字列を、DOMPurifyなどのサニタイズライブラリに通しているか（手書きの置換・正規表現でのタグ除去はサニタイズとみなさない）
-- ユーザー入力を含むURLを `href`・`src`・`window.location` に設定する箇所で、URLを `new URL()` で解析し、`http:`・`https:` のスキームまたは相対パスだけを設定しているか
+- ユーザー入力を含むURLを `href`・`src` に設定する箇所で、`new URL(v, location.origin)` で解析した `protocol` が `http:`・`https:` であることを確認しているか
 - `eval`・`new Function`・文字列を渡す `setTimeout` に、ユーザー入力・APIレスポンス由来の文字列を渡していないか
-- 遷移先（`navigate`・`redirect`・`window.location`）にクエリパラメータなどのユーザー入力を使う箇所で、`/` で始まり `//`・`/\` で始まらない同一オリジンのパスだけを許可しているか（ログイン後に元のページへ戻す処理など）
+- 遷移先（`navigate`・`redirect`・`window.location`）にクエリパラメータなどのユーザー入力を使う箇所で、`new URL(v, location.origin).origin === location.origin` を確認し、同一オリジンへの遷移だけを許可しているか（ログイン後に元のページへ戻す処理など）。文字列の先頭だけを見る判定は、ブラウザが解析前にタブ・改行を除去するため回避される
 - 認証トークン・機密情報を `localStorage`・`sessionStorage`・JavaScriptから読めるCookieに保存していないか
 - 機密情報（APIキー・シークレット）がクライアントのコードや、ビルド時にバンドルされる環境変数（`VITE_` で始まるもの）に含まれていないか
-- URLに認証情報（共有トークンなど）を含むページで、外部サイトへのリンクに `rel="noreferrer"` を付け、外部のスクリプト・画像を読み込まず、Referer経由で認証情報を送っていないか
+- URLに認証情報（共有トークンなど）を含むページに、`Referrer-Policy: no-referrer`（レスポンスヘッダー、または `<meta name="referrer" content="no-referrer">`）を設定しているか
 - 外部ドメインのスクリプト・スタイルシートを読み込む場合、npmパッケージとしてバンドルするか、`integrity` 属性（SRI）を付けているか
 - `postMessage` の受信側で `event.origin` を確認し、送信側で `targetOrigin` に `'*'` ではなく送信先のオリジンを指定しているか
 - 権限によって操作を制限する箇所で、ボタンの非表示・無効化だけで制限せず、対応するAPIでも認可しているか
