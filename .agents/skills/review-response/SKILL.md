@@ -21,20 +21,19 @@ PR番号が会話から分からない場合は現在のブランチから取得
 # 現在のブランチに対応するPR番号を取得
 gh pr view --json number,title,url
 
-# レビューコメント（インラインコメントを含む）を取得
-gh pr view <PR番号> --json reviews,comments
-gh api repos/{owner}/{repo}/pulls/<PR番号>/comments
+# レビュー本文・通常コメント・レビュースレッド（インラインコメント）を全件取得
+bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
 ```
 
-取得したコメントを一覧にして整理する。各コメントについて以下を記録する。
+出力の `reviews`・`issue_comments`・`threads` を一覧にして整理する。各コメントについて以下を記録する。スレッドは最初のコメント（`threads[].comments[0]`）を指摘として記録し、2件目以降は返信として内容の把握に使う。
 
 | フィールド | 内容 |
 |---|---|
-| ID | コメントのURL（返信時に使う） |
-| 投稿者 | レビュワー名 |
-| 場所 | ファイル名・行番号（インラインの場合） |
+| ID | コメントのURL（`url`）と `id`（返信時に使う） |
+| 投稿者 | レビュワー名（`author`） |
+| 場所 | ファイル名・行番号（スレッドの場合。`path`・`line`、`line` が `null` なら `original_line`） |
 | 内容 | コメントの要約 |
-| 状態 | resolved / unresolved |
+| 状態 | スレッドは `threads[].is_resolved` が `true` なら resolved、`false` なら unresolved。レビュー本文・通常コメントは空欄 |
 
 ---
 
