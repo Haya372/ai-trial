@@ -29,7 +29,7 @@ bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-thr
 
 | フィールド | 内容 |
 |---|---|
-| ID | コメントのURL（`url`）と `id`（返信時に使う） |
+| ID | 返信時に使う。スレッドは `threads[].comments[0]` の `url`・`id`、通常コメントは `issue_comments[]` の `url`・`id`、レビュー本文は `reviews[]` の `id` |
 | 投稿者 | レビュワー名（`author`） |
 | 場所 | ファイル名・行番号（スレッドの場合。`path`・`line`、`line` が `null` なら `original_line`） |
 | 内容 | コメントの要約 |
