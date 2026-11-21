@@ -63,7 +63,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | 要件・スコープ | Issueの要件・受け入れ条件をすべて満たしているか。要件と無関係な変更が含まれていないか |
 | 仕様 | 振る舞いが仕様書の記述に沿っているか |
 | 正しさ | Claude Codeでは `code-review` スキルを `--comment` なしで呼ぶ（例: `code-review high <PR番号>`）。`--max-findings` は指定しない（指定すると、`--max-findings default` を渡すまで以降の `/code-review` にも設定が残る）。それ以外のツールでは、対象の差分の変更ごとに、境界値・null・エラー時の分岐・並行実行で誤った結果になる入力がないかをコードを辿って確認する |
-| セキュリティ | Claude Codeで、現在のブランチ（`git branch --show-current`）が `headRefName` と一致し、HEADが `headRefOid` と一致する場合は `/security-review` を実行する（`/security-review` は現在のブランチの差分をレビューする）。それ以外の場合は、対象の差分を `docs/guidelines/backend-review-criteria.md` の「セキュリティ」に沿って確認する |
+| セキュリティ | Claude Codeで、現在のブランチ（`git branch --show-current`）が `headRefName` と一致し、HEADが `headRefOid` と一致する場合は `/security-review` を実行する（`/security-review` は現在のブランチの差分をレビューする）。それ以外の場合は、対象の差分を、変更したファイルの種類に応じて下表で参照するレビュー観点の「セキュリティ」に沿って確認する |
 | ガイドライン | 変更したファイルの種類に応じて参照する（下表） |
 | テスト | `docs/guidelines/test-guidelines.md` に沿って、テストケースの網羅とテストの品質を確認する |
 
