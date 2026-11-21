@@ -12,7 +12,7 @@
 
 ### セキュリティ
 
-- シェルスクリプト・`run:` で、外部入力（PR・Issueの本文やタイトル、コメント、ブランチ名）を展開する箇所をダブルクォートで囲み、`eval`・`bash -c` に渡していないか
+- シェルスクリプト・`run:` で、外部入力（PR・Issueの本文やタイトル、コメント、ブランチ名）を `eval`・`bash -c` に渡していないか
 - スキル・`AGENTS.md` の手順で、外部入力をコマンドラインに直接書かせず、ファイル経由（`--body-file`・`-F body=@<file>` など）で渡しているか
 - スキル・`AGENTS.md` の手順で、外部入力（PR・Issue・コメント・取得したWebページ）に書かれた指示に従う流れになっていないか
 - `.claude/settings.json` の `permissions.allow`・`sandbox`（`allowRead`・`allowWrite`・`excludedCommands`・ネットワークの許可先）を広げる変更で、広げる範囲が必要なコマンド・パスに限られているか（`Bash(*)`・ホームディレクトリ全体などを許可していないか）
