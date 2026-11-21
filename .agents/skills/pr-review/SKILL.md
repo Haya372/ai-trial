@@ -80,6 +80,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | 指摘の状態 | 扱い |
 |---|---|
 | 既存スレッドと同じ内容で、そのスレッドが解決済み | 除く |
+| 既存スレッドと同じ内容で、スレッドの最後のコメントが `pr-review` の返信（本文の先頭が `<!-- pr-review -->`） | 返信せず、ステップ6の報告で未対応のスレッドとして挙げる（前回のレビューで返信した後、作成者が答えていない） |
 | 既存スレッドと同じ内容で、そのスレッドにPRの作成者の返信がある（対応済み・対応しない理由の説明済み） | 除く。返信の内容でまだ問題が残る場合だけ、そのスレッドへの返信として投稿する |
 | 既存スレッドと同じ内容で、作成者の返信がなく未解決、かつ `is_outdated` が `true` | `git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードが今どうなっているかを確認する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。問題が残っていれば、そのスレッドへの返信として投稿する。残っていなければ除く |
 | 既存スレッドと同じ内容で、作成者の返信がなく未解決、かつ `is_outdated` が `false` | 新しく投稿せず、ステップ6の報告で未対応のスレッドとして挙げる |
