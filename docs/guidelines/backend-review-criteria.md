@@ -22,12 +22,12 @@
 - 機密情報（APIキー・パスワード・トークン）がハードコーディングされていないか
 - 認証トークンの有効期限・失効処理が実装されているか
 - ログイン時にセッションIDを新しく発行しているか（ログイン前のセッションIDを引き継いでいないか）
-- トークン・パスワードハッシュなどの秘密の値を `==` ではなく `subtle.ConstantTimeCompare` で比較しているか
+- トークンなどの秘密の値を `==` ではなく `subtle.ConstantTimeCompare` で比較しているか。パスワードは `bcrypt.CompareHashAndPassword` で照合しているか
 - ログインなど総当たりされうるエンドポイントに、試行回数の制限があるか
-- Cookie認証のAPIで、状態を変更する操作をGETで受けていないか。セッションCookieの `HttpOnly`・`Secure`・`SameSite` を緩めていないか
-- CORSで、Cookieを送る（`Access-Control-Allow-Credentials: true`）レスポンスの `Access-Control-Allow-Origin` に、リクエストの `Origin` をそのまま返したり `*` を使ったりしていないか
-- ユーザー入力をファイルパスに使う箇所で、`..` を含むパスで想定外のディレクトリにアクセスできないか
-- ユーザー入力のURLへサーバーからリクエストする箇所で、許可したホストだけに送っているか（内部ネットワーク・メタデータエンドポイントに届かないか）
+- Cookie認証のAPIで、状態を変更する操作をGETで受けていないか。Cookieを発行する箇所で `HttpOnly`・`Secure`・`SameSite=Strict`（または `Lax`）を明示しているか（Goの `http.Cookie` は `SameSite` を指定しないと属性を出力しない）
+- CORSで、Cookieを送る（`Access-Control-Allow-Credentials: true`）レスポンスの `Access-Control-Allow-Origin` を、許可するオリジンとの完全一致で決めているか（リクエストの `Origin` をそのまま返す・`*`・前方一致や後方一致での照合・`null` の許可をしていないか）
+- ユーザー入力をファイルパスに使う箇所で、`os.Root`（`os.OpenInRoot`）または `filepath.IsLocal` を使い、絶対パス・`..`・シンボリックリンクでベースディレクトリの外にアクセスできないようにしているか
+- ユーザー入力のURLへサーバーからリクエストする箇所で、許可したホストだけに送っているか。リダイレクト先（`http.Client` の `CheckRedirect`）と、接続時に解決したIPアドレス（`net.Dialer` の `Control`）も検証し、内部ネットワーク・メタデータエンドポイントに届かないようにしているか
 
 ### パフォーマンス
 
