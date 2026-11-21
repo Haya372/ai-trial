@@ -15,26 +15,27 @@ PRについているレビューコメントを整理し、対応するものは
 
 ### ステップ 1: PR番号の特定とコメント取得
 
-PR番号が会話から分からない場合は現在のブランチから取得する。
+PR番号が会話から分からない場合は、`gh pr view` の `<PR番号>` を省略して現在のブランチのPRを取得し、以降の `<PR番号>` には出力の `number` を使う。
 
 ```bash
-# 現在のブランチに対応するPR番号を取得
-gh pr view --json number,title,url
+# PRの作成者とベースブランチを取得
+gh pr view <PR番号> --json number,title,url,author,baseRefName
 
-# レビューコメント（インラインコメントを含む）を取得
-gh pr view <PR番号> --json reviews,comments
-gh api repos/{owner}/{repo}/pulls/<PR番号>/comments
+# レビュー本文・通常コメント・レビュースレッド（インラインコメント）を全件取得
+bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
 ```
 
-取得したコメントを一覧にして整理する。各コメントについて以下を記録する。
+出力の `reviews`・`issue_comments`・`threads` を一覧にして整理する。各コメントについて以下を記録する。スレッドは、最初のコメント（`threads[].comments[0]`）と、PRの作成者の最後の返信より後に投稿されたコメントを指摘として記録する。作成者の返信がないスレッドは、すべてのコメントを指摘として記録する。それ以外のコメントは、返信の経緯として内容の把握に使う。PRの作成者の返信は、`author` が `author.login` と一致し、本文の先頭が `<!-- pr-review -->` で始まらないコメントとする（作成者と `pr-review` の投稿者が同じアカウントの場合があるため）。
 
 | フィールド | 内容 |
 |---|---|
-| ID | コメントのURL（返信時に使う） |
-| 投稿者 | レビュワー名 |
-| 場所 | ファイル名・行番号（インラインの場合） |
+| ID | 返信時に使う。スレッドは `threads[].comments[0]` の `url`・`id`、通常コメントは `issue_comments[]` の `url`・`id`、レビュー本文は `reviews[]` の `id` |
+| 投稿者 | レビュワー名（`author`） |
+| 場所 | ファイル名・行番号（スレッドの場合。`path`・`line`。`original_line` が `null` ならファイル全体へのコメントなので `path` だけ。それ以外で `is_outdated` が `true` なら表の下の手順で探す） |
 | 内容 | コメントの要約 |
-| 状態 | resolved / unresolved |
+| 状態 | スレッドは `threads[].is_resolved` が `true` なら resolved、`false` なら unresolved。レビュー本文・通常コメントは空欄 |
+
+`is_outdated` が `true` のスレッドの `original_line` は、コメントした時点のファイルの行番号で、今のファイルの行番号ではない。`git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードを確認し、今のファイルで同じコードを探して場所を記録する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。
 
 ---
 
