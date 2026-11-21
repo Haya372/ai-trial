@@ -72,6 +72,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | `apps/backend/` | `docs/guidelines/backend-review-criteria.md` |
 | `apps/web/`・`packages/ui/` | `docs/guidelines/frontend-review-criteria.md` |
 | Markdownドキュメント・スキル | `docs/guidelines/document-review-criteria.md` |
+| `.github/`・`scripts/`・`.claude/`・`.agents/`・`mise.toml`・`lefthook.yml`・`docker-compose.yml` | `docs/guidelines/tooling-review-criteria.md` |
 
 ### ステップ 4: 指摘を絞り込む
 
