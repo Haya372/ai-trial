@@ -31,7 +31,7 @@ PR番号が会話から分からない場合は、`<PR番号>` を省略して�
 bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
 ```
 
-出力の `threads[].is_resolved` でスレッドの解決状態、`threads[].comments[]` のうち、`author` がステップ1の `author.login` と一致し、本文に `<!-- pr-review -->` を含まないコメントを作成者の返信として扱う（作成者とレビューの投稿者が同じアカウントの場合があるため、印で区別する）。
+出力の `threads[].is_resolved` でスレッドの解決状態を確認する。スレッドの最初のコメント（`threads[].comments[0]`）は指摘そのものなので、2件目以降のうち、`author` がステップ1の `author.login` と一致し、本文の先頭が `<!-- pr-review -->` で始まらないコメントを作成者の返信として扱う（作成者とレビューの投稿者が同じアカウントの場合があるため、印で区別する。本文の途中に印の文字列があっても `pr-review` の投稿とはみなさない）。
 
 ### ステップ 2: レビュー対象の差分を決める
 

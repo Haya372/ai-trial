@@ -60,7 +60,7 @@ jq -n \
       pr: $pr,
       # 人のレビューやスレッドへの返信（本文が空のレビュー）を起点にしないよう、pr-reviewスキルが投稿したレビューに限る
       last_review_commit_id: ([$reviews[]
-        | select(.state != "PENDING" and ((.body // "") | contains("<!-- pr-review -->")))]
+        | select(.state != "PENDING" and ((.body // "") | startswith("<!-- pr-review -->")))]
         | last | .commit_id // null),
       reviews: [$reviews[] | select((.body // "") != "") | {
         id, author: .user.login, state, body, commit_id, submitted_at
