@@ -15,11 +15,11 @@ PRについているレビューコメントを整理し、対応するものは
 
 ### ステップ 1: PR番号の特定とコメント取得
 
-PR番号が会話から分からない場合は現在のブランチから取得する。
+PR番号が会話から分からない場合は、`<PR番号>` を省略して現在のブランチのPRを取得する。
 
 ```bash
-# 現在のブランチに対応するPR番号と作成者を取得
-gh pr view --json number,title,url,author,baseRefName
+# PRの作成者とベースブランチを取得
+gh pr view <PR番号> --json number,title,url,author,baseRefName
 
 # レビュー本文・通常コメント・レビュースレッド（インラインコメント）を全件取得
 bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-threads.json"
