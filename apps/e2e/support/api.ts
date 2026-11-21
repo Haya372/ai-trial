@@ -28,6 +28,20 @@ export class UserApi {
     return res.json()
   }
 
+  /** 共有リンクを発行し、`/share/{token}` 形式のパスを返す。有効期限は省略時に予定の終了日時になる */
+  async createShare(eventId: string): Promise<string> {
+    const res = await this.request.post(`/api/events/${eventId}/shares`, { data: {} })
+    await expectStatus(res, 201)
+    return (await res.json()).url
+  }
+
+  /** 共有リンクのパス（`/share/{token}`）から、共有された予定を自分のカレンダーに追加する */
+  async subscribe(sharePath: string): Promise<void> {
+    const token = sharePath.replace(/^\/share\//, '')
+    const res = await this.request.post(`/api/shares/${token}/subscriptions`)
+    await expectStatus(res, 201)
+  }
+
   /** 画面表示に頼らず、サーバーに登録されている予定を確かめる */
   async listEvents(range: { startAt: string; endAt: string }): Promise<EventResponse[]> {
     const res = await this.request.get('/api/events', { params: range })

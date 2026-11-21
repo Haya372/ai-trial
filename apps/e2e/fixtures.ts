@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { test as base, type APIRequestContext, expect } from '@playwright/test'
+import { test as base, type APIRequestContext, expect, type Page } from '@playwright/test'
 import { expectStatus, UserApi } from './support/api'
 import { FIXED_NOW } from './support/clock'
 
@@ -22,6 +22,8 @@ type Fixtures = {
    * テストデータを API で用意し終えてから呼ぶ
    */
   signIn: (user: TestUser) => Promise<void>
+  /** `page` とは Cookie を共有しない、未ログイン状態のページ */
+  anonymousPage: Page
 }
 
 const PASSWORD = 'Passw0rd!1234'
@@ -66,6 +68,14 @@ export const test = base.extend<Fixtures>({
       await page.getByRole('button', { name: 'ログイン' }).click()
       await expect(page).toHaveURL('/')
     })
+  },
+
+  anonymousPage: async ({ browser }, use) => {
+    const context = await browser.newContext()
+    const page = await context.newPage()
+    await page.clock.install({ time: FIXED_NOW })
+    await use(page)
+    await context.close()
   },
 })
 
