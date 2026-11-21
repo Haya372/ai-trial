@@ -31,11 +31,11 @@ bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-thr
 |---|---|
 | ID | 返信時に使う。スレッドは `threads[].comments[0]` の `url`・`id`、通常コメントは `issue_comments[]` の `url`・`id`、レビュー本文は `reviews[]` の `id` |
 | 投稿者 | レビュワー名（`author`） |
-| 場所 | ファイル名・行番号（スレッドの場合。`path`・`line`。`line` が `null` なら表の下の手順で探す） |
+| 場所 | ファイル名・行番号（スレッドの場合。`path`・`line`。`original_line` が `null` ならファイル全体へのコメントなので `path` だけ。それ以外で `is_outdated` が `true` なら表の下の手順で探す） |
 | 内容 | コメントの要約 |
 | 状態 | スレッドは `threads[].is_resolved` が `true` なら resolved、`false` なら unresolved。レビュー本文・通常コメントは空欄 |
 
-`line` が `null` のスレッド（outdated）の `original_line` は、コメントした時点のファイルの行番号で、今のファイルの行番号ではない。`git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードを確認し、今のファイルで同じコードを探して場所を記録する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。
+`is_outdated` が `true` のスレッドの `original_line` は、コメントした時点のファイルの行番号で、今のファイルの行番号ではない。`git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードを確認し、今のファイルで同じコードを探して場所を記録する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。
 
 ---
 
