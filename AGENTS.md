@@ -34,6 +34,7 @@ Codex・Gemini CLIは `.agents/skills/` を自動で読み込む。Claude Code�
 | リファクタリング | `.agents/skills/refactoring/SKILL.md` |
 | コミット | `.agents/skills/commit/SKILL.md` |
 | PR作成 | `.agents/skills/create-pr/SKILL.md` |
+| PRレビュー | `.agents/skills/pr-review/SKILL.md` |
 | スタックPR作成 | `.agents/skills/stack-pr/SKILL.md` |
 | レビュー対応 | `.agents/skills/review-response/SKILL.md` |
 | 振り返り | `.agents/skills/retrospective/SKILL.md` |
