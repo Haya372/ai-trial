@@ -13,7 +13,7 @@
 
 ### セキュリティ
 
-- `dangerouslySetInnerHTML` など、HTMLを直接描画する箇所に、ユーザー入力・APIレスポンス由来の文字列をサニタイズせずに渡していないか
+- `dangerouslySetInnerHTML` など、HTMLを直接描画する箇所に渡すユーザー入力・APIレスポンス由来の文字列を、DOMPurifyなどのサニタイズライブラリに通しているか（手書きの置換・正規表現でのタグ除去はサニタイズとみなさない）
 - ユーザー入力を含むURLを `href`・`src`・`window.location` に設定する箇所で、`javascript:` などのスキームを拒否しているか
 - 認証トークン・機密情報を `localStorage`・`sessionStorage`・JavaScriptから読めるCookieに保存していないか
 - 機密情報（APIキー・シークレット）がクライアントのコードや、ビルド時にバンドルされる環境変数（`VITE_` で始まるもの）に含まれていないか
