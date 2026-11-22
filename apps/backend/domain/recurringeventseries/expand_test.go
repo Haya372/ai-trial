@@ -208,11 +208,21 @@ func TestExpandOccurrences_indefiniteCoversTwoYearsInclusive(t *testing.T) {
 }
 
 func TestExpandOccurrences_count(t *testing.T) {
-	t.Run("excluded dates and skipped months are not counted", func(t *testing.T) {
+	// Excluded dates count like RFC 5545's EXDATE against COUNT, so deleting
+	// an occurrence does not pull in a new one at the end of the series.
+	t.Run("excluded dates are counted and skipped months are not", func(t *testing.T) {
 		start := localAt(t, tokyo, 2026, time.January, 31, 9, 0)
 		excluded := res.NewExcludedDate(mustDate(t, 2026, time.March, 31))
-		assertDates(t, start, mustRule(t, monthlyDay, nil, mustCount(t, 3), tokyo),
+		assertDates(t, start, mustRule(t, monthlyDay, nil, mustCount(t, 4), tokyo),
 			[]string{"2026-01-31", "2026-05-31", "2026-07-31"}, excluded)
+	})
+	t.Run("every counted candidate excluded leaves no occurrence", func(t *testing.T) {
+		start := localAt(t, tokyo, 2026, time.March, 1, 9, 0)
+		occs, err := expandHour(start, mustRule(t, daily, nil, mustCount(t, 2), tokyo),
+			excludedOn(t, "2026-03-01", "2026-03-02")...)
+		if err != nil || len(occs) != 0 {
+			t.Errorf("got %d occurrences, err %v; want 0, nil", len(occs), err)
+		}
 	})
 
 	start := localAt(t, utc, 2026, time.January, 5, 9, 0)
@@ -266,6 +276,19 @@ func TestExpandOccurrences_tooFewOccurrences(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assertErr(t, start, rule, res.ErrRecurringSeriesTooFewOccurrences)
 		})
+	}
+}
+
+// The minimum of 2 applies to candidates before exclusion: excluded dates
+// come from occurrences the series once had, so it met the minimum then.
+func TestExpandOccurrences_excludedDatesDoNotCountTowardTooFew(t *testing.T) {
+	start := localAt(t, tokyo, 2026, time.March, 1, 9, 0)
+	rule := mustRule(t, daily, nil, until(t, 2026, time.March, 2), tokyo)
+	assertDates(t, start, rule, []string{"2026-03-01"}, excludedOn(t, "2026-03-02")...)
+
+	occs, err := expandHour(start, rule, excludedOn(t, "2026-03-01", "2026-03-02")...)
+	if err != nil || len(occs) != 0 {
+		t.Errorf("got %d occurrences, err %v; want 0, nil", len(occs), err)
 	}
 }
 
