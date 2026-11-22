@@ -9,6 +9,10 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain"
 )
 
+// Event is the aggregate root, so its interface grows with the aggregate's
+// fields; splitting it would not let any caller depend on less.
+//
+//nolint:interfacebloat // one accessor per field of the aggregate
 type Event interface {
 	ID() uuid.UUID
 	UserID() uuid.UUID
@@ -22,6 +26,14 @@ type Event interface {
 	Tags() []EventTag
 	// WithTags returns a copy of the event with its tags replaced by tags.
 	WithTags(tags []EventTag) (Event, error)
+	// SeriesID returns the recurring series the event is an occurrence of;
+	// ok is false for a one-off event.
+	SeriesID() (id uuid.UUID, ok bool)
+	// WithSeriesID returns a copy of the event as an occurrence of the series.
+	WithSeriesID(seriesID uuid.UUID) Event
+	// DetachFromSeries returns a copy of the event as a one-off event, so later
+	// changes to the series no longer reach it.
+	DetachFromSeries() Event
 }
 
 type eventEntity struct {
@@ -34,6 +46,7 @@ type eventEntity struct {
 	location    string
 	url         string
 	tags        []EventTag
+	seriesID    uuid.UUID
 }
 
 func New(
@@ -82,4 +95,20 @@ func (e *eventEntity) WithTags(tags []EventTag) (Event, error) {
 	copied := *e
 	copied.tags = sortedByPosition(tags)
 	return &copied, nil
+}
+
+// A series ID is a random UUID, so uuid.Nil never names a real series and
+// can stand for "not in a series".
+func (e *eventEntity) SeriesID() (uuid.UUID, bool) {
+	return e.seriesID, e.seriesID != uuid.Nil
+}
+
+func (e *eventEntity) WithSeriesID(seriesID uuid.UUID) Event {
+	copied := *e
+	copied.seriesID = seriesID
+	return &copied
+}
+
+func (e *eventEntity) DetachFromSeries() Event {
+	return e.WithSeriesID(uuid.Nil)
 }
