@@ -28,7 +28,7 @@ bash scripts/fetch-pr-review-threads.sh <PR番号> >| "$TMPDIR/pr-<PR番号>-thr
 git rev-parse HEAD
 ```
 
-出力のうち `needs_reply` が `true` のものだけを、対応するコメントとして一覧にする。`needs_reply` が `false` のものは、前回までに返信済みのコメントと `pr-review` のレビュー本文なので、一覧に入れない。
+出力のうち `needs_reply` が `true` のものだけを、対応するコメントとして一覧にする。`needs_reply` が `false` のものは、前回までに返信済みのコメントと `pr-review` のレビュー本文なので、一覧に入れない。`needs_reply` が `true` でも、下記で指摘として記録するコメントが、依頼・質問を含まない相槌（「了解です」「LGTM」など）だけの場合は一覧に入れない。
 
 - スレッド（`threads[]`）: `unanswered_comments` を指摘として記録する。それ以外のコメント（`comments`）は、返信の経緯として内容の把握に使う
 - レビュー本文（`reviews[]`）・通常コメント（`issue_comments[]`）: そのコメントを指摘として記録する
