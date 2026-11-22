@@ -237,13 +237,21 @@ func TestFollowingEnd_keepsNonCountEnd(t *testing.T) {
 	}
 }
 
-func TestFollowingEnd_rejectsTargetAfterEveryOccurrence(t *testing.T) {
-	s := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 10), tokyo))
-	start := localAt(t, tokyo, 2026, 12, 7, 10, 0)
+func TestFollowingEnd_rejectsTargetThatIsNotAnOccurrence(t *testing.T) {
+	count := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 10), tokyo))
+	indefinite := mustSeries(t, mustRule(t, weekly, nil, res.NewIndefiniteEnd(), tokyo))
+	first := localAt(t, tokyo, 2026, 12, 7, 10, 0)
+	second := localAt(t, tokyo, 2026, 12, 14, 10, 0)
 
-	_, err := s.FollowingEnd([]time.Time{start}, start.Add(time.Minute))
-	if err == nil {
-		t.Fatal("expected an error, got nil")
+	for name, target := range map[string]time.Time{
+		"between occurrences":    first.Add(30 * time.Minute),
+		"after every occurrence": second.Add(time.Minute),
+	} {
+		for _, s := range []res.RecurringEventSeries{count, indefinite} {
+			if _, err := s.FollowingEnd([]time.Time{first, second}, target); err == nil {
+				t.Errorf("%s, %s end: expected an error, got nil", name, s.Rule().End.Type())
+			}
+		}
 	}
 }
 

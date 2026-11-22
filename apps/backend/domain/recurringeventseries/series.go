@@ -90,11 +90,16 @@ func (s *seriesEntity) EndBefore(occurrenceStart time.Time) (RecurringEventSerie
 	return &copied, slices.Clone(s.excluded[i:])
 }
 
-// errNoFollowingOccurrence is not a DomainError: the caller passes target
+// errTargetNotAnOccurrence is not a DomainError: the caller passes target
 // from the series' own occurrences, so missing it is a bug, not user input.
-var errNoFollowingOccurrence = errors.New("no occurrence of the series starts at or after the target")
+var errTargetNotAnOccurrence = errors.New("the target is not the start of an occurrence of the series")
 
 func (s *seriesEntity) FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, error) {
+	// Checking membership catches a caller that passes the edited start
+	// instead of the stored one, which would count from the wrong instant.
+	if !slices.ContainsFunc(occurrenceStarts, target.Equal) {
+		return RecurrenceEnd{}, fmt.Errorf("%w: %s", errTargetNotAnOccurrence, target)
+	}
 	if _, ok := s.rule.End.Count(); !ok {
 		return s.rule.End, nil
 	}
@@ -103,9 +108,6 @@ func (s *seriesEntity) FollowingEnd(occurrenceStarts []time.Time, target time.Ti
 		if !start.Before(target) {
 			remaining++
 		}
-	}
-	if remaining == 0 {
-		return RecurrenceEnd{}, fmt.Errorf("%w: %s", errNoFollowingOccurrence, target)
 	}
 	return RestoreCountEnd(remaining)
 }
