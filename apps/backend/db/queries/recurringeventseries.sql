@@ -46,13 +46,19 @@ SET pattern_type = sqlc.arg('pattern_type'),
     timezone = sqlc.arg('timezone')
 WHERE id = sqlc.arg('id');
 
--- name: DeleteRecurringSeriesExceptions :exec
+-- name: DeleteRecurringSeriesExceptionsNotIn :exec
+-- Deletes only the dates no longer excluded, so the rows of the kept dates
+-- keep their created_at (when each date was excluded).
 DELETE FROM recurring_series_exceptions
-WHERE series_id = $1;
+WHERE series_id = sqlc.arg('series_id')
+  AND NOT (excluded_date = ANY(sqlc.arg('kept_dates')::date[]));
 
--- name: InsertRecurringSeriesExceptions :copyfrom
+-- name: InsertRecurringSeriesExceptions :exec
+-- ON CONFLICT skips the dates already stored, leaving their created_at as is.
 INSERT INTO recurring_series_exceptions (series_id, excluded_date)
-VALUES ($1, $2);
+SELECT sqlc.arg('series_id'), d
+FROM unnest(sqlc.arg('excluded_dates')::date[]) AS d
+ON CONFLICT (series_id, excluded_date) DO NOTHING;
 
 -- name: DeleteRecurringSeries :exec
 DELETE FROM recurring_event_series

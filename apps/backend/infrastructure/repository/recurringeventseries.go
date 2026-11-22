@@ -119,8 +119,9 @@ func (r *seriesRepository) FindByIDForUpdate(ctx context.Context, id uuid.UUID) 
 	return seriesFromRow(row, excluded)
 }
 
-// Update replaces the stored excluded dates with s.ExcludedDates(); the
-// series keeps few of them, so rewriting all is simpler than diffing.
+// Update makes the stored excluded dates match s.ExcludedDates(). It
+// touches only the dates that changed, so each kept row's created_at still
+// records when its date was excluded.
 func (r *seriesRepository) Update(ctx context.Context, s rs.RecurringEventSeries) error {
 	row, excluded := seriesRowOf(s)
 	spanCtx, span := r.startDBSpan(ctx, "UPDATE", recurringSeriesTable)
@@ -140,7 +141,12 @@ func (r *seriesRepository) Update(ctx context.Context, s rs.RecurringEventSeries
 	}
 
 	spanCtx, span = r.startDBSpan(ctx, "DELETE", recurringSeriesExceptionsTable)
-	err = r.querier(spanCtx).DeleteRecurringSeriesExceptions(spanCtx, row.ID)
+	err = r.querier(spanCtx).DeleteRecurringSeriesExceptionsNotIn(spanCtx,
+		query.DeleteRecurringSeriesExceptionsNotInParams{
+			SeriesID: row.ID,
+			// A nil slice would be sent as NULL, and NOT (x = ANY(NULL)) deletes nothing.
+			KeptDates: append([]pgtype.Date{}, excluded...),
+		})
 	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("delete recurring series exceptions query failed", "error", err)
@@ -270,12 +276,11 @@ func (r *seriesRepository) insertExceptions(
 	if len(excluded) == 0 {
 		return nil
 	}
-	params := make([]query.InsertRecurringSeriesExceptionsParams, 0, len(excluded))
-	for _, d := range excluded {
-		params = append(params, query.InsertRecurringSeriesExceptionsParams{SeriesID: toPgUUID(seriesID), ExcludedDate: d})
-	}
 	spanCtx, span := r.startDBSpan(ctx, "INSERT", recurringSeriesExceptionsTable)
-	_, err := r.querier(spanCtx).InsertRecurringSeriesExceptions(spanCtx, params)
+	err := r.querier(spanCtx).InsertRecurringSeriesExceptions(spanCtx, query.InsertRecurringSeriesExceptionsParams{
+		SeriesID:      toPgUUID(seriesID),
+		ExcludedDates: excluded,
+	})
 	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("insert recurring series exceptions query failed", "error", err)

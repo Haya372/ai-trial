@@ -209,6 +209,51 @@ func TestRecurringSeriesRepository_Update_ReplacesRuleAndExcludedDates(t *testin
 	assertSameSeries(t, got, want)
 }
 
+func TestRecurringSeriesRepository_Update_WithNoExcludedDates_RemovesAll(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	id := uuid.New()
+	createSeries(t, buildSeries(t, id, u.ID(), "daily", nil, rs.NewIndefiniteEnd(),
+		localDate(t, 2026, time.December, 1), localDate(t, 2026, time.December, 2)))
+
+	if err := newSeriesRepo().Update(context.Background(),
+		buildSeries(t, id, u.ID(), "daily", nil, rs.NewIndefiniteEnd())); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if n := countRows(t, "SELECT COUNT(*) FROM recurring_series_exceptions WHERE series_id = $1", id); n != 0 {
+		t.Errorf("expected no excluded dates, got %d", n)
+	}
+}
+
+func TestRecurringSeriesRepository_Update_KeepsCreatedAtOfRetainedExcludedDates(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	id := uuid.New()
+	kept := localDate(t, 2026, time.December, 1)
+	createSeries(t, buildSeries(t, id, u.ID(), "daily", nil, rs.NewIndefiniteEnd(), kept))
+	addedAt := time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := testPool.Exec(context.Background(),
+		"UPDATE recurring_series_exceptions SET created_at = $2 WHERE series_id = $1", id, addedAt); err != nil {
+		t.Fatalf("backdate created_at: %v", err)
+	}
+
+	if err := newSeriesRepo().Update(context.Background(), buildSeries(t, id, u.ID(), "daily", nil,
+		rs.NewIndefiniteEnd(), kept, localDate(t, 2026, time.December, 8))); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var got time.Time
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT created_at FROM recurring_series_exceptions WHERE series_id = $1 AND excluded_date = '2026-12-01'",
+		id).Scan(&got); err != nil {
+		t.Fatalf("read created_at: %v", err)
+	}
+	if !got.Equal(addedAt) {
+		t.Errorf("expected the retained excluded date to keep created_at %v, got %v", addedAt, got)
+	}
+}
+
 func TestRecurringSeriesTable_Update_AdvancesUpdatedAt(t *testing.T) {
 	setupTest(t)
 	u := createTestUser(t)
