@@ -6,8 +6,8 @@ import {
   type Page,
 } from '@playwright/test'
 import { expectStatus, UserApi } from './support/api'
-import { getSignupUrl, type SignupRequest } from './support/generated/api'
 import { FIXED_NOW } from './support/clock'
+import { getSignupUrl, type SignupRequest } from './support/generated/api'
 
 export type TestUser = {
   email: string
