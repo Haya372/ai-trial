@@ -350,3 +350,41 @@ func TestExpandOccurrences_movesStartForwardByGapSize(t *testing.T) {
 		t.Errorf("second occurrence = %v, want 2026-10-04 02:45", got)
 	}
 }
+
+func TestExpandOccurrences_repeatedWallClockResolvesToFirstInstance(t *testing.T) {
+	// On a fall-back day the wall-clock time occurs twice. Like RFC 5545, the
+	// first instance (the offset before the change) is used in every zone.
+	cases := map[string]struct {
+		tz    string
+		start time.Time
+		want  time.Time
+	}{
+		"east of UTC": {
+			"Europe/Berlin", localAt(t, "Europe/Berlin", 2026, time.October, 24, 2, 30),
+			time.Date(2026, 10, 25, 0, 30, 0, 0, time.UTC), // 02:30 CEST
+		},
+		"west of UTC": {
+			newYork, localAt(t, newYork, 2026, time.October, 31, 1, 30),
+			time.Date(2026, 11, 1, 5, 30, 0, 0, time.UTC), // 01:30 EDT
+		},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			occs, err := expandHour(c.start, mustRule(t, daily, nil, mustCount(t, 2), c.tz))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !occs[1].StartAt.Equal(c.want) {
+				t.Errorf("second occurrence = %v, want %v", occs[1].StartAt, c.want)
+			}
+		})
+	}
+}
+
+func TestExpandOccurrences_skipsDayRemovedFromCalendar(t *testing.T) {
+	// Samoa skipped 2011-12-30 entirely when it moved across the date line.
+	const apia = "Pacific/Apia"
+	start := localAt(t, apia, 2011, time.December, 29, 10, 0)
+	assertDates(t, start, mustRule(t, daily, nil, mustCount(t, 3), apia),
+		[]string{"2011-12-29", "2011-12-31", "2012-01-01"})
+}

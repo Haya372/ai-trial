@@ -44,50 +44,61 @@ func ExpandOccurrences(
 		return nil, err
 	}
 
-	dates, candidates := occurrenceDates(rule.Pattern, first, stop, excluded)
+	startAt := func(d LocalDate) (time.Time, bool) {
+		// The first occurrence keeps the instant the user sent, which already
+		// tells which of two repeated wall-clock times was meant.
+		if d == first {
+			return firstStart.UTC(), true
+		}
+		return atWallClock(d, localStart, loc)
+	}
+	starts, candidates := occurrenceStarts(rule.Pattern, first, stop, excluded, startAt)
 	if count, ok := rule.End.Count(); ok {
-		if len(dates) < count {
+		if len(starts) < count {
 			return nil, fmt.Errorf("%w: %d occurrences do not fit by %s", ErrRecurringSeriesSpanExceeded, count, stop)
 		}
-		dates = dates[:count]
+		starts = starts[:count]
 	} else if candidates < minCount {
 		return nil, fmt.Errorf("%w: got %d", ErrRecurringSeriesTooFewOccurrences, candidates)
 	}
 
 	duration := firstEnd.Sub(firstStart)
-	occs := make([]Occurrence, len(dates))
-	for i, d := range dates {
-		// The first occurrence keeps the instant the user sent: on a fall-back
-		// day its wall-clock time is ambiguous and could resolve an hour off.
-		start := firstStart.UTC()
-		if d != first {
-			start = atWallClock(d, localStart, loc)
-		}
+	occs := make([]Occurrence, len(starts))
+	for i, start := range starts {
 		occs[i] = Occurrence{StartAt: start, EndAt: start.Add(duration)}
 	}
 	return occs, nil
 }
 
-// occurrenceDates returns the non-excluded dates up to stop, and the number
-// of candidate dates before exclusion.
-func occurrenceDates(p RecurrencePattern, first, stop LocalDate, excluded []ExcludedDate) ([]LocalDate, int) {
+// occurrenceStarts returns the start of each non-excluded candidate up to
+// stop, and the number of candidates before exclusion. A date whose start
+// does not exist (a day removed from the calendar) is not a candidate, like
+// a month without the day.
+func occurrenceStarts(
+	p RecurrencePattern, first, stop LocalDate, excluded []ExcludedDate,
+	startAt func(LocalDate) (time.Time, bool),
+) ([]time.Time, int) {
 	isExcluded := make(map[LocalDate]bool, len(excluded))
 	for _, e := range excluded {
 		isExcluded[e.Date()] = true
 	}
-	var dates []LocalDate
+	var starts []time.Time
 	candidates := 0
 	for k := 0; ; k++ {
 		c := candidateAt(p, first, k)
 		if c.periodStart.After(stop) || (c.exists && c.date.After(stop)) {
-			return dates, candidates
+			return starts, candidates
 		}
 		if !c.exists {
 			continue
 		}
+		start, ok := startAt(c.date)
+		if !ok {
+			continue
+		}
 		candidates++
 		if !isExcluded[c.date] {
-			dates = append(dates, c.date)
+			starts = append(starts, start)
 		}
 	}
 }
@@ -163,25 +174,40 @@ func spanLimit(first LocalDate) LocalDate {
 	return LocalDate{year: y, month: first.month, day: min(first.day, daysIn(y, first.month))}
 }
 
-func atWallClock(d LocalDate, clock time.Time, loc *time.Location) time.Time {
-	t := time.Date(d.year, d.month, d.day,
-		clock.Hour(), clock.Minute(), clock.Second(), clock.Nanosecond(), loc)
+// atWallClock returns the instant of clock's wall-clock time on d, resolved
+// like RFC 5545 and common calendars: a time repeated on a fall-back day is
+// the first instance, and a time in a gap uses the offset before the gap,
+// which moves it forward. time.Date resolves both differently by zone. ok is
+// false when d itself was removed from the calendar.
+func atWallClock(d LocalDate, clock time.Time, loc *time.Location) (time.Time, bool) {
 	want := time.Date(d.year, d.month, d.day,
 		clock.Hour(), clock.Minute(), clock.Second(), clock.Nanosecond(), time.UTC)
-	got := naiveWallClock(t)
-	if got.Equal(want) {
-		return t.UTC()
-	}
-	// The wall-clock time falls in a DST gap, and time.Date moves it either
-	// way depending on the zone. RFC 5545 and common calendars resolve it with
-	// the offset in effect before the gap, which moves it forward.
+	t := time.Date(d.year, d.month, d.day,
+		clock.Hour(), clock.Minute(), clock.Second(), clock.Nanosecond(), loc)
+
+	// Every instant that reads as want lies in t's zone period or a
+	// neighboring one; the earliest of them is the first instance.
 	start, end := t.ZoneBounds()
+	var first time.Time
+	for _, o := range []time.Time{start.Add(-time.Nanosecond), t, end} {
+		_, offset := o.Zone()
+		inst := want.Add(-time.Duration(offset) * time.Second)
+		if naiveWallClock(inst.In(loc)).Equal(want) && (first.IsZero() || inst.Before(first)) {
+			first = inst
+		}
+	}
+	if !first.IsZero() {
+		return first.UTC(), true
+	}
+
+	// want falls in a gap: use the offset before it.
 	transition := end
-	if got.After(want) {
+	if naiveWallClock(t).After(want) {
 		transition = start
 	}
 	_, offsetBefore := transition.Add(-time.Nanosecond).Zone()
-	return want.Add(-time.Duration(offsetBefore) * time.Second)
+	inst := want.Add(-time.Duration(offsetBefore) * time.Second)
+	return inst, LocalDateOf(inst.In(loc)) == d
 }
 
 // naiveWallClock returns t's wall-clock reading as if it were UTC, so wall
