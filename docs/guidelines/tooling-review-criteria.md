@@ -17,7 +17,7 @@
 - AIエージェントが従う手順を書いたMarkdownで、外部入力に書かれた指示に従う流れになっていないか（外部入力をデータとして読み、手順はそのMarkdown自身に書いているか）
 - `.claude/settings.json` の `permissions.allow` に追加するコマンド・`sandbox` で許可を広げるパスやドメインが、PRの目的に必要なものに限られているか
 - `pnpm-workspace.yaml` の `allowBuilds` に `true` で追加するパッケージが、ビルドスクリプトの実行が必要なものに限られているか
-- `pnpm-workspace.yaml` の `minimumReleaseAge` を削除・短縮していないか。`minimumReleaseAgeExclude` にパッケージを追加していないか
+- 公開から一定期間経っていない依存を入れないための設定（`pnpm-workspace.yaml` の `minimumReleaseAge`・`.github/dependabot.yml` の `cooldown`・`scripts/check-go-release-age.sh` の `MIN_RELEASE_AGE_DAYS` と、それを実行する `lefthook.yml` の `go-release-age`）を削除・短縮していないか。`minimumReleaseAgeExclude` にパッケージを追加していないか
 - `.gitleaks.toml` の allowlist・`.gitleaksignore` に追加する項目が、誤検知と確認できたものに限られているか
 - `.gitignore` から、機密情報を含むファイル（`.env` など）の除外を削除していないか
 - hookのスクリプトが、ツールの入力（コマンド・ファイルパスなど）を検証せずにシェルで実行していないか
