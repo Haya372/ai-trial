@@ -1,7 +1,7 @@
 # 繰り返し予定 仕様書
 
 - 作成日: 2026-11-14
-- 更新日: 2026-11-14
+- 更新日: 2026-11-23
 - ステータス: PDM合意済
 
 ## PRD参照
@@ -130,12 +130,14 @@
 | `recurring_event_series` | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 作成日時 |
 | `recurring_event_series` | `updated_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()`, トリガー `update_recurring_event_series_updated_at` で UPDATE 時に自動更新 | 更新日時 |
 | `recurring_event_series` | （インデックス） | - | `idx_recurring_event_series_user_id` on (`user_id`) | ユーザー単位の一覧取得用 |
+| `recurring_event_series` | （一意制約） | - | UNIQUE (`id`, `user_id`) | `events` の複合外部キーの参照先 |
 | `recurring_series_exceptions` | `series_id` | `UUID` | NOT NULL, REFERENCES `recurring_event_series(id)` ON DELETE CASCADE | 除外日が属するシリーズ。シリーズ削除で除外日も削除 |
 | `recurring_series_exceptions` | `excluded_date` | `DATE` | NOT NULL | シリーズの `timezone` におけるローカル日付 |
 | `recurring_series_exceptions` | `created_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 追加日時 |
 | `recurring_series_exceptions` | （主キー） | - | PRIMARY KEY (`series_id`, `excluded_date`) | 同一シリーズ内の除外日の重複防止 |
-| `events` | `series_id` | `UUID` | NULL 許容, REFERENCES `recurring_event_series(id)` ON DELETE CASCADE | SPEC-009 で追加。属するシリーズのID。NULL は単発の予定。シリーズ削除で回も削除。「この予定のみ変更」で NULL に戻す（切り離し） |
-| `events` | （インデックス） | - | `idx_events_series_id` on (`series_id`) | シリーズ内の回を一括取得（「以降すべて」「すべて」）する用 |
+| `events` | `series_id` | `UUID` | NULL 許容 | SPEC-009 で追加。属するシリーズのID。NULL は単発の予定。「この予定のみ変更」で NULL に戻す（切り離し） |
+| `events` | （外部キー） | - | FOREIGN KEY (`series_id`, `user_id`) REFERENCES `recurring_event_series(id, user_id)` ON DELETE CASCADE | 予定の所有者とシリーズの所有者の一致を保証する。`series_id` が NULL の行は検査しない（MATCH SIMPLE）。シリーズ削除で回も削除 |
+| `events` | （インデックス） | - | `idx_events_series_id` on (`series_id`, `start_at`) | シリーズ内の回を一括取得（「以降すべて」「すべて」）する用。`start_at` での範囲指定・並べ替えもインデックスで行う |
 
 パターン判定に必要な「曜日」「日付」はシリーズに保存せず、各回の `start_at` を `recurring_event_series.timezone` のローカル時刻へ変換して導出する（同じシリーズ内のどの回を使っても同じ結果が得られる）。「毎月 第N曜日」の `N` だけは「第4月曜日」と「最終月曜日」が同じ日に重なる月では日付からの判別ができないため、`monthly_nth` としてユーザーの明示的な選択を保存する。
 
