@@ -81,7 +81,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 |---|---|
 | 既存スレッドと同じ内容で、そのスレッドが解決済み | 除く |
 | 既存スレッドと同じ内容で、`last_comment_is_pr_review_reply` が `true` | 返信せず、ステップ6の報告で未対応のスレッドとして挙げる（前回のレビューで返信した後、作成者が答えていない） |
-| 既存スレッドと同じ内容で、`needs_reply` が `false`、または `unanswered_comments` が依頼・質問を含まない相槌（「了解です」など）だけ | 除く。返信の内容でまだ問題が残る場合だけ、そのスレッドへの返信として投稿する |
+| 既存スレッドと同じ内容で、`needs_reply` が `false`、または `unanswered_comments` が依頼・質問を含まない相槌（「了解です」「LGTM」など）だけ | 除く。返信の内容でまだ問題が残る場合だけ、そのスレッドへの返信として投稿する |
 | 既存スレッドと同じ内容で、`needs_reply` が `true`、かつ `is_outdated` が `true` | `git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードが今どうなっているかを確認する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。問題が残っていれば、そのスレッドへの返信として投稿する。残っていなければ除く |
 | 既存スレッドと同じ内容で、`needs_reply` が `true`、かつ `is_outdated` が `false` | 新しく投稿せず、ステップ6の報告で未対応のスレッドとして挙げる |
 | ステップ2の対象の差分に含まれない行への指摘で、対象の差分の変更が原因ではない | 除く |
