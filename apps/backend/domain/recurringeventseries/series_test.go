@@ -11,7 +11,10 @@ import (
 	res "github.com/Haya372/ai-trial/backend/domain/recurringeventseries"
 )
 
-const dec7 = "2026-12-07"
+const (
+	dec7  = "2026-12-07"
+	dec28 = "2026-12-28"
+)
 
 func excludedOn(t *testing.T, dates ...string) []res.ExcludedDate {
 	t.Helper()
@@ -214,7 +217,7 @@ func TestFollowingEnd_countIsRemainingCandidatesFromTarget(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := mustSeries(t, rule, c.excluded...)
-			got, err := s.FollowingEnd(c.starts, c.target)
+			got, _, err := s.FollowingEnd(c.starts, c.target, c.target)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -231,7 +234,7 @@ func TestFollowingEnd_keepsUntilDateEnd(t *testing.T) {
 	end := until(t, 2027, 6, 30)
 	s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo))
 
-	got, err := s.FollowingEnd([]time.Time{start, next}, start)
+	got, _, err := s.FollowingEnd([]time.Time{start, next}, start, start)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -249,7 +252,7 @@ func TestFollowingEnd_indefiniteEndsOnTheLastOccurrence(t *testing.T) {
 	last := localAt(t, tokyo, 2028, 1, 1, 0, 30)
 	starts := []time.Time{last, localAt(t, tokyo, 2026, 1, 1, 10, 0), target}
 
-	got, err := s.FollowingEnd(starts, target)
+	got, _, err := s.FollowingEnd(starts, target, target)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -265,7 +268,7 @@ func TestFollowingEnd_indefiniteWithOneOccurrenceLeftBecomesCountOne(t *testing.
 	prev := localAt(t, tokyo, 2026, 12, 28, 10, 0)
 	last := localAt(t, tokyo, 2027, 1, 4, 10, 0)
 
-	got, err := s.FollowingEnd([]time.Time{prev, last}, last)
+	got, _, err := s.FollowingEnd([]time.Time{prev, last}, last, last)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -282,7 +285,7 @@ func TestFollowingEnd_untilDateWithOneOccurrenceLeftBecomesCountOne(t *testing.T
 	prev := localAt(t, tokyo, 2026, 12, 28, 10, 0)
 	last := localAt(t, tokyo, 2027, 1, 4, 10, 0)
 
-	got, err := s.FollowingEnd([]time.Time{prev, last}, last)
+	got, _, err := s.FollowingEnd([]time.Time{prev, last}, last, last)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -297,6 +300,57 @@ func TestFollowingEnd_untilDateWithOneOccurrenceLeftBecomesCountOne(t *testing.T
 	}
 }
 
+func TestFollowingEnd_takesOverExcludedDatesFromTheTargetOn(t *testing.T) {
+	s := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 10), tokyo),
+		excludedOn(t, "2026-12-14", dec28, "2027-01-11")...)
+	target := localAt(t, tokyo, 2026, 12, 21, 10, 0)
+	// A new time on the same local date keeps the weekday of the series.
+	moved := localAt(t, tokyo, 2026, 12, 21, 15, 0)
+	starts := []time.Time{localAt(t, tokyo, 2026, 12, 7, 10, 0), target, localAt(t, tokyo, 2027, 1, 4, 10, 0)}
+
+	_, excluded, err := s.FollowingEnd(starts, target, moved)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := make([]string, len(excluded))
+	for i, e := range excluded {
+		got[i] = e.Date().String()
+	}
+	if want := []string{dec28, "2027-01-11"}; !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// Moving the target to another date moves the weekday or day of the month
+// of the new series, so the excluded dates no longer fall on its candidates.
+// Counting the remaining occurrences keeps how many the calendar shows.
+func TestFollowingEnd_movedDateCountsRemainingOccurrencesAndDropsExcludedDates(t *testing.T) {
+	target := localAt(t, tokyo, 2026, 12, 21, 10, 0)
+	moved := localAt(t, tokyo, 2026, 12, 22, 10, 0)
+	starts := []time.Time{localAt(t, tokyo, 2026, 12, 7, 10, 0), target,
+		localAt(t, tokyo, 2027, 1, 4, 10, 0), localAt(t, tokyo, 2027, 1, 18, 10, 0)}
+
+	for name, end := range map[string]res.RecurrenceEnd{
+		"count":      mustCount(t, 10),
+		"until_date": until(t, 2027, 6, 30),
+		"indefinite": res.NewIndefiniteEnd(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo), excludedOn(t, dec28, "2027-01-11")...)
+			got, excluded, err := s.FollowingEnd(starts, target, moved)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if n, ok := got.Count(); !ok || n != 3 {
+				t.Errorf("got %+v, want count 3", got)
+			}
+			if len(excluded) != 0 {
+				t.Errorf("got excluded %v, want none", excluded)
+			}
+		})
+	}
+}
+
 func TestFollowingEnd_rejectsTargetThatIsNotAnOccurrence(t *testing.T) {
 	count := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 10), tokyo))
 	indefinite := mustSeries(t, mustRule(t, weekly, nil, res.NewIndefiniteEnd(), tokyo))
@@ -308,7 +362,7 @@ func TestFollowingEnd_rejectsTargetThatIsNotAnOccurrence(t *testing.T) {
 		"after every occurrence": second.Add(time.Minute),
 	} {
 		for _, s := range []res.RecurringEventSeries{count, indefinite} {
-			if _, err := s.FollowingEnd([]time.Time{first, second}, target); err == nil {
+			if _, _, err := s.FollowingEnd([]time.Time{first, second}, target, target); err == nil {
 				t.Errorf("%s, %s end: expected an error, got nil", name, s.Rule().End.Type())
 			}
 		}
