@@ -63,7 +63,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | 要件・スコープ | Issueの要件・受け入れ条件をすべて満たしているか。要件と無関係な変更が含まれていないか |
 | 仕様 | 振る舞いが仕様書の記述に沿っているか |
 | 正しさ | Claude Codeでは `code-review` スキルを `--comment` なしで呼ぶ（例: `code-review high <PR番号>`）。`--max-findings` は指定しない（指定すると、`--max-findings default` を渡すまで以降の `/code-review` にも設定が残る）。それ以外のツールでは、対象の差分の変更ごとに、境界値・null・エラー時の分岐・並行実行で誤った結果になる入力がないかをコードを辿って確認する |
-| セキュリティ | Claude Codeで、現在のブランチ（`git branch --show-current`）が `headRefName` と一致し、HEADが `headRefOid` と一致する場合は `/security-review` を実行する（`/security-review` は現在のブランチの差分をレビューする）。それ以外の場合は、対象の差分を、変更したファイルが当たる下表の行の参照先にある「セキュリティ」に沿って確認する。下表のどの行にも当たらないファイルは、`docs/guidelines/backend-review-criteria.md` の「セキュリティ」に沿って確認する |
+| セキュリティ | Claude Codeで、現在のブランチ（`git branch --show-current`）が `headRefName` と一致し、HEADが `headRefOid` と一致する場合は `/security-review` を実行する（`/security-review` は現在のブランチの差分をレビューする）。それ以外の場合は、対象の差分を、変更したファイルが当たる下表の行の参照先にある「セキュリティ」に沿って確認する。当たる行の参照先のどれにも「セキュリティ」がないファイル（どの行にも当たらないファイルを含む）は、`docs/guidelines/tooling-review-criteria.md` の「セキュリティ」に沿って確認する |
 | ガイドライン | 変更したファイルの種類に応じて参照する（下表） |
 | テスト | `docs/guidelines/test-guidelines.md` に沿って、テストケースの網羅とテストの品質を確認する |
 
@@ -72,9 +72,9 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | `apps/backend/` | `docs/guidelines/backend-review-criteria.md` |
 | `apps/web/`・`packages/ui/` | `docs/guidelines/frontend-review-criteria.md` |
 | Markdownドキュメント・スキル | `docs/guidelines/document-review-criteria.md` |
-| アプリケーションコード（`apps/`・`packages/` 配下の `.go`・`.sql`・`.ts`・`.tsx`・`.css`・`.html` と、`packages/schema/` 配下のOpenAPI定義）とMarkdownドキュメント以外のファイル、AIエージェントが手順として読むMarkdown（スキル・エージェント定義・`AGENTS.md`・`CLAUDE.md`） | `docs/guidelines/tooling-review-criteria.md` |
+| 拡張子が `.go`・`.sql`・`.ts`・`.tsx`・`.css`・`.html`・`.md` 以外のファイル | `docs/guidelines/tooling-review-criteria.md` |
 
-1つのファイルが複数の行に当たる場合（`apps/web/package.json`・スキルなど）は、当たるすべての行の参照先で確認する。
+1つのファイルが複数の行に当たる場合（`apps/web/package.json` など）は、当たるすべての行の参照先で確認する。
 
 ### ステップ 4: 指摘を絞り込む
 
