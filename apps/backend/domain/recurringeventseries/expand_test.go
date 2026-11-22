@@ -315,3 +315,38 @@ func TestExpandOccurrences_rejectsUninitializedRule(t *testing.T) {
 		})
 	}
 }
+
+func TestExpandOccurrences_movesStartInDSTGapForward(t *testing.T) {
+	// 02:30 does not exist in New York on 2026-03-08. Like RFC 5545 and common
+	// calendars, it resolves with the offset before the gap: 03:30 EDT.
+	start := localAt(t, newYork, 2026, time.March, 7, 2, 30)
+	occs, err := expandHour(start, mustRule(t, daily, nil, mustCount(t, 3), newYork))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []time.Time{
+		time.Date(2026, 3, 7, 7, 30, 0, 0, time.UTC), // 02:30 EST
+		time.Date(2026, 3, 8, 7, 30, 0, 0, time.UTC), // 03:30 EDT
+		time.Date(2026, 3, 9, 6, 30, 0, 0, time.UTC), // 02:30 EDT
+	}
+	for i, o := range occs {
+		if !o.StartAt.Equal(want[i]) || o.EndAt.Sub(o.StartAt) != time.Hour {
+			t.Errorf("occurrence %d = %v - %v, want start %v and 1h", i, o.StartAt, o.EndAt, want[i])
+		}
+	}
+}
+
+func TestExpandOccurrences_movesStartForwardByGapSize(t *testing.T) {
+	// Lord Howe Island skips 02:00-02:30 on 2026-10-04, a 30-minute gap.
+	const lordHowe = "Australia/Lord_Howe"
+	start := localAt(t, lordHowe, 2026, time.October, 3, 2, 15)
+	rule := mustRule(t, daily, nil, mustCount(t, 2), lordHowe)
+	occs, err := expandHour(start, rule)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got := occs[1].StartAt.In(rule.Timezone.Location())
+	if got.Day() != 4 || got.Hour() != 2 || got.Minute() != 45 {
+		t.Errorf("second occurrence = %v, want 2026-10-04 02:45", got)
+	}
+}

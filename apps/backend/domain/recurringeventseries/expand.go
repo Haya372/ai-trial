@@ -164,6 +164,28 @@ func spanLimit(first LocalDate) LocalDate {
 }
 
 func atWallClock(d LocalDate, clock time.Time, loc *time.Location) time.Time {
-	return time.Date(d.year, d.month, d.day,
-		clock.Hour(), clock.Minute(), clock.Second(), clock.Nanosecond(), loc).UTC()
+	t := time.Date(d.year, d.month, d.day,
+		clock.Hour(), clock.Minute(), clock.Second(), clock.Nanosecond(), loc)
+	want := time.Date(d.year, d.month, d.day,
+		clock.Hour(), clock.Minute(), clock.Second(), clock.Nanosecond(), time.UTC)
+	got := naiveWallClock(t)
+	if got.Equal(want) {
+		return t.UTC()
+	}
+	// The wall-clock time falls in a DST gap, and time.Date moves it either
+	// way depending on the zone. RFC 5545 and common calendars resolve it with
+	// the offset in effect before the gap, which moves it forward.
+	start, end := t.ZoneBounds()
+	transition := end
+	if got.After(want) {
+		transition = start
+	}
+	_, offsetBefore := transition.Add(-time.Nanosecond).Zone()
+	return want.Add(-time.Duration(offsetBefore) * time.Second)
+}
+
+// naiveWallClock returns t's wall-clock reading as if it were UTC, so wall
+// clocks in different offsets can be compared.
+func naiveWallClock(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 }
