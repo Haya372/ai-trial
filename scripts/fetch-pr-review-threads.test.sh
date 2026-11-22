@@ -28,7 +28,7 @@ EOF
 thread() {
   # $1: スレッドのコメントの配列（author と body だけ）
   jq -c '{
-    isResolved: false, isOutdated: false, path: "a.md", line: 1, startLine: null,
+    id: "PRRT_1", isResolved: false, isOutdated: false, path: "a.md", line: 1, startLine: null,
     originalLine: 1, originalStartLine: null, diffSide: "RIGHT",
     comments: {nodes: [to_entries[] | {
       databaseId: (.key + 100), author: {login: .value[0]}, body: .value[1],
@@ -85,6 +85,7 @@ assert() {
 }
 
 assert "作成者を出力する" '.author' '"author"'
+assert "スレッドのnode IDを出力する" '.threads[0].thread_id' '"PRRT_1"'
 assert "pr-reviewのレビューを起点にする" '.last_review_commit_id' '"c1"'
 
 assert "返信がないスレッドは全コメントが未返信" '.threads[0] | [.needs_reply, [.unanswered_comments[].id]]' '[true,[100]]'

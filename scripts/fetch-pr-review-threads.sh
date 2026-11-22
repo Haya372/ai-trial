@@ -34,6 +34,7 @@ gh api graphql --paginate --slurp \
           reviewThreads(first: 100, after: $endCursor) {
             pageInfo { hasNextPage endCursor }
             nodes {
+              id
               isResolved
               isOutdated
               path

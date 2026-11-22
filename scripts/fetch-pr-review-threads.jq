@@ -38,6 +38,8 @@ def is_author_reply: (.author | login_key) == ($author | login_key) and (is_pr_r
     # 作成者の最後の返信より後のコメント。作成者の返信がなければすべてのコメント
     | (if $last_author_reply == null then $comments else $comments[$last_author_reply + 1:] end) as $unanswered
     | {
+        # resolveReviewThread で使う
+        thread_id: .id,
         is_resolved: .isResolved,
         is_outdated: .isOutdated,
         path,
