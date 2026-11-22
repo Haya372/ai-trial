@@ -81,7 +81,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 |---|---|
 | 既存スレッドと同じ内容で、そのスレッドが解決済み | 除く |
 | 既存スレッドと同じ内容で、`last_comment_is_pr_review_reply` が `true` | 返信せず、ステップ6の報告で未対応のスレッドとして挙げる（前回のレビューで返信した後、作成者が答えていない） |
-| 既存スレッドと同じ内容で、`needs_reply` が `false`、または `unanswered_comments` が依頼・質問を含まない相槌（「了解です」「LGTM」など）だけ | 除く。返信の内容でまだ問題が残る場合だけ、そのスレッドへの返信として投稿する |
+| 既存スレッドと同じ内容で、`needs_reply` が `false`、または `unanswered_comments` が依頼・質問を含まないコメント（「了解です」「LGTM」などの相槌、作成者自身のメモ）だけ | 除く。返信の内容でまだ問題が残る場合だけ、そのスレッドへの返信として投稿する |
 | 既存スレッドと同じ内容で、`needs_reply` が `true`、かつ `is_outdated` が `true` | `git fetch origin <comments[0].original_commit_id>` を実行してから（リベース後はローカルにないため）、指摘したコードが今どうなっているかを確認する。指摘したコードは、`diff_side` が `RIGHT` なら `git show <original_commit_id>:<path>`、`LEFT` なら `git show $(git merge-base origin/<baseRefName> <original_commit_id>):<path>` の `original_line` 行目にある。問題が残っていれば、そのスレッドへの返信として投稿する。残っていなければ除く |
 | 既存スレッドと同じ内容で、`needs_reply` が `true`、かつ `is_outdated` が `false` | 新しく投稿せず、ステップ6の報告で未対応のスレッドとして挙げる |
 | ステップ2の対象の差分に含まれない行への指摘で、対象の差分の変更が原因ではない | 除く |
@@ -89,6 +89,13 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 | 上のどれにも当たらない | 投稿する |
 
 既存スレッドとの照合では、`threads[].path` とファイルが一致するスレッドに加え、`reviews[].body`・`issue_comments[].body` の内容も確認する。
+
+新しい指摘との照合とは別に、未解決のスレッドのうち、`comments[0].body` が `<!-- pr-review -->` で始まり（`pr-review` の指摘）、`needs_reply` が `false` のもの（作成者が返信済み）は、作成者の返信と `headRefOid` のコードを読んで扱いを決める。
+
+| 状態 | 扱い |
+|---|---|
+| 指摘した問題が解消している、または対応しない理由で問題が起きないことを確認できる | ステップ5でresolveする |
+| 問題が残っている | そのスレッドへの返信として投稿する（resolveしない） |
 
 「投稿する」になった指摘は、該当するコードを読み直して確信度を判断する。
 
@@ -114,7 +121,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
   "event": "COMMENT",
   "body": "<!-- pr-review -->\n<確認した観点と、指摘件数の要約>",
   "comments": [
-    { "path": "<ファイルパス>", "line": 42, "side": "RIGHT", "body": "<指摘>" }
+    { "path": "<ファイルパス>", "line": 42, "side": "RIGHT", "body": "<!-- pr-review -->\n<指摘>" }
   ]
 }
 ```
@@ -129,6 +136,8 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<pay
 - 複数行への指摘は `start_line` と `line` で範囲を指定する
 - 指摘は `body` に書かず、すべてインラインコメントにする。差分に含まれない行への指摘（呼び出し元への影響など）は、原因になった変更行にコメントし、影響を受ける箇所をファイルパスと行番号で書く。PRで変更していないファイルだけに関わる指摘は、投稿せずステップ6でユーザーに伝える
 - `body` の先頭に `<!-- pr-review -->` を書く。この印のあるレビューだけが、次回のレビューで `last_review_commit_id` の起点になる
+- インラインの指摘の本文の先頭にも `<!-- pr-review -->` を書く。次回のレビューで、resolveを判断するスレッドを見分けるために使う
+- ステップ4でresolveすると決めたスレッドは、レビューを投稿した後に `gh api graphql -f query='mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }' -f id=<threads[].thread_id>` でresolveする。resolveしたスレッドの件数は `body` にも書く
 - 既存スレッドへの返信は、先頭に `<!-- pr-review -->` を書いた本文をpayloadと同じ場所のファイルに書き、`gh api repos/{owner}/{repo}/pulls/<PR番号>/comments/<comment_id>/replies --method POST -F body=@<返信ファイルの絶対パス>` で投稿する（`comment_id` は `threads[].comments[0].id`）。本文をコマンドラインに書くと、バッククォートがシェルのコマンド置換として実行される
 
 ### ステップ 6: ユーザーに報告する
@@ -139,6 +148,7 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<pay
 - 仕様への質問（ステップ4で投稿しなかったもの）
 - 確信度が中の指摘と、PRで変更していないファイルだけに関わる指摘
 - 作成者が返信していない未解決のスレッド
+- resolveしたスレッドの件数
 
 ---
 
@@ -153,4 +163,5 @@ gh api repos/{owner}/{repo}/pulls/<PR番号>/reviews --method POST --input "<pay
 - [ ] 投稿する指摘の確信度を判断し、高のものだけを投稿したか
 - [ ] 指摘をすべてインラインコメントにしたか
 - [ ] 指摘が0件の場合に、確認した観点を添えて「問題なし」を投稿したか
-- [ ] レビューの `body` の先頭に `<!-- pr-review -->` を書いたか
+- [ ] レビューの `body` とインラインの指摘の先頭に `<!-- pr-review -->` を書いたか
+- [ ] 作成者が返信済みの `pr-review` のスレッドを確認し、解消していればresolveしたか
