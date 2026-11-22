@@ -339,9 +339,9 @@ func TestFollowingEnd_takesOverExcludedDatesFromTheTargetOn(t *testing.T) {
 }
 
 // Moving the target to another date moves the weekday or day of the month
-// of the new series, so the excluded dates no longer fall on its candidates.
-// Counting the remaining occurrences keeps how many the calendar shows.
-func TestFollowingEnd_movedDateCountsRemainingOccurrencesAndDropsExcludedDates(t *testing.T) {
+// of the new series. Ending on the last occurrence shifted by the same days
+// keeps the new series within its 2-year window whatever the pattern skips.
+func TestFollowingEnd_movedDateEndsOnTheShiftedLastOccurrence(t *testing.T) {
 	target := localAt(t, tokyo, 2026, 12, 21, 10, 0)
 	moved := localAt(t, tokyo, 2026, 12, 22, 10, 0)
 	starts := []time.Time{localAt(t, tokyo, 2026, 12, 7, 10, 0), target,
@@ -353,19 +353,101 @@ func TestFollowingEnd_movedDateCountsRemainingOccurrencesAndDropsExcludedDates(t
 		"indefinite": res.NewIndefiniteEnd(),
 	} {
 		t.Run(name, func(t *testing.T) {
-			s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo), excludedOn(t, dec28, "2027-01-11")...)
+			s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo), excludedOn(t, "2026-12-14", dec28)...)
 			got, excluded, err := s.FollowingEnd(starts, target, moved)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if n, ok := got.Count(); !ok || n != 3 {
-				t.Errorf("got %+v, want count 3", got)
+			if d, ok := got.UntilDate(); !ok || d.String() != "2027-01-19" {
+				t.Errorf("got %+v, want until 2027-01-19", got)
 			}
-			if len(excluded) != 0 {
-				t.Errorf("got excluded %v, want none", excluded)
+			if over, want := dateStrings(excluded), []string{dec28}; !slices.Equal(over, want) {
+				t.Errorf("got excluded %v, want %v", over, want)
 			}
 		})
 	}
+}
+
+// Excluded dates may still fall on the moved series' candidates, as on a
+// daily rule; taking them over keeps deleted and detached occurrences gone.
+func TestFollowingEnd_movedDailyKeepsDeletedOccurrencesGone(t *testing.T) {
+	s := mustSeries(t, mustRule(t, daily, nil, res.NewIndefiniteEnd(), tokyo), excludedOn(t, "2026-12-10")...)
+	target := localAt(t, tokyo, 2026, 12, 8, 10, 0)
+	moved := localAt(t, tokyo, 2026, 12, 9, 10, 0)
+	starts := []time.Time{localAt(t, tokyo, 2026, 12, 7, 10, 0), target,
+		localAt(t, tokyo, 2026, 12, 9, 10, 0), localAt(t, tokyo, 2026, 12, 11, 10, 0)}
+
+	end, excluded, err := s.FollowingEnd(starts, target, moved)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	occs, err := expandHour(moved, res.RecurrenceRule{Pattern: s.Rule().Pattern, End: end, Timezone: s.Rule().Timezone},
+		excluded...)
+	if err != nil {
+		t.Fatalf("ExpandOccurrences: %v", err)
+	}
+	want := []string{"2026-12-09", "2026-12-11", "2026-12-12"}
+	if got := startDates(occs, s.Rule()); !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// The new first occurrence must not be dropped as an excluded date.
+func TestFollowingEnd_movedOntoAnExcludedDateKeepsTheTarget(t *testing.T) {
+	s := mustSeries(t, mustRule(t, daily, nil, res.NewIndefiniteEnd(), tokyo),
+		excludedOn(t, "2026-12-10", "2026-12-12")...)
+	target := localAt(t, tokyo, 2026, 12, 8, 10, 0)
+	moved := localAt(t, tokyo, 2026, 12, 10, 10, 0)
+	starts := []time.Time{localAt(t, tokyo, 2026, 12, 7, 10, 0), target,
+		localAt(t, tokyo, 2026, 12, 9, 10, 0), localAt(t, tokyo, 2026, 12, 11, 10, 0)}
+
+	_, excluded, err := s.FollowingEnd(starts, target, moved)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if over, want := dateStrings(excluded), []string{"2026-12-12"}; !slices.Equal(over, want) {
+		t.Errorf("got excluded %v, want %v", over, want)
+	}
+}
+
+func TestFollowingEnd_movedMonthlyDayToTheEndOfMonth(t *testing.T) {
+	rule := mustRule(t, monthlyDay, nil, res.NewIndefiniteEnd(), tokyo)
+	first := localAt(t, tokyo, 2026, 1, 30, 10, 0)
+	occs, err := expandHour(first, rule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	starts := make([]time.Time, len(occs))
+	for i, o := range occs {
+		starts[i] = o.StartAt
+	}
+	s := mustSeries(t, rule)
+
+	t.Run("fits in the 2-year window", func(t *testing.T) {
+		target := starts[1] // 2026-03-30
+		moved := target.AddDate(0, 0, 1)
+		end, excluded, err := s.FollowingEnd(starts, target, moved)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, err := expandHour(moved, res.RecurrenceRule{Pattern: rule.Pattern, End: end, Timezone: rule.Timezone},
+			excluded...); err != nil {
+			t.Errorf("ExpandOccurrences: %v", err)
+		}
+	})
+	// With 03-30 and 04-30 left, the shifted until date 05-01 leaves 03-31
+	// as the only candidate, which ExpandOccurrences rejects for an until date.
+	t.Run("a single candidate becomes count 1", func(t *testing.T) {
+		target := starts[1] // 2026-03-30
+		moved := target.AddDate(0, 0, 1)
+		end, _, err := s.FollowingEnd(starts[1:3], target, moved)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if n, ok := end.Count(); !ok || n != 1 {
+			t.Errorf("got %+v, want count 1", end)
+		}
+	})
 }
 
 func TestFollowingEnd_rejectsTargetThatIsNotAnOccurrence(t *testing.T) {
