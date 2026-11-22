@@ -25,11 +25,13 @@ type RecurringEventSeries interface {
 	// excluded, for "this occurrence only" deletes and detaches.
 	ExcludeOccurrence(occurrenceStart time.Time) (RecurringEventSeries, error)
 	// EndBefore returns a copy that ends the day before the occurrence's local
-	// date and drops the excluded dates from that day on, for the original
-	// series of a "this and following" change or delete. Treating the first
-	// occurrence as "all" is the caller's decision, since the series does not
-	// know its first occurrence.
-	EndBefore(occurrenceStart time.Time) RecurringEventSeries
+	// date, for the original series of a "this and following" change or
+	// delete, and the excluded dates from that day on, which the copy drops.
+	// A new series that keeps the rule takes them over, so deleted and
+	// detached occurrences do not come back. Treating the first occurrence as
+	// "all" is the caller's decision, since the series does not know its
+	// first occurrence.
+	EndBefore(occurrenceStart time.Time) (ended RecurringEventSeries, dropped []ExcludedDate)
 	// FollowingEnd returns the end the new series takes over in a "this and
 	// following" change that keeps the rule. A count becomes the number of
 	// remaining occurrences from target on, so the calendar shows the same
@@ -76,14 +78,16 @@ func (s *seriesEntity) ExcludeOccurrence(occurrenceStart time.Time) (RecurringEv
 		append(slices.Clone(s.excluded), NewExcludedDate(s.LocalDateOf(occurrenceStart))))
 }
 
-func (s *seriesEntity) EndBefore(occurrenceStart time.Time) RecurringEventSeries {
+func (s *seriesEntity) EndBefore(occurrenceStart time.Time) (RecurringEventSeries, []ExcludedDate) {
 	from := s.LocalDateOf(occurrenceStart)
+	// s.excluded is sorted, so the dates from the target on form its tail.
+	i, _ := slices.BinarySearchFunc(s.excluded, from, func(e ExcludedDate, d LocalDate) int {
+		return e.date.compare(d)
+	})
 	copied := *s
 	copied.rule.End = NewUntilDateEnd(from.addDays(-1))
-	copied.excluded = slices.DeleteFunc(slices.Clone(s.excluded), func(e ExcludedDate) bool {
-		return !e.date.Before(from)
-	})
-	return &copied
+	copied.excluded = slices.Clone(s.excluded[:i])
+	return &copied, slices.Clone(s.excluded[i:])
 }
 
 // errNoFollowingOccurrence is not a DomainError: the caller passes target

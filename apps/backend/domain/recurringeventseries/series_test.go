@@ -137,7 +137,7 @@ func TestExcludeOccurrence_rejectsDuplicate(t *testing.T) {
 	}
 }
 
-func TestEndBefore_switchesToUntilTheDayBeforeAndDropsLaterExcludedDates(t *testing.T) {
+func TestEndBefore_switchesToUntilTheDayBeforeAndReturnsLaterExcludedDates(t *testing.T) {
 	for name, end := range map[string]res.RecurrenceEnd{
 		"count":      mustCount(t, 10),
 		"indefinite": res.NewIndefiniteEnd(),
@@ -148,7 +148,7 @@ func TestEndBefore_switchesToUntilTheDayBeforeAndDropsLaterExcludedDates(t *test
 				excludedOn(t, "2026-11-23", "2026-11-30", dec7)...)
 
 			// Midnight of Nov 30 in Tokyo is still Nov 29 in UTC.
-			got := s.EndBefore(localAt(t, tokyo, 2026, 11, 30, 0, 0))
+			got, dropped := s.EndBefore(localAt(t, tokyo, 2026, 11, 30, 0, 0))
 
 			d, ok := got.Rule().End.UntilDate()
 			if !ok || d.String() != "2026-11-29" {
@@ -159,6 +159,13 @@ func TestEndBefore_switchesToUntilTheDayBeforeAndDropsLaterExcludedDates(t *test
 			}
 			if want := []string{"2026-11-23"}; !slices.Equal(excludedStrings(got), want) {
 				t.Errorf("ExcludedDates: got %v, want %v", excludedStrings(got), want)
+			}
+			droppedDates := make([]string, len(dropped))
+			for i, e := range dropped {
+				droppedDates[i] = e.Date().String()
+			}
+			if want := []string{"2026-11-30", dec7}; !slices.Equal(droppedDates, want) {
+				t.Errorf("dropped: got %v, want %v", droppedDates, want)
 			}
 			if got.Rule().Pattern != s.Rule().Pattern || got.Rule().Timezone != s.Rule().Timezone {
 				t.Errorf("EndBefore changed the pattern or timezone")
@@ -173,7 +180,7 @@ func TestEndBefore_switchesToUntilTheDayBeforeAndDropsLaterExcludedDates(t *test
 func TestEndBefore_crossesMonthBoundary(t *testing.T) {
 	s := mustSeries(t, mustRule(t, monthlyDay, nil, res.NewIndefiniteEnd(), tokyo))
 
-	got := s.EndBefore(localAt(t, tokyo, 2027, 3, 1, 9, 0))
+	got, _ := s.EndBefore(localAt(t, tokyo, 2027, 3, 1, 9, 0))
 
 	if d, _ := got.Rule().End.UntilDate(); d.String() != "2027-02-28" {
 		t.Errorf("got until %s, want 2027-02-28", d)
