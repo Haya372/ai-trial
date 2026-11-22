@@ -82,7 +82,8 @@ CREATE TABLE recurring_event_series (
     end_count      SMALLINT,
     timezone       TEXT        NOT NULL,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (id, user_id)
 );
 
 CREATE INDEX idx_recurring_event_series_user_id ON recurring_event_series (user_id);
@@ -95,6 +96,7 @@ CREATE TABLE recurring_series_exceptions (
 );
 
 ALTER TABLE events
-    ADD COLUMN series_id UUID REFERENCES recurring_event_series(id) ON DELETE CASCADE;
+    ADD COLUMN series_id UUID,
+    ADD FOREIGN KEY (series_id, user_id) REFERENCES recurring_event_series (id, user_id) ON DELETE CASCADE;
 
-CREATE INDEX idx_events_series_id ON events (series_id);
+CREATE INDEX idx_events_series_id ON events (series_id, start_at);
