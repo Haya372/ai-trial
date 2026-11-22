@@ -127,6 +127,8 @@ test.describe('タグ管理', () => {
 
     const events = await user.api.listEvents(fixedDayRange(NEXT_DAY_OFFSET))
     expect(events.map(({ title, tags }) => ({ title, tags }))).toEqual([{ title: 'タグ付きの予定', tags: [] }])
+    // 一覧の空表示は再取得前にキャッシュから外した結果でも出るため、タグ自体が消えたかは API で確かめる
+    expect(await user.api.listTags()).toEqual([])
   })
 })
 
