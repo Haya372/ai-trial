@@ -9,6 +9,7 @@
     "lint:oxlint": "oxlint",
     "lint:biome": "biome format --diagnostic-level=error .",
     "lint:knip": "knip",
+    "lint:tsc": "tsc --noEmit",
     "format": "run-s format:*",
     "format:biome": "biome format --write .",
     "format:knip": "knip --fix"
@@ -19,6 +20,7 @@
     "@types/node": "26.6.6",
     "knip": "6.45.1",
     "npm-run-all2": "9.0.4",
-    "oxlint": "1.93.0"
+    "oxlint": "1.93.0",
+    "typescript": "7.0.2"
   }
 }

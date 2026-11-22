@@ -35,7 +35,10 @@ jobs:
         id: cache-frontend
         uses: actions/cache@v6.1.0
         with:
-          path: apps/web/src/api/generated.ts
+          # pnpm lint（turbo lint）は e2e の型チェックも実行するため、e2e の生成コードもキャッシュする
+          path: |
+            apps/web/src/api/generated.ts
+            apps/e2e/support/generated/
           key: frontend-gen-${{ hashFiles('packages/schema/**') }}
       - name: Generate TypeScript code
         if: steps.cache-frontend.outputs.cache-hit != 'true'
