@@ -15,7 +15,11 @@ test('ブラウザの現在時刻とタイムゾーンが固定されている',
   expect(now.epochMs - FIXED_NOW.getTime()).toBeLessThan(60_000)
 })
 
-test('API経由で作成した予定が、ログイン後のカレンダーに表示される', async ({ page, user, signIn }) => {
+test('API経由で作成した予定が、ログイン後のカレンダーに表示される', async ({
+  page,
+  user,
+  signIn,
+}) => {
   await user.api.createEvent({
     title: '固定日の定例',
     startAt: atFixedDay({ hour: 14 }),

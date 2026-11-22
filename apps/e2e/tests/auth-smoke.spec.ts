@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 
-test('サインアップ後、同じ認証情報でログインし、ログアウトできる', async ({ page }) => {
+test('サインアップ後、同じ認証情報でログインし、ログアウトできる', async ({
+  page,
+}) => {
   const email = `e2e-${Date.now()}@example.com`
   const password = 'Passw0rd!1234'
 
