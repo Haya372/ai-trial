@@ -88,4 +88,83 @@ describe('useViewerAuthQuery', () => {
     // ネットワークエラーはセッション切れではないのでストアを消去しない
     expect(useAuthStore.getState().user).toEqual(mockUser)
   })
+
+  it('200 のとき isError は false になる', async () => {
+    const { getMe } = await import('../../../api/generated')
+    vi.mocked(getMe).mockResolvedValueOnce({
+      data: mockUser,
+      status: 200,
+      headers: new Headers(),
+    } as never)
+
+    const { result } = renderHook(() => useViewerAuthQuery(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isPending).toBe(false))
+    expect(result.current.isError).toBe(false)
+  })
+
+  it('401 のとき isError は false になる（未ログインは確認失敗ではない）', async () => {
+    const { getMe } = await import('../../../api/generated')
+    vi.mocked(getMe).mockResolvedValueOnce({
+      data: { code: 'UNAUTHORIZED', message: 'unauthorized' },
+      status: 401,
+      headers: new Headers(),
+    } as never)
+
+    const { result } = renderHook(() => useViewerAuthQuery(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isPending).toBe(false))
+    expect(result.current.isError).toBe(false)
+  })
+
+  it('5xx のとき isError が true になる', async () => {
+    const { getMe } = await import('../../../api/generated')
+    vi.mocked(getMe).mockResolvedValueOnce({
+      data: { code: 'INTERNAL_ERROR', message: 'internal error' },
+      status: 500,
+      headers: new Headers(),
+    } as never)
+
+    const { result } = renderHook(() => useViewerAuthQuery(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.data).toBeNull()
+  })
+
+  it('ネットワークエラーのとき isError が true になる', async () => {
+    const { getMe } = await import('../../../api/generated')
+    vi.mocked(getMe).mockRejectedValueOnce(new Error('Network error'))
+
+    const { result } = renderHook(() => useViewerAuthQuery(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+  })
+
+  it('refetch で確認をやり直し、成功すれば isError が false に戻る', async () => {
+    const { getMe } = await import('../../../api/generated')
+    vi.mocked(getMe)
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce({
+        data: mockUser,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+
+    const { result } = renderHook(() => useViewerAuthQuery(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    result.current.refetch()
+    await waitFor(() => expect(result.current.data).toEqual(mockUser))
+    expect(result.current.isError).toBe(false)
+  })
 })

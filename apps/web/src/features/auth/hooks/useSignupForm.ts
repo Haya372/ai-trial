@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from '@repo/ui'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +13,7 @@ import { getSignupErrorMessage } from '../utils'
 export function useSignupForm(onSuccess?: () => void) {
   const { t } = useTranslation(['auth', 'common'])
   const setUser = useAuthStore((s) => s.setUser)
+  const queryClient = useQueryClient()
   const schema = useMemo(() => createSignupSchema(t), [t])
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(schema),
@@ -32,6 +34,8 @@ export function useSignupForm(onSuccess?: () => void) {
         toast.error(getSignupErrorMessage(res.data, t))
         return
       }
+      // 未ログインのときに取得したクエリ（ログイン状態・共有詳細の isSubscribed など）を残さない
+      queryClient.clear()
       setUser(res.data)
       toast.success(t('signup.toastSuccess'))
       onSuccess?.()

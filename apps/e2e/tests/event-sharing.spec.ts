@@ -55,6 +55,9 @@ test.describe('予定共有', () => {
     await expect(anonymousPage.getByText(fixedDayLabel(nextDayAt(15)))).toBeVisible()
     await expect(anonymousPage.getByText(SHARED_EVENT.location)).toBeVisible()
     await expect(anonymousPage.getByText(SHARED_EVENT.description)).toBeVisible()
+    // ログイン判定の完了を案内の表示で待ってから、追加ボタンが出ていないことを確かめる
+    await expect(anonymousPage.getByText('ログインすると、この予定を自分のカレンダーに追加できます。')).toBeVisible()
+    await expect(anonymousPage.getByRole('button', { name: '自分のカレンダーに追加', exact: true })).toBeHidden()
   })
 
   test('別のユーザーが共有ページから自分のカレンダーに追加すると、閲覧専用で表示される', async ({

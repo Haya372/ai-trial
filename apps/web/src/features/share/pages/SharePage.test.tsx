@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import SharePage from './SharePage'
@@ -12,6 +12,16 @@ vi.mock('../../../api/generated', async (importOriginal) => {
     getMe: vi.fn(),
     subscribeToShare: vi.fn(),
     deleteSubscription: vi.fn(),
+  }
+})
+
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return {
+    ...actual,
+    Link: ({ to, children }: { to: string; children: ReactNode }) => (
+      <a href={to}>{children}</a>
+    ),
   }
 })
 
@@ -377,6 +387,186 @@ describe('SharePage', () => {
       expect(
         screen.getByRole('button', { name: 'カレンダーから削除' }),
       ).toBeInTheDocument()
+    })
+  })
+
+  describe('ログイン状態に応じた案内', () => {
+    const loggedInUser = {
+      id: 'user-1',
+      email: 'test@example.com',
+      name: 'Test User',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+    const loginPrompt =
+      'ログインすると、この予定を自分のカレンダーに追加できます。'
+    const authErrorMessage =
+      'ログイン状態を確認できなかったため、カレンダーへの追加ボタンを表示できません。'
+
+    it('getMe が 401 のときログイン案内とログイン画面へのリンクが表示される', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: shareData,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe).mockResolvedValueOnce({
+        data: { code: 'UNAUTHORIZED', message: 'unauthorized' },
+        status: 401,
+        headers: new Headers(),
+      } as never)
+
+      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByText(loginPrompt)).toBeInTheDocument()
+      })
+      expect(screen.getByRole('link', { name: 'ログイン' })).toHaveAttribute(
+        'href',
+        '/login',
+      )
+      expect(screen.queryByText(authErrorMessage)).not.toBeInTheDocument()
+    })
+
+    it('getMe の確認中はログイン案内が表示されない', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: shareData,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe).mockReturnValueOnce(new Promise(() => {}))
+
+      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByText('チームMTG')).toBeInTheDocument()
+      })
+      expect(screen.queryByText(loginPrompt)).not.toBeInTheDocument()
+    })
+
+    it('getMe が 200 のときログイン案内は表示されない', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: shareData,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe).mockResolvedValueOnce({
+        data: loggedInUser,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+
+      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: '自分のカレンダーに追加' }),
+        ).toBeInTheDocument()
+      })
+      expect(screen.queryByText(loginPrompt)).not.toBeInTheDocument()
+    })
+
+    it('getMe が 5xx のとき確認失敗メッセージと再試行ボタンが表示され、ログイン案内は表示されない', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: shareData,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe).mockResolvedValueOnce({
+        data: { code: 'INTERNAL_ERROR', message: 'internal error' },
+        status: 500,
+        headers: new Headers(),
+      } as never)
+
+      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByText(authErrorMessage)).toBeInTheDocument()
+      })
+      expect(screen.getByRole('button', { name: '再試行' })).toBeInTheDocument()
+      expect(screen.queryByText(loginPrompt)).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: '自分のカレンダーに追加' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('getMe がネットワークエラーのとき確認失敗メッセージが表示される', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: shareData,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe).mockRejectedValueOnce(new Error('Network error'))
+
+      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByText(authErrorMessage)).toBeInTheDocument()
+      })
+    })
+
+    it('再試行で getMe が 200 になると「自分のカレンダーに追加」ボタンが表示される', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: shareData,
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe)
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockResolvedValueOnce({
+          data: loggedInUser,
+          status: 200,
+          headers: new Headers(),
+        } as never)
+
+      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+
+      fireEvent.click(await screen.findByRole('button', { name: '再試行' }))
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: '自分のカレンダーに追加' }),
+        ).toBeInTheDocument()
+      })
+      expect(screen.queryByText(authErrorMessage)).not.toBeInTheDocument()
+    })
+
+    it('isOwnEvent=true のとき getMe が 5xx でも確認失敗メッセージは表示されない', async () => {
+      const { getShareByToken, getMe } = await import('../../../api/generated')
+      vi.mocked(getShareByToken).mockResolvedValueOnce({
+        data: { ...shareData, isOwnEvent: true },
+        status: 200,
+        headers: new Headers(),
+      } as never)
+      vi.mocked(getMe).mockResolvedValueOnce({
+        data: { code: 'INTERNAL_ERROR', message: 'internal error' },
+        status: 500,
+        headers: new Headers(),
+      } as never)
+
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      })
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <SharePage token="tok1" />
+        </QueryClientProvider>,
+      )
+
+      await waitFor(() => {
+        expect(screen.getByText('チームMTG')).toBeInTheDocument()
+      })
+      // 確認の失敗が反映された後でも、メッセージが出ないことを確かめる
+      await waitFor(() => {
+        expect(queryClient.getQueryState(['auth', 'me'])?.status).toBe('error')
+      })
+      expect(screen.queryByText(authErrorMessage)).not.toBeInTheDocument()
     })
   })
 })

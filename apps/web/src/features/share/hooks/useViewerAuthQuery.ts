@@ -6,6 +6,8 @@ import { useAuthStore } from '../../../stores/auth'
 export function useViewerAuthQuery(): {
   data: UserResponse | null
   isPending: boolean
+  isError: boolean
+  refetch: () => void
 } {
   const setUser = useAuthStore((s) => s.setUser)
   const clearUser = useAuthStore((s) => s.clearUser)
@@ -33,5 +35,9 @@ export function useViewerAuthQuery(): {
   return {
     data: query.data ?? null,
     isPending: query.isPending,
+    isError: query.isError,
+    refetch: () => {
+      void query.refetch()
+    },
   }
 }
