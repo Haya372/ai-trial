@@ -1,9 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
-  // ルートではすべて無効にし、各アプリが自身の biome.jsonc で設定を上書きする。
-  // フォーマットは apps/web/biome.jsonc で有効化済み。
+  // フロントエンド各パッケージ（apps/web・apps/e2e・packages/ui）で共通の設定。
+  // 各パッケージの biome.jsonc は "extends": "//" でこの設定を継承し、差分だけを書く。
+  // ルートでは formatter を無効にし、各パッケージ外のファイルは整形しない（各パッケージで有効化する）。
   // リンターは oxlint が担当するため無効のまま。
-  // vcs はルートの設定だけが有効で、各アプリの biome.jsonc に書いても .gitignore は読まれない。
+  // vcs はルートの設定だけが有効で、各パッケージの biome.jsonc に書いても .gitignore は読まれない。
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -13,6 +14,22 @@
     "enabled": false
   },
   "formatter": {
-    "enabled": false
+    "enabled": false,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   }
 }
