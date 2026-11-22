@@ -221,19 +221,43 @@ func TestFollowingEnd_countIsRemainingOccurrencesFromTarget(t *testing.T) {
 
 func TestFollowingEnd_keepsNonCountEnd(t *testing.T) {
 	start := localAt(t, tokyo, 2026, 12, 7, 10, 0)
+	next := localAt(t, tokyo, 2026, 12, 14, 10, 0)
 	for name, end := range map[string]res.RecurrenceEnd{
 		"indefinite": res.NewIndefiniteEnd(),
 		"until_date": until(t, 2027, 6, 30),
 	} {
 		s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo))
 
-		got, err := s.FollowingEnd([]time.Time{start}, start)
+		got, err := s.FollowingEnd([]time.Time{start, next}, start)
 		if err != nil {
 			t.Fatalf("%s: unexpected error: %v", name, err)
 		}
 		if got != end {
 			t.Errorf("%s: got %+v, want %+v", name, got, end)
 		}
+	}
+}
+
+// An until date that leaves one candidate would fail ExpandOccurrences'
+// minimum of 2, which only user-entered rules must meet.
+func TestFollowingEnd_untilDateWithOneOccurrenceLeftBecomesCountOne(t *testing.T) {
+	end := until(t, 2027, 1, 4)
+	s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo))
+	prev := localAt(t, tokyo, 2026, 12, 28, 10, 0)
+	last := localAt(t, tokyo, 2027, 1, 4, 10, 0)
+
+	got, err := s.FollowingEnd([]time.Time{prev, last}, last)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n, ok := got.Count(); !ok || n != 1 {
+		t.Fatalf("got %+v, want count 1", got)
+	}
+	occs, err := res.ExpandOccurrences(last, last.Add(time.Hour), res.RecurrenceRule{
+		Pattern: s.Rule().Pattern, End: got, Timezone: s.Rule().Timezone,
+	}, nil)
+	if err != nil || len(occs) != 1 {
+		t.Errorf("ExpandOccurrences: got %d occurrences, err %v; want 1, nil", len(occs), err)
 	}
 }
 

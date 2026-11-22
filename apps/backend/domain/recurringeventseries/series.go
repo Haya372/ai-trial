@@ -35,7 +35,8 @@ type RecurringEventSeries interface {
 	// FollowingEnd returns the end the new series takes over in a "this and
 	// following" change that keeps the rule. A count becomes the number of
 	// remaining occurrences from target on, so the calendar shows the same
-	// occurrences before and after; other ends carry over as they are.
+	// occurrences before and after, and so does an until date with a single
+	// occurrence left; other ends carry over as they are.
 	FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, error)
 }
 
@@ -100,14 +101,23 @@ func (s *seriesEntity) FollowingEnd(occurrenceStarts []time.Time, target time.Ti
 	if !slices.ContainsFunc(occurrenceStarts, target.Equal) {
 		return RecurrenceEnd{}, fmt.Errorf("%w: %s", errTargetNotAnOccurrence, target)
 	}
-	if _, ok := s.rule.End.Count(); !ok {
-		return s.rule.End, nil
-	}
 	remaining := 0
 	for _, start := range occurrenceStarts {
 		if !start.Before(target) {
 			remaining++
 		}
 	}
-	return RestoreCountEnd(remaining)
+	switch s.rule.End.Type() {
+	case EndCount:
+		return RestoreCountEnd(remaining)
+	case EndUntilDate:
+		// Two or more remaining occurrences are two or more candidates, but
+		// one may be the only candidate up to the until date, which
+		// ExpandOccurrences rejects; a count of 1 keeps that occurrence.
+		if remaining == 1 {
+			return RestoreCountEnd(1)
+		}
+	case EndIndefinite:
+	}
+	return s.rule.End, nil
 }
