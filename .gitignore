@@ -4,5 +4,3 @@ node_modules
 packages/schema/dist
 packages/ui/storybook-static
 .playwright-mcp
-apps/e2e/test-results
-apps/e2e/playwright-report

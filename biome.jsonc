@@ -3,6 +3,12 @@
   // ルートではすべて無効にし、各アプリが自身の biome.jsonc で設定を上書きする。
   // フォーマットは apps/web/biome.jsonc で有効化済み。
   // リンターは oxlint が担当するため無効のまま。
+  // vcs はルートの設定だけが有効で、各アプリの biome.jsonc に書いても .gitignore は読まれない。
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "linter": {
     "enabled": false
   },
