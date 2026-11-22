@@ -1,32 +1,8 @@
 {
   "root": false,
   "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
-  "vcs": {
-    "enabled": true,
-    "clientKind": "git",
-    "useIgnoreFile": true
-  },
+  "extends": "//",
   "formatter": {
-    "enabled": true,
-    "indentStyle": "space",
-    "indentWidth": 2
-  },
-  // リンターは oxlint が担当するため Biome のリンターは無効にする。
-  "linter": {
-    "enabled": false
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single",
-      "semicolons": "asNeeded"
-    }
-  },
-  "assist": {
-    "enabled": true,
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
+    "enabled": true
   }
 }

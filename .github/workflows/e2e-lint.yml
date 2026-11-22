@@ -6,6 +6,8 @@ on:
     paths:
       - apps/e2e/**
       - pnpm-lock.yaml
+      - biome.jsonc
+      - .oxlintrc.jsonc
       - .github/workflows/e2e-lint.yml
 
 permissions:

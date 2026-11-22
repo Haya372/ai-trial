@@ -6,8 +6,20 @@
       "outputs": ["dist/**"]
     },
     "test": {},
-    "lint": {},
-    "format": {},
+    "lint": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/biome.jsonc",
+        "$TURBO_ROOT$/.oxlintrc.jsonc"
+      ]
+    },
+    "format": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/biome.jsonc",
+        "$TURBO_ROOT$/.oxlintrc.jsonc"
+      ]
+    },
     "bundle": {
       "outputs": ["dist/**"]
     }

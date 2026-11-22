@@ -6,6 +6,8 @@ on:
     paths:
       - packages/ui/**
       - pnpm-lock.yaml
+      - biome.jsonc
+      - .oxlintrc.jsonc
       - .github/workflows/ui-ci.yml
 
 permissions:
