@@ -33,5 +33,11 @@
     "subscriptionGone": "Already removed",
     "subscribeFallback": "Failed to add to calendar",
     "unsubscribeFallback": "Failed to remove from calendar"
+  },
+  "viewerAuth": {
+    "loginPrompt": "Log in to add this event to your calendar.",
+    "loginLink": "Log in",
+    "authCheckFailed": "We couldn't check your login status, so the add-to-calendar button can't be shown.",
+    "retryButton": "Retry"
   }
 }

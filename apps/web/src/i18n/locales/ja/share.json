@@ -33,5 +33,11 @@
     "subscriptionGone": "既に削除されています",
     "subscribeFallback": "カレンダーへの追加に失敗しました",
     "unsubscribeFallback": "カレンダーからの削除に失敗しました"
+  },
+  "viewerAuth": {
+    "loginPrompt": "ログインすると、この予定を自分のカレンダーに追加できます。",
+    "loginLink": "ログイン",
+    "authCheckFailed": "ログイン状態を確認できなかったため、カレンダーへの追加ボタンを表示できません。",
+    "retryButton": "再試行"
   }
 }

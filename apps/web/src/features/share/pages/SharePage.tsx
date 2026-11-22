@@ -1,4 +1,5 @@
-import { Loading } from '@repo/ui'
+import { Button, Loading } from '@repo/ui'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import type { ShareDetailError } from '../hooks/useShareDetailQuery'
 import { useShareDetailQuery } from '../hooks/useShareDetailQuery'
@@ -84,20 +85,41 @@ export default function SharePage({ token }: SharePageProps) {
   }
 
   const event = shareDetail.data
-  // 認証判定が完了するまで SubscriptionActions を表示しない（ちらつき防止）
-  const showSubscriptionActions =
-    !viewerAuth.isPending && viewerAuth.data !== null && !event.isOwnEvent
 
   return (
     <main className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-lg font-bold mb-6">{t('page.appName')}</h1>
       <ShareEventDetail event={event} />
-      {showSubscriptionActions && (
+      {/* 認証判定が完了するまで何も表示しない（ちらつき防止） */}
+      {!event.isOwnEvent && !viewerAuth.isPending && (
         <div className="mt-6 border-t pt-4">
-          <SubscriptionActions
-            token={token}
-            initialIsSubscribed={event.isSubscribed}
-          />
+          {viewerAuth.isError ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">
+                {t('viewerAuth.authCheckFailed')}
+              </p>
+              <Button variant="secondary" onClick={viewerAuth.refetch}>
+                {t('viewerAuth.retryButton')}
+              </Button>
+            </div>
+          ) : viewerAuth.data === null ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground">
+                {t('viewerAuth.loginPrompt')}
+              </p>
+              <Link
+                to="/login"
+                className="text-sm text-primary underline-offset-4 hover:underline"
+              >
+                {t('viewerAuth.loginLink')}
+              </Link>
+            </div>
+          ) : (
+            <SubscriptionActions
+              token={token}
+              initialIsSubscribed={event.isSubscribed}
+            />
+          )}
         </div>
       )}
     </main>
