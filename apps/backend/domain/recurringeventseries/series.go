@@ -33,15 +33,15 @@ type RecurringEventSeries interface {
 	// the series does not know its first occurrence.
 	EndBefore(occurrenceStart time.Time) (ended RecurringEventSeries, dropped []ExcludedDate)
 	// FollowingEnd returns the end and the excluded dates the new series
-	// takes over in a "this and following" change that keeps the rule, so
-	// the calendar shows the same occurrences before and after. newStart is
-	// the new series' first occurrence. On the target's local date, a count
-	// becomes the number of remaining candidates, excluded dates included; an
-	// indefinite end becomes an until date on the last occurrence; an until
-	// date carries over; a single remaining occurrence makes a non-count end
-	// a count of 1. On another date, the end is an until date on the last
-	// occurrence shifted by the same days (see movedEnd).
-	FollowingEnd(occurrenceStarts []time.Time, target, newStart time.Time) (RecurrenceEnd, []ExcludedDate, error)
+	// takes over in a "this and following" change that keeps the rule and
+	// the target's local date, so the calendar shows the same occurrences
+	// before and after. A count becomes the number of remaining candidates,
+	// excluded dates included; an indefinite end becomes an until date on
+	// the last occurrence; an until date carries over; a single remaining
+	// occurrence makes a non-count end a count of 1. Moving the date is not
+	// allowed with the rule kept, since the weekday or day of the month
+	// would move away from the excluded dates; the caller rejects it.
+	FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, []ExcludedDate, error)
 }
 
 type seriesEntity struct {
@@ -96,7 +96,7 @@ func (s *seriesEntity) EndBefore(occurrenceStart time.Time) (RecurringEventSerie
 var errTargetNotAnOccurrence = errors.New("the target is not the start of an occurrence of the series")
 
 func (s *seriesEntity) FollowingEnd(
-	occurrenceStarts []time.Time, target, newStart time.Time,
+	occurrenceStarts []time.Time, target time.Time,
 ) (RecurrenceEnd, []ExcludedDate, error) {
 	// Checking membership catches a caller that passes the edited start
 	// instead of the stored one, which would count from the wrong instant.
@@ -105,9 +105,6 @@ func (s *seriesEntity) FollowingEnd(
 	}
 	remaining, last := countFrom(occurrenceStarts, target)
 	excluded := slices.Clone(s.excluded[s.excludedFrom(target):])
-	if s.LocalDateOf(newStart) != s.LocalDateOf(target) {
-		return s.movedEnd(newStart, target, last, excluded)
-	}
 	if remaining == 1 && s.rule.End.Type() != EndCount {
 		// A single remaining occurrence is a single candidate up to an
 		// until date, which ExpandOccurrences rejects.
@@ -126,28 +123,6 @@ func (s *seriesEntity) FollowingEnd(
 	case EndUntilDate:
 	}
 	return s.rule.End, excluded, nil
-}
-
-// movedEnd handles a target moved to another date, which moves the weekday
-// or day of the month of the new series. Its candidates differ from the
-// original ones, so a count or the original until date may not fit in its
-// 2-year window; the last occurrence shifted by the same days always does.
-// Excluded dates that are no longer candidates are ignored by an until date,
-// and those that still are keep deleted occurrences gone, except one on the
-// new first occurrence, which would drop it.
-func (s *seriesEntity) movedEnd(
-	newStart, target, last time.Time, excluded []ExcludedDate,
-) (RecurrenceEnd, []ExcludedDate, error) {
-	first := s.LocalDateOf(newStart)
-	shift := first.daysSince(s.LocalDateOf(target))
-	excluded = slices.DeleteFunc(excluded, func(e ExcludedDate) bool { return e.date == first })
-	end := NewUntilDateEnd(s.LocalDateOf(last).addDays(shift))
-	rule := RecurrenceRule{Pattern: s.rule.Pattern, End: end, Timezone: s.rule.Timezone}
-	if _, err := ExpandOccurrences(newStart, newStart, rule, nil); errors.Is(err, ErrRecurringSeriesTooFewOccurrences) {
-		one, err := RestoreCountEnd(1)
-		return one, nil, err
-	}
-	return end, excluded, nil
 }
 
 // excludedFrom returns the index of the first excluded date on or after the
