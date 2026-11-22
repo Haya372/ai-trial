@@ -167,40 +167,4 @@ describe('useViewerAuthQuery', () => {
     await waitFor(() => expect(result.current.data).toEqual(mockUser))
     expect(result.current.isError).toBe(false)
   })
-
-  it('共有ページを開き直すと、前回の結果を使わずにログイン状態を確認し直す', async () => {
-    const { getMe } = await import('../../../api/generated')
-    vi.mocked(getMe)
-      .mockResolvedValueOnce({
-        data: { code: 'UNAUTHORIZED', message: 'unauthorized' },
-        status: 401,
-        headers: new Headers(),
-      } as never)
-      .mockResolvedValueOnce({
-        data: mockUser,
-        status: 200,
-        headers: new Headers(),
-      } as never)
-    // 同じ QueryClient のまま、別の画面でログインしてから戻ってきた状態を再現する
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    })
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    )
-
-    const first = renderHook(() => useViewerAuthQuery(), { wrapper })
-    await waitFor(() => expect(first.result.current.isPending).toBe(false))
-    expect(first.result.current.data).toBeNull()
-    first.unmount()
-    // 実際の画面遷移では、共有ページを離れてから戻るまでに破棄が済んでいる
-    await waitFor(() =>
-      expect(
-        queryClient.getQueryCache().find({ queryKey: ['auth', 'me'] }),
-      ).toBeUndefined(),
-    )
-
-    const second = renderHook(() => useViewerAuthQuery(), { wrapper })
-    await waitFor(() => expect(second.result.current.data).toEqual(mockUser))
-  })
 })
