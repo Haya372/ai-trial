@@ -8,6 +8,8 @@ on:
       - packages/schema/**
       - packages/ui/**
       - pnpm-lock.yaml
+      - biome.jsonc
+      - .oxlintrc.jsonc
       - .github/workflows/web-ci.yml
 
 permissions:
