@@ -53,6 +53,12 @@ thread() {
   echo ','
   # 4: 印が本文の途中にある作成者のコメントは返信とみなす
   thread '[["human", "指摘E"], ["author", "前回の <!-- pr-review --> の件、対応しました"]]'
+  echo ','
+  # 5: pr-reviewのインラインの指摘は印を付けないため、作成者が投稿した印のない1件目も指摘とみなす
+  thread '[["author", "指摘F"]]'
+  echo ','
+  # 6: 印のない1件目に作成者が返信した
+  thread '[["author", "指摘G"], ["author", "対応しました"]]'
   echo ']}}}}}]'
 } > "$WORK_DIR/threads.json"
 
@@ -83,8 +89,10 @@ assert "作成者が最後に返信したスレッドは返信不要" '.threads[
 assert "作成者の返信より後のpr-reviewの返信は未返信" '.threads[2] | [.needs_reply, [.unanswered_comments[].id]]' '[true,[102]]'
 assert "作成者の返信より後のコメントだけが未返信" '.threads[3] | [.needs_reply, [.unanswered_comments[].id]]' '[true,[102,103]]'
 assert "本文の途中の印は作成者の返信とみなす" '.threads[4].needs_reply' 'false'
+assert "作成者が投稿した印のない1件目は指摘とみなす" '.threads[5] | [.needs_reply, [.unanswered_comments[].id]]' '[true,[100]]'
+assert "印のない1件目への作成者の返信は返信とみなす" '.threads[6] | [.needs_reply, .unanswered_comments]' '[false,[]]'
 
-assert "最後のコメントがpr-reviewの返信" '[.threads[].last_comment_is_pr_review_reply]' '[false,false,true,false,false]'
+assert "最後のコメントがpr-reviewの返信" '[.threads[].last_comment_is_pr_review_reply]' '[false,false,true,false,false,false,false]'
 
 assert "本文が空のレビューは出力しない" '[.reviews[].id]' '[1,2,4]'
 assert "pr-reviewのレビュー本文は返信不要" '.reviews[0].needs_reply' 'false'

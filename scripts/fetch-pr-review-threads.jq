@@ -30,7 +30,8 @@ def is_author_reply: .author == $author and (is_pr_review_post | not);
         id: .databaseId, author: .author.login, body, created_at: .createdAt, url,
         original_commit_id: .originalCommit.oid
       }] as $comments
-    | ([$comments | to_entries[] | select(.value | is_author_reply) | .key] | last) as $last_author_reply
+    # 最初のコメントは指摘そのもの。pr-reviewはインラインの指摘に印を付けないため、2件目以降から返信を探す
+    | ([$comments | to_entries[] | select(.key > 0 and (.value | is_author_reply)) | .key] | last) as $last_author_reply
     # 作成者の最後の返信より後のコメント。作成者の返信がなければすべてのコメント
     | (if $last_author_reply == null then $comments else $comments[$last_author_reply + 1:] end) as $unanswered
     | {
