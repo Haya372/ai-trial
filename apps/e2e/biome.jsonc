@@ -6,6 +6,11 @@
     "clientKind": "git",
     "useIgnoreFile": true
   },
+  // Playwright の出力先はルートの .gitignore にだけ書かれていて、
+  // useIgnoreFile では除外されないため明示的に除外する。
+  "files": {
+    "includes": ["**", "!!test-results/**", "!!playwright-report/**"]
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
