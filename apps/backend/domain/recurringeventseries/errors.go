@@ -9,17 +9,20 @@ import (
 // The codes double as details[].code of the recurrence validation error
 // (SPEC-009 POST /events), so several errors share the same code.
 const (
-	CodeRecurringPatternInvalid          = "INVALID_FORMAT"
-	CodeRecurringEndInvalid              = "OUT_OF_RANGE"
-	CodeRecurringTimezoneInvalid         = "INVALID_FORMAT"
-	CodeRecurringSeriesTooFewOccurrences = "TOO_FEW_OCCURRENCES"
-	CodeRecurringSeriesSpanExceeded      = "OUT_OF_RANGE"
-	CodeLocalDateInvalid                 = "INVALID_FORMAT"
+	CodeRecurringPatternInvalid            = "INVALID_FORMAT"
+	CodeRecurringPatternMonthlyNthRequired = "REQUIRED"
+	CodeRecurringEndInvalid                = "OUT_OF_RANGE"
+	CodeRecurringTimezoneInvalid           = "INVALID_FORMAT"
+	CodeRecurringSeriesTooFewOccurrences   = "TOO_FEW_OCCURRENCES"
+	CodeRecurringSeriesSpanExceeded        = "OUT_OF_RANGE"
+	CodeLocalDateInvalid                   = "INVALID_FORMAT"
 )
 
 var (
 	ErrRecurringPatternInvalid = domain.NewDomainError(
 		CodeRecurringPatternInvalid, "Recurrence pattern is invalid")
+	ErrRecurringPatternMonthlyNthRequired = domain.NewDomainError(
+		CodeRecurringPatternMonthlyNthRequired, "monthlyNth is required for monthly_nth_weekday")
 	ErrRecurringEndInvalid = domain.NewDomainError(
 		CodeRecurringEndInvalid, "Recurrence end is out of range")
 	ErrRecurringTimezoneInvalid = domain.NewDomainError(

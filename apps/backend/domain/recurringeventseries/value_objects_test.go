@@ -115,7 +115,6 @@ func TestNewRecurrencePattern(t *testing.T) {
 	}{
 		{"", nil},
 		{"yearly", nil},
-		{"monthly_nth_weekday", nil},
 		{"monthly_nth_weekday", new("5")},
 		{"weekly", new("1")},
 	}
@@ -123,6 +122,14 @@ func TestNewRecurrencePattern(t *testing.T) {
 		if _, err := res.NewRecurrencePattern(c.typ, c.nth); !errors.Is(err, res.ErrRecurringPatternInvalid) {
 			t.Errorf("NewRecurrencePattern(%q, %v): got %v, want ErrRecurringPatternInvalid", c.typ, c.nth, err)
 		}
+	}
+}
+
+func TestNewRecurrencePattern_monthlyNthRequired(t *testing.T) {
+	// SPEC-009 reports a missing monthlyNth as REQUIRED, not INVALID_FORMAT.
+	_, err := res.NewRecurrencePattern(string(res.PatternMonthlyNthWeekday), nil)
+	if !errors.Is(err, res.ErrRecurringPatternMonthlyNthRequired) {
+		t.Errorf("got %v, want ErrRecurringPatternMonthlyNthRequired", err)
 	}
 }
 
@@ -194,6 +201,7 @@ func TestErrorCodes(t *testing.T) {
 		{res.ErrRecurringTimezoneInvalid, "INVALID_FORMAT"},
 		{res.ErrRecurringSeriesTooFewOccurrences, "TOO_FEW_OCCURRENCES"},
 		{res.ErrRecurringSeriesSpanExceeded, "OUT_OF_RANGE"},
+		{res.ErrRecurringPatternMonthlyNthRequired, "REQUIRED"},
 	}
 	for _, c := range cases {
 		var de interface{ Code() string }

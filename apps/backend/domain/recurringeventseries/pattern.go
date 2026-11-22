@@ -64,7 +64,7 @@ func NewRecurrencePattern(typ string, nth *string) (RecurrencePattern, error) {
 		return RecurrencePattern{typ: t}, nil
 	case PatternMonthlyNthWeekday:
 		if nth == nil {
-			return RecurrencePattern{}, fmt.Errorf("%w: monthlyNth is required for %s", ErrRecurringPatternInvalid, t)
+			return RecurrencePattern{}, ErrRecurringPatternMonthlyNthRequired
 		}
 		n, err := NewMonthlyNth(*nth)
 		if err != nil {
