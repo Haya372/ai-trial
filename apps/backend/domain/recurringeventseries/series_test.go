@@ -354,6 +354,31 @@ func TestFollowingEnd_rejectsTargetThatIsNotAnOccurrence(t *testing.T) {
 	}
 }
 
+// The local date is judged in the series' timezone, where the weekday and
+// day of the month of the series come from.
+func TestCheckDateKept(t *testing.T) {
+	s := mustSeries(t, mustRule(t, weekly, nil, res.NewIndefiniteEnd(), tokyo))
+	target := localAt(t, tokyo, 2026, 12, 21, 10, 0)
+
+	for name, c := range map[string]struct {
+		newStart time.Time
+		wantErr  bool
+	}{
+		"same instant":                   {target, false},
+		"another time on the same date":  {localAt(t, tokyo, 2026, 12, 21, 23, 30), false},
+		"the next date":                  {localAt(t, tokyo, 2026, 12, 22, 10, 0), true},
+		"the previous date":              {localAt(t, tokyo, 2026, 12, 20, 10, 0), true},
+		"same UTC date, next local date": {localAt(t, tokyo, 2026, 12, 22, 0, 30), true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := s.CheckDateKept(target, c.newStart)
+			if c.wantErr != errors.Is(err, res.ErrRecurringOccurrenceDateChangeNotAllowed) || (!c.wantErr && err != nil) {
+				t.Errorf("got %v, want error %v", err, c.wantErr)
+			}
+		})
+	}
+}
+
 func TestRestoreCountEnd(t *testing.T) {
 	e, err := res.RestoreCountEnd(1)
 	if err != nil {

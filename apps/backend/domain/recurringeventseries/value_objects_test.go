@@ -202,6 +202,7 @@ func TestErrorCodes(t *testing.T) {
 		{res.ErrRecurringSeriesTooFewOccurrences, "TOO_FEW_OCCURRENCES"},
 		{res.ErrRecurringSeriesSpanExceeded, "OUT_OF_RANGE"},
 		{res.ErrRecurringPatternMonthlyNthRequired, "REQUIRED"},
+		{res.ErrRecurringOccurrenceDateChangeNotAllowed, "DATE_CHANGE_NOT_ALLOWED"},
 	}
 	for _, c := range cases {
 		var de interface{ Code() string }

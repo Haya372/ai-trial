@@ -38,10 +38,14 @@ type RecurringEventSeries interface {
 	// before and after. A count becomes the number of remaining candidates,
 	// excluded dates included; an indefinite end becomes an until date on
 	// the last occurrence; an until date carries over; a single remaining
-	// occurrence makes a non-count end a count of 1. Moving the date is not
-	// allowed with the rule kept, since the weekday or day of the month
-	// would move away from the excluded dates; the caller rejects it.
+	// occurrence makes a non-count end a count of 1. The caller checks the
+	// date with CheckDateKept first.
 	FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, []ExcludedDate, error)
+	// CheckDateKept rejects a "this and following" or "all" change that keeps
+	// the rule but moves the target to another local date: the weekday, day
+	// and nth of the series come from its first occurrence, so the excluded
+	// dates and a monthly nth would no longer match. The time may change.
+	CheckDateKept(target, newStart time.Time) error
 }
 
 type seriesEntity struct {
@@ -123,6 +127,13 @@ func (s *seriesEntity) FollowingEnd(
 	case EndUntilDate:
 	}
 	return s.rule.End, excluded, nil
+}
+
+func (s *seriesEntity) CheckDateKept(target, newStart time.Time) error {
+	if s.LocalDateOf(newStart) != s.LocalDateOf(target) {
+		return ErrRecurringOccurrenceDateChangeNotAllowed
+	}
+	return nil
 }
 
 // excludedFrom returns the index of the first excluded date on or after the
