@@ -251,6 +251,9 @@ func eventFromRow(row query.InsertEventRow, tags []domainevent.EventTag) (domain
 	if err != nil {
 		return nil, fmt.Errorf("reconstruct event: %w", err)
 	}
+	if row.SeriesID.Valid {
+		e = e.WithSeriesID(uuid.UUID(row.SeriesID.Bytes))
+	}
 	return e.WithTags(tags)
 }
 
@@ -288,6 +291,7 @@ func (r *eventRepository) FindByID(ctx context.Context, id uuid.UUID) (domaineve
 		EndAt:       first.EndAt,
 		Location:    first.Location,
 		Url:         first.Url,
+		SeriesID:    first.SeriesID,
 		CreatedAt:   first.CreatedAt,
 		UpdatedAt:   first.UpdatedAt,
 	}, tags)
@@ -330,6 +334,7 @@ func (r *eventRepository) Update(ctx context.Context, e domainevent.Event) error
 		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
 		Location:    textOrNull(e.Location()),
 		Url:         textOrNull(e.URL()),
+		SeriesID:    seriesIDOrNull(e),
 	})
 	endDBSpan(span, err)
 	if err != nil {
@@ -361,6 +366,7 @@ func (r *eventRepository) insertEvent(ctx context.Context, e domainevent.Event) 
 		EndAt:       pgtype.Timestamptz{Time: e.EndAt(), Valid: true},
 		Location:    textOrNull(e.Location()),
 		Url:         textOrNull(e.URL()),
+		SeriesID:    seriesIDOrNull(e),
 	})
 	endDBSpan(span, err)
 	if err != nil {
@@ -417,6 +423,14 @@ func (r *eventRepository) findTags(ctx context.Context, eventID uuid.UUID) ([]do
 		tags = append(tags, t)
 	}
 	return tags, nil
+}
+
+func seriesIDOrNull(e domainevent.Event) pgtype.UUID {
+	id, ok := e.SeriesID()
+	if !ok {
+		return pgtype.UUID{}
+	}
+	return toPgUUID(id)
 }
 
 func textOrNull(s string) pgtype.Text {

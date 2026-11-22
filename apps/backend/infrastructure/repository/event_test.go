@@ -724,3 +724,105 @@ func TestEventRepository_FindByIDForUpdate_OutsideTx_ReturnsError(t *testing.T) 
 		t.Error("expected an error outside a transaction")
 	}
 }
+
+// insertSeries stores a minimal daily series so events can reference it.
+func insertSeries(t *testing.T, userID uuid.UUID) uuid.UUID {
+	t.Helper()
+	var id uuid.UUID
+	err := testPool.QueryRow(context.Background(),
+		`INSERT INTO recurring_event_series (user_id, pattern_type, end_type, timezone)
+		 VALUES ($1, 'daily', 'indefinite', 'Asia/Tokyo') RETURNING id`,
+		userID,
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("insert series: %v", err)
+	}
+	return id
+}
+
+func assertSeriesID(t *testing.T, e event.Event, want uuid.UUID) {
+	t.Helper()
+	got, ok := e.SeriesID()
+	if want == uuid.Nil {
+		if ok {
+			t.Errorf("expected no series, got %v", got)
+		}
+		return
+	}
+	if !ok || got != want {
+		t.Errorf("series mismatch: got %v (ok=%v), want %v", got, ok, want)
+	}
+}
+
+func TestEventRepository_Create_PersistsSeriesID(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	seriesID := insertSeries(t, u.ID())
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	saved, err := eventRepo.Create(context.Background(),
+		newEventWithTags(t, uuid.New(), u.ID(), nil).WithSeriesID(seriesID))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertSeriesID(t, saved, seriesID)
+
+	got, err := eventRepo.FindByID(context.Background(), saved.ID())
+	if err != nil {
+		t.Fatalf("find event: %v", err)
+	}
+	assertSeriesID(t, got, seriesID)
+
+	runInTestTx(t, func(ctx context.Context) {
+		locked, err := eventRepo.FindByIDForUpdate(ctx, saved.ID())
+		if err != nil {
+			t.Fatalf("find event for update: %v", err)
+		}
+		assertSeriesID(t, locked, seriesID)
+	})
+}
+
+func TestEventRepository_Create_WithoutSeries_StoresNullSeriesID(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	saved, err := eventRepo.Create(context.Background(), newEventWithTags(t, uuid.New(), u.ID(), nil))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertSeriesID(t, saved, uuid.Nil)
+	if n := countRows(t, "SELECT COUNT(*) FROM events WHERE id = $1 AND series_id IS NULL", saved.ID()); n != 1 {
+		t.Errorf("expected series_id to be NULL, got %d matching rows", n)
+	}
+}
+
+func TestEventRepository_Update_DetachesFromAndAttachesToSeries(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	seriesID := insertSeries(t, u.ID())
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	e := newEventWithTags(t, uuid.New(), u.ID(), nil).WithSeriesID(seriesID)
+	if _, err := eventRepo.Create(context.Background(), e); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	if err := eventRepo.Update(context.Background(), e.DetachFromSeries()); err != nil {
+		t.Fatalf("detach: %v", err)
+	}
+	got, err := eventRepo.FindByID(context.Background(), e.ID())
+	if err != nil {
+		t.Fatalf("find detached event: %v", err)
+	}
+	assertSeriesID(t, got, uuid.Nil)
+
+	if err := eventRepo.Update(context.Background(), got.WithSeriesID(seriesID)); err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	got, err = eventRepo.FindByID(context.Background(), e.ID())
+	if err != nil {
+		t.Fatalf("find attached event: %v", err)
+	}
+	assertSeriesID(t, got, seriesID)
+}

@@ -47,7 +47,7 @@ WHERE e.user_id = sqlc.arg('user_id')
 ORDER BY e.start_at, et.position;
 
 -- name: InsertEvent :one
-INSERT INTO events (id, user_id, title, description, start_at, end_at, location, url)
+INSERT INTO events (id, user_id, title, description, start_at, end_at, location, url, series_id)
 VALUES (
     sqlc.arg('id'),
     sqlc.arg('user_id'),
@@ -56,16 +56,17 @@ VALUES (
     sqlc.arg('start_at'),
     sqlc.arg('end_at'),
     sqlc.arg('location'),
-    sqlc.arg('url')
+    sqlc.arg('url'),
+    sqlc.arg('series_id')
 )
-RETURNING id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at;
+RETURNING id, user_id, title, description, start_at, end_at, location, url, series_id, created_at, updated_at;
 
 -- name: FindEventWithTagsByID :many
 -- One row per tag (or one row with NULL tag columns when the event has
 -- none). Reading the event and its tags in one statement gives them the same
 -- snapshot, so a concurrent edit cannot be seen half applied.
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
-       e.created_at, e.updated_at, et.tag_id, et.position
+       e.series_id, e.created_at, e.updated_at, et.tag_id, et.position
 FROM events e
 LEFT JOIN event_tags et ON et.event_id = e.id
 WHERE e.id = $1
@@ -87,9 +88,10 @@ SET title = $2,
     end_at = $5,
     location = $6,
     url = $7,
+    series_id = $8,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at;
+RETURNING id, user_id, title, description, start_at, end_at, location, url, series_id, created_at, updated_at;
 
 -- name: DeleteEvent :exec
 DELETE FROM events
@@ -110,7 +112,7 @@ DELETE FROM event_tags
 WHERE event_id = $1;
 
 -- name: FindEventByIDForUpdate :one
-SELECT id, user_id, title, description, start_at, end_at, location, url, created_at, updated_at
+SELECT id, user_id, title, description, start_at, end_at, location, url, series_id, created_at, updated_at
 FROM events
 WHERE id = $1
 FOR UPDATE;
