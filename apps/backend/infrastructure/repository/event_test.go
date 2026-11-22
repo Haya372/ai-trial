@@ -5,10 +5,12 @@ package repository_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/user"
@@ -825,4 +827,57 @@ func TestEventRepository_Update_DetachesFromAndAttachesToSeries(t *testing.T) {
 		t.Fatalf("find attached event: %v", err)
 	}
 	assertSeriesID(t, got, seriesID)
+}
+
+func assertForeignKeyViolation(t *testing.T, err error) {
+	t.Helper()
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23503" {
+		t.Errorf("expected foreign key violation, got %v", err)
+	}
+}
+
+func TestEventRepository_Create_WithAnotherUsersSeries_FailsWithForeignKeyViolation(t *testing.T) {
+	setupTest(t)
+	owner := createTestUser(t)
+	other := createTestUser(t)
+	seriesID := insertSeries(t, owner.ID())
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+
+	_, err := eventRepo.Create(context.Background(),
+		newEventWithTags(t, uuid.New(), other.ID(), nil).WithSeriesID(seriesID))
+
+	assertForeignKeyViolation(t, err)
+}
+
+func TestEventRepository_Update_AttachingToAnotherUsersSeries_FailsWithForeignKeyViolation(t *testing.T) {
+	setupTest(t)
+	owner := createTestUser(t)
+	other := createTestUser(t)
+	seriesID := insertSeries(t, owner.ID())
+	eventRepo := repository.NewEventRepository(testPool, testLogger, testTracerProvider)
+	e := newEventWithTags(t, uuid.New(), other.ID(), nil)
+	if _, err := eventRepo.Create(context.Background(), e); err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+
+	err := eventRepo.Update(context.Background(), e.WithSeriesID(seriesID))
+
+	assertForeignKeyViolation(t, err)
+	if n := countRows(t, "SELECT COUNT(*) FROM events WHERE id = $1 AND series_id IS NULL", e.ID()); n != 1 {
+		t.Errorf("expected the event to stay out of the series, got %d matching rows", n)
+	}
+}
+
+func TestEventsTable_SeriesIDIndex_CoversStartAt(t *testing.T) {
+	setupTest(t)
+	var def string
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT indexdef FROM pg_indexes WHERE tablename = 'events' AND indexname = 'idx_events_series_id'",
+	).Scan(&def); err != nil {
+		t.Fatalf("read idx_events_series_id: %v", err)
+	}
+	if !strings.HasSuffix(def, "(series_id, start_at)") {
+		t.Errorf("expected idx_events_series_id on (series_id, start_at), got %q", def)
+	}
 }
