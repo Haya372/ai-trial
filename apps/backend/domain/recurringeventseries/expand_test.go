@@ -268,3 +268,19 @@ func TestExpandOccurrences_tooFewOccurrences(t *testing.T) {
 		})
 	}
 }
+
+func TestExpandOccurrences_keepsDurationWhenEndFallsInDSTGap(t *testing.T) {
+	// On 2027-03-14 02:30 does not exist in New York, so a wall-clock end of
+	// 02:30 would land before the 01:45 start.
+	start := localAt(t, newYork, 2027, time.March, 12, 1, 45)
+	end := localAt(t, newYork, 2027, time.March, 12, 2, 30)
+	occs, err := res.ExpandOccurrences(start, end, mustRule(t, daily, nil, mustCount(t, 4), newYork), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, o := range occs {
+		if got := o.EndAt.Sub(o.StartAt); got != 45*time.Minute {
+			t.Errorf("occurrence %v: duration = %v, want 45m", o.StartAt, got)
+		}
+	}
+}

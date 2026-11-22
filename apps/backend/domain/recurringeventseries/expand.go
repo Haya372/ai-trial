@@ -22,14 +22,16 @@ type Occurrence struct {
 
 // ExpandOccurrences returns every occurrence of the series whose first
 // occurrence is [firstStart, firstEnd], skipping excluded dates. Each
-// occurrence keeps the first one's wall-clock start and end in the series'
-// timezone, so its UTC time shifts across DST transitions (ADR-037).
+// occurrence keeps the first one's wall-clock start in the series' timezone,
+// so its UTC time shifts across DST transitions (ADR-037). The end is the
+// start plus the first occurrence's duration: rebuilding the end from its
+// wall-clock time could put it before the start when it falls in a DST gap.
 // firstEnd must not be before firstStart; the Event aggregate guarantees it.
 func ExpandOccurrences(
 	firstStart, firstEnd time.Time, rule RecurrenceRule, excluded []ExcludedDate,
 ) ([]Occurrence, error) {
 	loc := rule.Timezone.Location()
-	localStart, localEnd := firstStart.In(loc), firstEnd.In(loc)
+	localStart := firstStart.In(loc)
 	first := LocalDateOf(localStart)
 
 	stop, err := stopDate(first, rule)
@@ -47,13 +49,11 @@ func ExpandOccurrences(
 		return nil, fmt.Errorf("%w: got %d", ErrRecurringSeriesTooFewOccurrences, candidates)
 	}
 
-	endDayOffset := daysBetween(first, LocalDateOf(localEnd))
+	duration := firstEnd.Sub(firstStart)
 	occs := make([]Occurrence, len(dates))
 	for i, d := range dates {
-		occs[i] = Occurrence{
-			StartAt: atWallClock(d, localStart, loc),
-			EndAt:   atWallClock(d.addDays(endDayOffset), localEnd, loc),
-		}
+		start := atWallClock(d, localStart, loc)
+		occs[i] = Occurrence{StartAt: start, EndAt: start.Add(duration)}
 	}
 	return occs, nil
 }
@@ -151,12 +151,6 @@ func monthlyCandidateAt(p RecurrencePattern, first LocalDate, k int) candidate {
 func spanLimit(first LocalDate) LocalDate {
 	y := first.year + spanYears
 	return LocalDate{year: y, month: first.month, day: min(first.day, daysIn(y, first.month))}
-}
-
-func daysBetween(from, to LocalDate) int {
-	f := time.Date(from.year, from.month, from.day, 0, 0, 0, 0, time.UTC)
-	t := time.Date(to.year, to.month, to.day, 0, 0, 0, 0, time.UTC)
-	return int(t.Sub(f).Hours() / 24)
 }
 
 func atWallClock(d LocalDate, clock time.Time, loc *time.Location) time.Time {
