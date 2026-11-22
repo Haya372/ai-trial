@@ -25,7 +25,8 @@ async function pauseAtFixedDay(page: Page, time: FixedDayTime): Promise<void> {
 
 test.describe('今日のタイムライン', () => {
   test('今日の予定だけが時系列で並び、次の予定と空き時間が表示される', async ({ page, user, signIn }) => {
-    // 並び順を確かめるため、開始日時の順とは異なる順で作成する
+    // API（GET /events）が開始日時の順で返すため、作成順を変えてもパネル側の並び替えは確かめられない。
+    // 並び替えは buildTimeline のユニットテストで確かめ、ここでは画面に出る順序だけを確かめる
     await user.api.createEvent({
       title: '設計レビュー',
       startAt: atFixedDay({ hour: 10, minute: 30 }),
