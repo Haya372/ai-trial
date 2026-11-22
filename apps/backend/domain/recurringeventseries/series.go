@@ -1,0 +1,107 @@
+package recurringeventseries
+
+import (
+	"errors"
+	"fmt"
+	"slices"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// RecurringEventSeries is the aggregate root of a recurring series. Its
+// occurrences are separate Event aggregates that refer to it by ID.
+// Operations take an occurrence's start instant rather than a date so that
+// the conversion to a local date always uses the series' timezone.
+type RecurringEventSeries interface {
+	ID() uuid.UUID
+	UserID() uuid.UUID
+	Rule() RecurrenceRule
+	// ExcludedDates returns the excluded dates in ascending order.
+	ExcludedDates() []ExcludedDate
+	// LocalDateOf returns the date of t in the series' timezone.
+	LocalDateOf(t time.Time) LocalDate
+	// ExcludeOccurrence returns a copy with the occurrence's local date
+	// excluded, for "this occurrence only" deletes and detaches.
+	ExcludeOccurrence(occurrenceStart time.Time) (RecurringEventSeries, error)
+	// EndBefore returns a copy that ends the day before the occurrence's local
+	// date and drops the excluded dates from that day on, for the original
+	// series of a "this and following" change or delete. Treating the first
+	// occurrence as "all" is the caller's decision, since the series does not
+	// know its first occurrence.
+	EndBefore(occurrenceStart time.Time) RecurringEventSeries
+	// FollowingEnd returns the end the new series takes over in a "this and
+	// following" change that keeps the rule. A count becomes the number of
+	// remaining occurrences from target on, so the calendar shows the same
+	// occurrences before and after; other ends carry over as they are.
+	FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, error)
+}
+
+type seriesEntity struct {
+	id       uuid.UUID
+	userID   uuid.UUID
+	rule     RecurrenceRule
+	excluded []ExcludedDate
+}
+
+// New both creates a series and restores a stored one. It does not check the
+// rule against the first occurrence (the until date's range, monthlyNth, at
+// least 2 occurrences): that needs the first occurrence's start, so
+// ExpandOccurrences checks it.
+func New(id, userID uuid.UUID, rule RecurrenceRule, excluded []ExcludedDate) (RecurringEventSeries, error) {
+	if !rule.initialized() {
+		return nil, ErrRecurrenceRuleUninitialized
+	}
+	sorted := slices.Clone(excluded)
+	slices.SortFunc(sorted, func(a, b ExcludedDate) int { return a.date.compare(b.date) })
+	for i := 1; i < len(sorted); i++ {
+		if sorted[i] == sorted[i-1] {
+			return nil, fmt.Errorf("%w: %s", ErrRecurringExcludedDateDuplicated, sorted[i].date)
+		}
+	}
+	return &seriesEntity{id: id, userID: userID, rule: rule, excluded: sorted}, nil
+}
+
+func (s *seriesEntity) ID() uuid.UUID                 { return s.id }
+func (s *seriesEntity) UserID() uuid.UUID             { return s.userID }
+func (s *seriesEntity) Rule() RecurrenceRule          { return s.rule }
+func (s *seriesEntity) ExcludedDates() []ExcludedDate { return slices.Clone(s.excluded) }
+
+func (s *seriesEntity) LocalDateOf(t time.Time) LocalDate {
+	return LocalDateOf(t.In(s.rule.Timezone.Location()))
+}
+
+func (s *seriesEntity) ExcludeOccurrence(occurrenceStart time.Time) (RecurringEventSeries, error) {
+	return New(s.id, s.userID, s.rule,
+		append(slices.Clone(s.excluded), NewExcludedDate(s.LocalDateOf(occurrenceStart))))
+}
+
+func (s *seriesEntity) EndBefore(occurrenceStart time.Time) RecurringEventSeries {
+	from := s.LocalDateOf(occurrenceStart)
+	copied := *s
+	copied.rule.End = NewUntilDateEnd(from.addDays(-1))
+	copied.excluded = slices.DeleteFunc(slices.Clone(s.excluded), func(e ExcludedDate) bool {
+		return !e.date.Before(from)
+	})
+	return &copied
+}
+
+// errNoFollowingOccurrence is not a DomainError: the caller passes target
+// from the series' own occurrences, so missing it is a bug, not user input.
+var errNoFollowingOccurrence = errors.New("no occurrence of the series starts at or after the target")
+
+func (s *seriesEntity) FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, error) {
+	if _, ok := s.rule.End.Count(); !ok {
+		return s.rule.End, nil
+	}
+	remaining := 0
+	for _, start := range occurrenceStarts {
+		if !start.Before(target) {
+			remaining++
+		}
+	}
+	if remaining == 0 {
+		return RecurrenceEnd{}, fmt.Errorf("%w: %s", errNoFollowingOccurrence, target)
+	}
+	return RestoreCountEnd(remaining)
+}

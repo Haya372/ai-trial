@@ -44,3 +44,13 @@ func (e RecurrenceEnd) UntilDate() (LocalDate, bool) {
 func (e RecurrenceEnd) Count() (int, bool) {
 	return e.count, e.typ == EndCount
 }
+
+// RestoreCountEnd accepts a count of 1, unlike NewCountEnd: a series may end
+// up with a single occurrence after a "this and following" change, and the
+// stored count must still load.
+func RestoreCountEnd(n int) (RecurrenceEnd, error) {
+	if n < 1 {
+		return RecurrenceEnd{}, fmt.Errorf("%w: stored count must be at least 1, got %d", ErrRecurringEndInvalid, n)
+	}
+	return RecurrenceEnd{typ: EndCount, count: n}, nil
+}
