@@ -19,7 +19,7 @@
 
 ## 非目標
 
-- OAuthログイン（Googleログインは [PRD-012](./PRD-012-google-login.md) で扱う）
+- OAuthログイン（SSOログインは [PRD-012](./PRD-012-sso-login.md) で扱う）
 - 2要素認証
 - パスワードレス認証
 - パスワードリセット（[PRD-011](./PRD-011-account-lock-password-reset.md) で扱う）
