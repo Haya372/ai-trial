@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement, ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import i18n from 'i18next'
 import { describe, expect, it, vi } from 'vitest'
@@ -35,15 +36,29 @@ vi.mock('@repo/ui', async (importOriginal) => {
   }
 })
 
+function renderPage(ui: ReactElement) {
+  const queryClient = new QueryClient()
+  return {
+    queryClient,
+    ...render(ui, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      ),
+    }),
+  }
+}
+
 describe('LoginPage', () => {
   it('renders email and password fields with Japanese labels', () => {
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     expect(screen.getByLabelText(/メールアドレス/)).toBeInTheDocument()
     expect(screen.getByLabelText(/パスワード/)).toBeInTheDocument()
   })
 
   it('shows validation error when email is empty and form submitted', async () => {
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     fireEvent.click(screen.getByRole('button', { name: /ログイン/ }))
     await waitFor(() => {
       expect(
@@ -53,7 +68,7 @@ describe('LoginPage', () => {
   })
 
   it('shows validation error when password is empty', async () => {
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     fireEvent.change(screen.getByLabelText(/メールアドレス/), {
       target: { value: 'test@example.com' },
     })
@@ -66,14 +81,14 @@ describe('LoginPage', () => {
   })
 
   it('reserves the validation message slot even when there is no error', () => {
-    const { container } = render(<LoginPage />)
+    const { container } = renderPage(<LoginPage />)
     expect(
       container.querySelectorAll('[data-slot="form-message"]'),
     ).toHaveLength(2)
   })
 
   it('renders a link to the signup page', () => {
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     const link = screen.getByRole('link', {
       name: /アカウントをお持ちでない方はこちら/,
     })
@@ -81,7 +96,7 @@ describe('LoginPage', () => {
   })
 
   it('updates a displayed validation error to the new language when the language changes', async () => {
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     fireEvent.click(screen.getByRole('button', { name: /ログイン/ }))
     await waitFor(() => {
       expect(
@@ -97,7 +112,7 @@ describe('LoginPage', () => {
   it('送信中はログインボタンをローディング状態にする', async () => {
     const { login } = await import('../../../api/generated')
     vi.mocked(login).mockReturnValueOnce(new Promise(() => {}))
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     fireEvent.change(screen.getByLabelText(/メールアドレス/), {
       target: { value: 'test@example.com' },
     })
@@ -119,7 +134,7 @@ describe('LoginPage', () => {
       status: 401,
       headers: new Headers(),
     } as never)
-    render(<LoginPage />)
+    renderPage(<LoginPage />)
     fireEvent.change(screen.getByLabelText(/メールアドレス/), {
       target: { value: 'test@example.com' },
     })
@@ -132,5 +147,50 @@ describe('LoginPage', () => {
         'メールアドレスまたはパスワードが正しくありません',
       )
     })
+  })
+
+  it('成功したら、ログイン前に取得したクエリのキャッシュを破棄する', async () => {
+    const { login } = await import('../../../api/generated')
+    vi.mocked(login).mockResolvedValueOnce({
+      data: { id: '1', email: 'test@example.com', displayName: 'Test' },
+      status: 200,
+      headers: new Headers(),
+    } as never)
+    const { queryClient } = renderPage(<LoginPage />)
+    // 未ログインのときに取得した、閲覧者によって結果が変わるクエリ
+    queryClient.setQueryData(['auth', 'me'], null)
+    fireEvent.change(screen.getByLabelText(/メールアドレス/), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.change(screen.getByLabelText(/パスワード/), {
+      target: { value: 'password123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /ログイン/ }))
+    await waitFor(() => {
+      expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    })
+  })
+
+  it('失敗したときは、クエリのキャッシュを残す', async () => {
+    const { login } = await import('../../../api/generated')
+    vi.mocked(login).mockResolvedValueOnce({
+      data: { code: 'INTERNAL_ERROR', message: 'internal error' },
+      status: 500,
+      headers: new Headers(),
+    } as never)
+    const { queryClient } = renderPage(<LoginPage />)
+    queryClient.setQueryData(['auth', 'me'], null)
+    mockToastError.mockClear()
+    fireEvent.change(screen.getByLabelText(/メールアドレス/), {
+      target: { value: 'test@example.com' },
+    })
+    fireEvent.change(screen.getByLabelText(/パスワード/), {
+      target: { value: 'password123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /ログイン/ }))
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalled()
+    })
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })
 })
