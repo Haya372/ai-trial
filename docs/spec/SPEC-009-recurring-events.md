@@ -137,7 +137,7 @@
 | `recurring_series_exceptions` | （主キー） | - | PRIMARY KEY (`series_id`, `excluded_date`) | 同一シリーズ内の除外日の重複防止 |
 | `events` | `series_id` | `UUID` | NULL 許容 | SPEC-009 で追加。属するシリーズのID。NULL は単発の予定。「この予定のみ変更」で NULL に戻す（切り離し） |
 | `events` | （外部キー） | - | FOREIGN KEY (`series_id`, `user_id`) REFERENCES `recurring_event_series(id, user_id)` ON DELETE CASCADE | 予定の所有者とシリーズの所有者の一致を保証する。`series_id` が NULL の行は検査しない（MATCH SIMPLE）。シリーズ削除で回も削除 |
-| `events` | （インデックス） | - | `idx_events_series_id` on (`series_id`, `start_at`) | シリーズ内の回を一括取得（「以降すべて」「すべて」）する用。`start_at` での範囲指定・並べ替えもインデックスで行う |
+| `events` | （インデックス） | - | `idx_events_series_id` on (`series_id`, `start_at`) | シリーズ内の回を一括取得（「以降すべて」「すべて」）する用。`start_at` での範囲指定（「以降すべて」）にも使う |
 
 パターン判定に必要な「曜日」「日付」はシリーズに保存せず、各回の `start_at` を `recurring_event_series.timezone` のローカル時刻へ変換して導出する（同じシリーズ内のどの回を使っても同じ結果が得られる）。「毎月 第N曜日」の `N` だけは「第4月曜日」と「最終月曜日」が同じ日に重なる月では日付からの判別ができないため、`monthly_nth` としてユーザーの明示的な選択を保存する。
 
