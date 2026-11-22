@@ -65,6 +65,35 @@ func TestUpdateEventCommand_Execute_ValidInput_UpdatesAndReturnsEvent(t *testing
 	}
 }
 
+func TestUpdateEventCommand_Execute_KeepsSeriesOfAnOccurrence(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := eventmock.NewMockRepository(ctrl)
+
+	userID, eventID, seriesID := uuid.New(), uuid.New(), uuid.New()
+	start := time.Now().UTC()
+	end := start.Add(time.Hour)
+
+	existing, _ := domainevent.New(eventID, userID, "Old title", "", start, end, "", "")
+	existing = existing.WithSeriesID(seriesID)
+
+	repo.EXPECT().FindByIDForUpdate(gomock.Any(), eventID).Return(existing, nil)
+	repo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, e domainevent.Event) error {
+			if id, ok := e.SeriesID(); !ok || id != seriesID {
+				t.Errorf("SeriesID: got (%v, %v), want (%v, true)", id, ok, seriesID)
+			}
+			return nil
+		},
+	)
+
+	cmd := eventuc.NewUpdateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	if _, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
+		ID: eventID, Title: newTitle, StartAt: start, EndAt: end,
+	}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestUpdateEventCommand_Execute_EndAtBeforeStartAt_ReturnsValidationError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	repo := eventmock.NewMockRepository(ctrl)

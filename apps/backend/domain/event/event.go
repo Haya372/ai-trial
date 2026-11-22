@@ -26,6 +26,10 @@ type Event interface {
 	Tags() []EventTag
 	// WithTags returns a copy of the event with its tags replaced by tags.
 	WithTags(tags []EventTag) (Event, error)
+	// WithContent returns a copy with the user-editable content replaced and
+	// the same identity, tags and series. Rebuilding an updated event with
+	// New would silently drop the tags and the series.
+	WithContent(title, description string, startAt, endAt time.Time, location, url string) (Event, error)
 	// SeriesID returns the recurring series the event is an occurrence of;
 	// ok is false for a one-off event.
 	SeriesID() (id uuid.UUID, ok bool)
@@ -55,15 +59,8 @@ func New(
 	startAt, endAt time.Time,
 	location, url string,
 ) (Event, error) {
-	if title == "" {
-		return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
-			{Field: "title", Code: "REQUIRED", Message: "title is required"},
-		}}
-	}
-	if !endAt.After(startAt) {
-		return nil, &domain.ValidationError{Details: []domain.ValidationDetail{
-			{Field: "endAt", Code: "INVALID_DATE_RANGE", Message: "endAt must be strictly after startAt"},
-		}}
+	if err := validateContent(title, startAt, endAt); err != nil {
+		return nil, err
 	}
 	return &eventEntity{
 		id:          id,
@@ -85,6 +82,36 @@ func (e *eventEntity) StartAt() time.Time  { return e.startAt }
 func (e *eventEntity) EndAt() time.Time    { return e.endAt }
 func (e *eventEntity) Location() string    { return e.location }
 func (e *eventEntity) URL() string         { return e.url }
+
+func (e *eventEntity) WithContent(
+	title, description string, startAt, endAt time.Time, location, url string,
+) (Event, error) {
+	if err := validateContent(title, startAt, endAt); err != nil {
+		return nil, err
+	}
+	copied := *e
+	copied.title = title
+	copied.description = description
+	copied.startAt = startAt
+	copied.endAt = endAt
+	copied.location = location
+	copied.url = url
+	return &copied, nil
+}
+
+func validateContent(title string, startAt, endAt time.Time) error {
+	if title == "" {
+		return &domain.ValidationError{Details: []domain.ValidationDetail{
+			{Field: "title", Code: "REQUIRED", Message: "title is required"},
+		}}
+	}
+	if !endAt.After(startAt) {
+		return &domain.ValidationError{Details: []domain.ValidationDetail{
+			{Field: "endAt", Code: "INVALID_DATE_RANGE", Message: "endAt must be strictly after startAt"},
+		}}
+	}
+	return nil
+}
 
 func (e *eventEntity) Tags() []EventTag { return slices.Clone(e.tags) }
 
