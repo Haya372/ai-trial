@@ -14,6 +14,11 @@ type RecurrenceRule struct {
 	Timezone SeriesTimezone
 }
 
+// initialized is false when a part of the rule skipped its constructor.
+func (r RecurrenceRule) initialized() bool {
+	return r.Pattern.typ != "" && r.End.typ != "" && r.Timezone.loc != nil
+}
+
 // Occurrence is the start and end of one occurrence, in UTC (ADR-036).
 type Occurrence struct {
 	StartAt time.Time
@@ -32,7 +37,7 @@ func ExpandOccurrences(
 ) ([]Occurrence, error) {
 	// A zero-value pattern would never advance past the first date, so the
 	// loop in occurrenceDates would not terminate.
-	if rule.Pattern.typ == "" || rule.End.typ == "" || rule.Timezone.loc == nil {
+	if !rule.initialized() {
 		return nil, ErrRecurrenceRuleUninitialized
 	}
 	loc := rule.Timezone.Location()

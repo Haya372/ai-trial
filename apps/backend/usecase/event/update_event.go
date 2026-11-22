@@ -75,8 +75,8 @@ func (c *UpdateEventCommand) Execute(
 		}
 		tagViews = views
 
-		updated, err = domainevent.New(
-			in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
+		updated, err = existing.WithContent(
+			in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
 		)
 		if err != nil {
 			return err

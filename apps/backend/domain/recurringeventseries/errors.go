@@ -18,6 +18,11 @@ const (
 	CodeLocalDateInvalid                   = "INVALID_FORMAT"
 )
 
+const (
+	CodeRecurringSeriesNotFound         = "RECURRING_SERIES_NOT_FOUND"
+	CodeRecurringExcludedDateDuplicated = "RECURRING_EXCLUDED_DATE_DUPLICATED"
+)
+
 var (
 	ErrRecurringPatternInvalid = domain.NewDomainError(
 		CodeRecurringPatternInvalid, "Recurrence pattern is invalid")
@@ -33,6 +38,12 @@ var (
 		CodeRecurringSeriesSpanExceeded, "Occurrences must start within 2 years of the first occurrence")
 	ErrLocalDateInvalid = domain.NewDomainError(
 		CodeLocalDateInvalid, "Date does not exist in the calendar")
+	// ErrRecurringSeriesNotFound also covers another user's series, so the
+	// response never reveals whether someone else's series exists.
+	ErrRecurringSeriesNotFound = domain.NewDomainError(
+		CodeRecurringSeriesNotFound, "Recurring series not found")
+	ErrRecurringExcludedDateDuplicated = domain.NewDomainError(
+		CodeRecurringExcludedDateDuplicated, "The date is already excluded from the series")
 )
 
 // ErrRecurrenceRuleUninitialized is not a DomainError: a zero-value rule
