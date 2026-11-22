@@ -142,6 +142,10 @@ test.describe('今日のタイムライン', () => {
     await signIn(user)
 
     const timeline = timelineOf(page)
+    const calendar = page.getByRole('table')
+
+    // 削除後に消えたことを確かめる前提として、削除前はカレンダーにも表示されている
+    await expect(calendar.getByText('設計レビュー')).toBeVisible()
 
     await timeline.getByRole('button', { name: /設計レビュー/ }).click()
     const detail = page.getByRole('dialog', { name: '設計レビュー' })
@@ -154,6 +158,6 @@ test.describe('今日のタイムライン', () => {
     await expect(detail).toBeHidden()
     await expect(timeline.getByText('今日の予定はありません', { exact: true })).toBeVisible()
     await expect(timeline.getByRole('button')).toHaveCount(0)
-    await expect(page.getByRole('table').getByText('設計レビュー')).toHaveCount(0)
+    await expect(calendar.getByText('設計レビュー')).toHaveCount(0)
   })
 })
