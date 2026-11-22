@@ -6,6 +6,12 @@ import { atFixedDay, type FixedDayTime } from '../support/clock'
 const timelineOf = (page: Page) => page.getByRole('region', { name: '今日のタイムライン' })
 
 /**
+ * パネル上部の次の予定カード。リストの予定にも同じタイトルが出るため、カードに絞って確かめる。
+ * カードには role やラベルがないので、パネル内で最初の div（リストより前にある）を使う
+ */
+const nextEventCardOf = (page: Page) => timelineOf(page).locator('div').first()
+
+/**
  * FIXED_NOW の日付の指定時刻まで時計を進めて止める。
  * 時計は install 後も実時間で進むため、現在時刻に依存する表示を確かめる前に止めて結果を固定する。
  * 止めている間はタイマーが発火せず、TanStack Query が setTimeout(0) で通知する取得結果も画面に反映されない。
@@ -66,8 +72,7 @@ test.describe('今日のタイムライン', () => {
       '10:30〜12:00設計レビュー',
     ]
 
-    await expect(timeline.getByText('設計レビュー', { exact: true }).first()).toBeVisible()
-    await expect(timeline.getByText('あと25分', { exact: true })).toBeVisible()
+    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと25分')
     await expect(timeline.getByRole('listitem')).toHaveText(items)
 
     // カレンダーの表示期間を移動しても、パネルは今日の予定を表示し続ける。
@@ -76,6 +81,7 @@ test.describe('今日のタイムライン', () => {
     await page.getByRole('button', { name: '次へ', exact: true }).click()
     await expect(page.getByText('2030年7月', { exact: true })).toBeVisible()
     await expect(page.getByRole('table').getByText('7月の予定')).toBeVisible()
+    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと25分')
     await expect(timeline.getByRole('listitem')).toHaveText(items)
   })
 
@@ -96,7 +102,7 @@ test.describe('今日のタイムライン', () => {
     const timeline = timelineOf(page)
 
     await pauseAtFixedDay(page, { hour: 10, minute: 5 })
-    await expect(timeline.getByText('あと25分', { exact: true })).toBeVisible()
+    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと25分')
     await expect(timeline.getByRole('listitem')).toHaveText([
       '09:00〜10:15朝会',
       '10:05',
@@ -106,7 +112,7 @@ test.describe('今日のタイムライン', () => {
 
     // 朝会が終わり、空き時間に入ると現在時刻は空き時間の後に移る
     await pauseAtFixedDay(page, { hour: 10, minute: 20 })
-    await expect(timeline.getByText('あと10分', { exact: true })).toBeVisible()
+    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと10分')
     await expect(timeline.getByRole('listitem')).toHaveText([
       '09:00〜10:15朝会',
       '15分の空き',
@@ -116,7 +122,7 @@ test.describe('今日のタイムライン', () => {
 
     // 設計レビューが始まると開催中の予定になり、今日の残りの予定はなくなる
     await pauseAtFixedDay(page, { hour: 10, minute: 30 })
-    await expect(timeline.getByText('今日の予定はもうありません', { exact: true })).toBeVisible()
+    await expect(nextEventCardOf(page)).toHaveText('今日の予定はもうありません')
     await expect(timeline.getByRole('listitem')).toHaveText([
       '09:00〜10:15朝会',
       '15分の空き',
