@@ -5,7 +5,16 @@ description: GitHubにPRを作成するとき。
 
 # PR 作成スキル
 
-テンプレートの構成は `.github/PULL_REQUEST_TEMPLATE.md` を参照すること。
+## テンプレートの選択
+
+PRのタイトルのtypeに対応するテンプレートを読み込み、その構成で本文を書く。
+
+| type | テンプレート |
+|---|---|
+| `feat` | `.github/PULL_REQUEST_TEMPLATE.md` |
+| `fix` | `.github/PULL_REQUEST_TEMPLATE/bug.md` |
+| `refactor` | `.github/PULL_REQUEST_TEMPLATE/refactoring.md` |
+| 上記以外 | `.github/PULL_REQUEST_TEMPLATE/task.md` |
 
 ## 命名規則
 
@@ -16,7 +25,7 @@ description: GitHubにPRを作成するとき。
 
 > **注意**: `git -C <path>` は allowlist にマッチしないため使わない。カレントディレクトリがプロジェクトルートなら `git push` などをそのまま実行する。パス移動が必要な場合は `cd <path> && git <command>` の形にする。
 
-`.github/PULL_REQUEST_TEMPLATE.md` の構成を参照しながら、各セクションの内容を実際の値で埋めてbodyを構築する。
+選択したテンプレートの各セクションを実際の値で埋めてbodyを構築する。
 
 body ファイルは、Write ツールでスクラッチパッドディレクトリ（システムプロンプトに記載の絶対パス）に作成し、その絶対パスを `--body-file` に渡す。
 

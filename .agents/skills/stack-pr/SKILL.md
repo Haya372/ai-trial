@@ -62,7 +62,7 @@ gh stack add <third-branch>
 gh stack submit
 ```
 
-PRタイトル・本文の入力を求められる。`.github/PULL_REQUEST_TEMPLATE.md` の構成に沿って各PRの本文を記述する。
+PRタイトル・本文の入力を求められる。`create-pr` スキルの「テンプレートの選択」で各PRのテンプレートを選び、その構成に沿って本文を記述する。
 
 ### ステップ 5: レビュー後の修正
 
