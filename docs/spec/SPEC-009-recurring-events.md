@@ -163,7 +163,7 @@ SPEC-009 では新規エンドポイントを追加せず、既存の SPEC-002�
 | `end` | object | 必須 | - | 終了条件 |
 | `end.type` | string | 必須 | `indefinite` / `until_date` / `count` | 終了条件の種類 |
 | `end.untilDate` | string (date, `YYYY-MM-DD`) | `end.type = until_date` のとき必須、それ以外は省略 | `timezone` のローカル日付。`startAt` を `timezone` に変換した日付以降、かつ `startAt` から2年以内 | 終了日 |
-| `end.count` | integer | `end.type = count` のとき必須、それ以外は省略 | 2 以上。除外日は含め、スキップ月は含めない | 回数 |
+| `end.count` | integer | `end.type = count` のとき必須、それ以外は省略 | リクエストで繰り返し設定を新しく入力・変更するときは 2 以上。レスポンスでは 1 を返しうる（「以降すべて変更」で残りの回数を引き継いだ場合）。除外日は含め、スキップ月は含めない | 回数 |
 | `timezone` | string | 必須 | IANA タイムゾーン名（`time.LoadLocation` で解釈可能なもの、例: `Asia/Tokyo`） | シリーズ作成時の端末タイムゾーン |
 
 `recurringSeries`（レスポンス）では上記に加えて `id`（string, uuid）が返る。`recurringSeries` は、対象予定がシリーズに属していないとき、または共有リンクから追加した予定（`isSubscribed = true`、GET /events を参照）のとき `null` を返す。
@@ -240,7 +240,7 @@ SPEC-009 では新規エンドポイントを追加せず、既存の SPEC-002�
 
 ##### エラー
 
-SPEC-003 のエラーに加えて以下を返す。`recurrence` 自体のバリデーションエラーは `POST /events` と共通。
+SPEC-003 のエラーに加えて以下を返す。`recurrence` 自体のバリデーションエラーは `POST /events` と共通。ただし、現在のシリーズのルールと差分がない `recurrence` は、`OUT_OF_RANGE` / `TOO_FEW_OCCURRENCES` の検査をしない（`end.count = 1` のシリーズのルールをそのまま送っても 400 にしない）。
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
