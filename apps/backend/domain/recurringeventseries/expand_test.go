@@ -284,3 +284,17 @@ func TestExpandOccurrences_keepsDurationWhenEndFallsInDSTGap(t *testing.T) {
 		}
 	}
 }
+
+func TestExpandOccurrences_firstOccurrenceIsTheGivenInstant(t *testing.T) {
+	// 06:30Z on 2026-11-01 is the second 01:30 in New York (EST); rebuilding
+	// it from the wall clock could pick the first one (EDT, 05:30Z).
+	start := time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	occs, err := res.ExpandOccurrences(start, end, mustRule(t, weekly, nil, mustCount(t, 2), newYork), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !occs[0].StartAt.Equal(start) || !occs[0].EndAt.Equal(end) {
+		t.Errorf("first occurrence = %v - %v, want %v - %v", occs[0].StartAt, occs[0].EndAt, start, end)
+	}
+}

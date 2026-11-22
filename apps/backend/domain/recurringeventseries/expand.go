@@ -52,7 +52,12 @@ func ExpandOccurrences(
 	duration := firstEnd.Sub(firstStart)
 	occs := make([]Occurrence, len(dates))
 	for i, d := range dates {
-		start := atWallClock(d, localStart, loc)
+		// The first occurrence keeps the instant the user sent: on a fall-back
+		// day its wall-clock time is ambiguous and could resolve an hour off.
+		start := firstStart.UTC()
+		if d != first {
+			start = atWallClock(d, localStart, loc)
+		}
 		occs[i] = Occurrence{StartAt: start, EndAt: start.Add(duration)}
 	}
 	return occs, nil
