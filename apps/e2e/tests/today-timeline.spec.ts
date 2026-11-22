@@ -8,9 +8,12 @@ const timelineOf = (page: Page) => page.getByRole('region', { name: '今日の�
 /**
  * FIXED_NOW の日付の指定時刻まで時計を進めて止める。
  * 時計は install 後も実時間で進むため、現在時刻に依存する表示を確かめる前に止めて結果を固定する。
- * 途中のタイマーも発火するので、分の境界ごとの再計算もこれで走る
+ * 止めている間はタイマーが発火せず、TanStack Query が setTimeout(0) で通知する取得結果も画面に反映されない。
+ * そのため、パネルが予定を取得して描画し終えてから止める
  */
 async function pauseAtFixedDay(page: Page, time: FixedDayTime): Promise<void> {
+  // パネルは取得が終わるまでローディング表示だけを出し、region もリストも描画しない
+  await expect(timelineOf(page).getByRole('listitem').first()).toBeVisible()
   await page.clock.pauseAt(new Date(atFixedDay(time)))
 }
 
@@ -42,6 +45,12 @@ test.describe('今日のタイムライン', () => {
       startAt: atFixedDay({ dayOffset: 1, hour: 11 }),
       endAt: atFixedDay({ dayOffset: 1, hour: 12 }),
     })
+    // 「次へ」で表示する7月のカレンダーが描画し終えたことを確かめるための予定
+    await user.api.createEvent({
+      title: '7月の予定',
+      startAt: atFixedDay({ dayOffset: 30, hour: 14 }),
+      endAt: atFixedDay({ dayOffset: 30, hour: 15 }),
+    })
 
     await signIn(user)
     await pauseAtFixedDay(page, { hour: 10, minute: 5 })
@@ -61,9 +70,12 @@ test.describe('今日のタイムライン', () => {
     await expect(timeline.getByText('あと25分', { exact: true })).toBeVisible()
     await expect(timeline.getByRole('listitem')).toHaveText(items)
 
-    // カレンダーの表示期間を移動しても、パネルは今日の予定を表示し続ける
+    // カレンダーの表示期間を移動しても、パネルは今日の予定を表示し続ける。
+    // 止めたままだと7月の取得結果が反映されないため、時計を動かしてから移動する（実時間で数秒進むだけで表示は変わらない）
+    await page.clock.resume()
     await page.getByRole('button', { name: '次へ', exact: true }).click()
     await expect(page.getByText('2030年7月', { exact: true })).toBeVisible()
+    await expect(page.getByRole('table').getByText('7月の予定')).toBeVisible()
     await expect(timeline.getByRole('listitem')).toHaveText(items)
   })
 
