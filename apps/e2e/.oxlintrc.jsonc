@@ -1,13 +1,10 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "oxc"],
-  "categories": {
-    "correctness": "error",
-    "suspicious": "warn"
-  },
+  "extends": ["../../.oxlintrc.jsonc"],
+  // plugins を省略すると oxlint のデフォルト（unicorn 等）が追加されるため、空配列で明示する。
+  // extends 先の plugins とは和集合でマージされる。
+  "plugins": [],
   "rules": {
-    "typescript/no-explicit-any": "error",
-    "typescript/no-non-null-assertion": "error",
     "no-console": "error"
   }
 }
