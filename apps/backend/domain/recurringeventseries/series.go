@@ -27,10 +27,10 @@ type RecurringEventSeries interface {
 	// EndBefore returns a copy that ends the day before the occurrence's local
 	// date, for the original series of a "this and following" change or
 	// delete, and the excluded dates from that day on, which the copy drops.
-	// FollowingEnd decides which of them a new series that keeps the rule
-	// takes over, so deleted and detached occurrences do not come back. Treating the first occurrence as
-	// "all" is the caller's decision, since the series does not know its
-	// first occurrence.
+	// FollowingEnd returns those a new series that keeps the rule takes
+	// over, if any, so deleted and detached occurrences do not come back.
+	// Treating the first occurrence as "all" is the caller's decision, since
+	// the series does not know its first occurrence.
 	EndBefore(occurrenceStart time.Time) (ended RecurringEventSeries, dropped []ExcludedDate)
 	// FollowingEnd returns the end and the excluded dates the new series
 	// takes over in a "this and following" change that keeps the rule, so
@@ -104,7 +104,7 @@ func (s *seriesEntity) FollowingEnd(
 		return RecurrenceEnd{}, nil, fmt.Errorf("%w: %s", errTargetNotAnOccurrence, target)
 	}
 	remaining, last := countFrom(occurrenceStarts, target)
-	if s.LocalDateOf(newStart) != s.LocalDateOf(target) || remaining == 1 && s.rule.End.Type() != EndCount {
+	if s.LocalDateOf(newStart) != s.LocalDateOf(target) || (remaining == 1 && s.rule.End.Type() != EndCount) {
 		// A single remaining occurrence is a single candidate up to an
 		// until date, which ExpandOccurrences rejects.
 		end, err := RestoreCountEnd(remaining)

@@ -30,7 +30,14 @@ func excludedOn(t *testing.T, dates ...string) []res.ExcludedDate {
 }
 
 func excludedStrings(s res.RecurringEventSeries) []string {
-	dates := s.ExcludedDates()
+	return dateStrings(s.ExcludedDates())
+}
+
+// dateStrings returns nil for no dates, so it compares equal to a nil want.
+func dateStrings(dates []res.ExcludedDate) []string {
+	if len(dates) == 0 {
+		return nil
+	}
 	out := make([]string, len(dates))
 	for i, e := range dates {
 		out[i] = e.Date().String()
@@ -199,30 +206,36 @@ func TestFollowingEnd_countIsRemainingCandidatesFromTarget(t *testing.T) {
 		starts[i] = localAt(t, tokyo, 2026, 12, 7+7*i, 10, 0)
 	}
 	dateOf := func(i int) string { return starts[i].In(rule.Timezone.Location()).Format(time.DateOnly) }
+	gone := func(i int) []time.Time { return slices.Delete(slices.Clone(starts), i, i+1) }
 
 	cases := map[string]struct {
 		starts   []time.Time
 		excluded []res.ExcludedDate
 		target   time.Time
 		want     int
+		// wantOver is the excluded dates the new series takes over.
+		wantOver []string
 	}{
-		"4th of 10":        {starts, nil, starts[3], 7},
-		"first":            {starts, nil, starts[0], 10},
-		"last":             {starts, nil, starts[9], 1},
-		"earlier one gone": {slices.Delete(slices.Clone(starts), 1, 2), excludedOn(t, dateOf(1)), starts[3], 7},
-		"later one gone":   {slices.Delete(slices.Clone(starts), 5, 6), excludedOn(t, dateOf(5)), starts[3], 7},
-		"last one gone":    {slices.Delete(slices.Clone(starts), 9, 10), excludedOn(t, dateOf(9)), starts[8], 2},
-		"unordered starts": {[]time.Time{starts[5], starts[0], starts[3], starts[4]}, nil, starts[3], 3},
+		"4th of 10":        {starts, nil, starts[3], 7, nil},
+		"first":            {starts, nil, starts[0], 10, nil},
+		"last":             {starts, nil, starts[9], 1, nil},
+		"earlier one gone": {gone(1), excludedOn(t, dateOf(1)), starts[3], 7, nil},
+		"later one gone":   {gone(5), excludedOn(t, dateOf(5)), starts[3], 7, []string{dateOf(5)}},
+		"last one gone":    {gone(9), excludedOn(t, dateOf(9)), starts[8], 2, []string{dateOf(9)}},
+		"unordered starts": {[]time.Time{starts[5], starts[0], starts[3], starts[4]}, nil, starts[3], 3, nil},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := mustSeries(t, rule, c.excluded...)
-			got, _, err := s.FollowingEnd(c.starts, c.target, c.target)
+			got, excluded, err := s.FollowingEnd(c.starts, c.target, c.target)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if n, ok := got.Count(); !ok || n != c.want {
 				t.Errorf("got (%d, %v), want (%d, true)", n, ok, c.want)
+			}
+			if over := dateStrings(excluded); !slices.Equal(over, c.wantOver) {
+				t.Errorf("got excluded %v, want %v", over, c.wantOver)
 			}
 		})
 	}
@@ -232,32 +245,39 @@ func TestFollowingEnd_keepsUntilDateEnd(t *testing.T) {
 	start := localAt(t, tokyo, 2026, 12, 7, 10, 0)
 	next := localAt(t, tokyo, 2026, 12, 14, 10, 0)
 	end := until(t, 2027, 6, 30)
-	s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo))
+	s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo), excludedOn(t, dec28)...)
 
-	got, _, err := s.FollowingEnd([]time.Time{start, next}, start, start)
+	got, excluded, err := s.FollowingEnd([]time.Time{start, next}, start, start)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if got != end {
 		t.Errorf("got %+v, want %+v", got, end)
 	}
+	if over, want := dateStrings(excluded), []string{dec28}; !slices.Equal(over, want) {
+		t.Errorf("got excluded %v, want %v", over, want)
+	}
 }
 
 // Carrying an indefinite end over would restart its 2-year window at the
 // target and add occurrences the calendar did not show before the change.
 func TestFollowingEnd_indefiniteEndsOnTheLastOccurrence(t *testing.T) {
-	s := mustSeries(t, mustRule(t, daily, nil, res.NewIndefiniteEnd(), tokyo))
+	s := mustSeries(t, mustRule(t, daily, nil, res.NewIndefiniteEnd(), tokyo),
+		excludedOn(t, "2027-05-31", "2027-12-31")...)
 	target := localAt(t, tokyo, 2027, 6, 1, 10, 0)
 	// 00:30 JST on the last day is the previous day in UTC.
 	last := localAt(t, tokyo, 2028, 1, 1, 0, 30)
 	starts := []time.Time{last, localAt(t, tokyo, 2026, 1, 1, 10, 0), target}
 
-	got, _, err := s.FollowingEnd(starts, target, target)
+	got, excluded, err := s.FollowingEnd(starts, target, target)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if d, ok := got.UntilDate(); !ok || d.String() != "2028-01-01" {
 		t.Errorf("got %+v, want until 2028-01-01", got)
+	}
+	if over, want := dateStrings(excluded), []string{"2027-12-31"}; !slices.Equal(over, want) {
+		t.Errorf("got excluded %v, want %v", over, want)
 	}
 }
 
@@ -312,10 +332,7 @@ func TestFollowingEnd_takesOverExcludedDatesFromTheTargetOn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	got := make([]string, len(excluded))
-	for i, e := range excluded {
-		got[i] = e.Date().String()
-	}
+	got := dateStrings(excluded)
 	if want := []string{dec28, "2027-01-11"}; !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
