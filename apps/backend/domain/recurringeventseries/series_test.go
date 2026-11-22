@@ -187,27 +187,33 @@ func TestEndBefore_crossesMonthBoundary(t *testing.T) {
 	}
 }
 
-func TestFollowingEnd_countIsRemainingOccurrencesFromTarget(t *testing.T) {
-	s := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 10), tokyo))
+// A count end counts excluded dates, so the remaining count adds the excluded
+// dates the new series takes over to the occurrences from the target on.
+func TestFollowingEnd_countIsRemainingCandidatesFromTarget(t *testing.T) {
+	rule := mustRule(t, weekly, nil, mustCount(t, 10), tokyo)
 	starts := make([]time.Time, 10)
 	for i := range starts {
 		starts[i] = localAt(t, tokyo, 2026, 12, 7+7*i, 10, 0)
 	}
+	dateOf := func(i int) string { return starts[i].In(rule.Timezone.Location()).Format(time.DateOnly) }
 
 	cases := map[string]struct {
-		starts []time.Time
-		target time.Time
-		want   int
+		starts   []time.Time
+		excluded []res.ExcludedDate
+		target   time.Time
+		want     int
 	}{
-		"4th of 10":        {starts, starts[3], 7},
-		"first":            {starts, starts[0], 10},
-		"last":             {starts, starts[9], 1},
-		"earlier one gone": {slices.Delete(slices.Clone(starts), 1, 2), starts[3], 7},
-		"later one gone":   {slices.Delete(slices.Clone(starts), 5, 6), starts[3], 6},
-		"unordered starts": {[]time.Time{starts[5], starts[0], starts[3], starts[4]}, starts[3], 3},
+		"4th of 10":        {starts, nil, starts[3], 7},
+		"first":            {starts, nil, starts[0], 10},
+		"last":             {starts, nil, starts[9], 1},
+		"earlier one gone": {slices.Delete(slices.Clone(starts), 1, 2), excludedOn(t, dateOf(1)), starts[3], 7},
+		"later one gone":   {slices.Delete(slices.Clone(starts), 5, 6), excludedOn(t, dateOf(5)), starts[3], 7},
+		"last one gone":    {slices.Delete(slices.Clone(starts), 9, 10), excludedOn(t, dateOf(9)), starts[8], 2},
+		"unordered starts": {[]time.Time{starts[5], starts[0], starts[3], starts[4]}, nil, starts[3], 3},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
+			s := mustSeries(t, rule, c.excluded...)
 			got, err := s.FollowingEnd(c.starts, c.target)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -219,22 +225,52 @@ func TestFollowingEnd_countIsRemainingOccurrencesFromTarget(t *testing.T) {
 	}
 }
 
-func TestFollowingEnd_keepsNonCountEnd(t *testing.T) {
+func TestFollowingEnd_keepsUntilDateEnd(t *testing.T) {
 	start := localAt(t, tokyo, 2026, 12, 7, 10, 0)
 	next := localAt(t, tokyo, 2026, 12, 14, 10, 0)
-	for name, end := range map[string]res.RecurrenceEnd{
-		"indefinite": res.NewIndefiniteEnd(),
-		"until_date": until(t, 2027, 6, 30),
-	} {
-		s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo))
+	end := until(t, 2027, 6, 30)
+	s := mustSeries(t, mustRule(t, weekly, nil, end, tokyo))
 
-		got, err := s.FollowingEnd([]time.Time{start, next}, start)
-		if err != nil {
-			t.Fatalf("%s: unexpected error: %v", name, err)
-		}
-		if got != end {
-			t.Errorf("%s: got %+v, want %+v", name, got, end)
-		}
+	got, err := s.FollowingEnd([]time.Time{start, next}, start)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != end {
+		t.Errorf("got %+v, want %+v", got, end)
+	}
+}
+
+// Carrying an indefinite end over would restart its 2-year window at the
+// target and add occurrences the calendar did not show before the change.
+func TestFollowingEnd_indefiniteEndsOnTheLastOccurrence(t *testing.T) {
+	s := mustSeries(t, mustRule(t, daily, nil, res.NewIndefiniteEnd(), tokyo))
+	target := localAt(t, tokyo, 2027, 6, 1, 10, 0)
+	// 00:30 JST on the last day is the previous day in UTC.
+	last := localAt(t, tokyo, 2028, 1, 1, 0, 30)
+	starts := []time.Time{last, localAt(t, tokyo, 2026, 1, 1, 10, 0), target}
+
+	got, err := s.FollowingEnd(starts, target)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if d, ok := got.UntilDate(); !ok || d.String() != "2028-01-01" {
+		t.Errorf("got %+v, want until 2028-01-01", got)
+	}
+}
+
+// An until date that leaves one candidate would fail ExpandOccurrences'
+// minimum of 2, which only user-entered rules must meet.
+func TestFollowingEnd_indefiniteWithOneOccurrenceLeftBecomesCountOne(t *testing.T) {
+	s := mustSeries(t, mustRule(t, weekly, nil, res.NewIndefiniteEnd(), tokyo))
+	prev := localAt(t, tokyo, 2026, 12, 28, 10, 0)
+	last := localAt(t, tokyo, 2027, 1, 4, 10, 0)
+
+	got, err := s.FollowingEnd([]time.Time{prev, last}, last)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n, ok := got.Count(); !ok || n != 1 {
+		t.Errorf("got %+v, want count 1", got)
 	}
 }
 
