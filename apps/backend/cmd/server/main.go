@@ -11,6 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	// Recurring series resolve IANA time zone names without relying on the
+	// runtime's zoneinfo database (ADR-037).
+	_ "time/tzdata"
+
 	"github.com/go-chi/chi/v5"
 
 	"github.com/Haya372/ai-trial/backend/infrastructure/di"

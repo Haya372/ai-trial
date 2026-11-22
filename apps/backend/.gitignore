@@ -4,3 +4,6 @@ interface/api/generated/
 domain/*/generated/
 
 coverage.out
+
+# go build ./cmd/server output
+/server

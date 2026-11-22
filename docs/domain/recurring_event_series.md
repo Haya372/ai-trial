@@ -34,8 +34,8 @@ Event とは別集約のルートとして扱い、Event 側は RecurringEventSe
 - シリーズは RecurrencePattern と RecurrenceEnd をちょうど1つずつ持つ
 - 繰り返しの曜日・日付・第N週は、シリーズの最初の回の壁時計日時から決まる。パターン・終了条件を編集で変更した場合は、既存シリーズをそのまま更新するのではなく、「以降すべて変更」は別シリーズの新規作成、「すべて変更」は同じシリーズ ID のまま除外日集合と回を破棄して再生成、として扱う
 - SeriesTimezone はシリーズ作成時の端末タイムゾーン（IANA 名）を1つ保持し、以後変更しない
-- 各回の壁時計時刻（開始・終了）はシリーズ内で同一とし、SeriesTimezone のもとで計算する。サマータイムの切り替えをまたいでも壁時計時刻は変えない（UTC の瞬間時刻はずれる）
-- 各回の所要時間（終了 − 開始）はシリーズ内で同一とする
+- 各回の壁時計時刻（開始・終了）はシリーズ内で同一とし、SeriesTimezone のもとで計算する。サマータイムの切り替えをまたいでも壁時計時刻は変えない（UTC の瞬間時刻はずれる）。開始時刻の解釈は RFC 5545 に合わせる。サマータイム開始日に開始時刻が存在しない回は、切り替え前の UTC オフセットで解釈し、とばされた時間だけ後ろにずらす（例: `America/New_York` の 02:30 は 03:30 EDT）。サマータイム終了日に開始時刻が2回ある回は、1回目とする。日付変更線の移動などで日付そのものがない回は生成せず、回数にも数えない
+- 各回の所要時間（終了 − 開始）はシリーズ内で同一とする。1回の予定の途中でサマータイムが切り替わる場合は、終了の壁時計時刻より所要時間の同一を優先する（終了 = 開始 + 所要時間）
 
 ### 期間と回数
 
@@ -74,7 +74,8 @@ Event とは別集約のルートとして扱い、Event 側は RecurringEventSe
 | エラー | 発生条件 |
 |---|---|
 | `ErrRecurringSeriesNotFound` | 指定した ID のシリーズが存在しない、または呼び出しユーザーに属していない |
-| `ErrRecurringPatternInvalid` | RecurrencePattern のパラメータが不正（`monthly_nth_weekday` で MonthlyNth が未指定、または `1`〜`4` / `last` のいずれでもない。`monthly_nth_weekday` 以外で MonthlyNth を指定した） |
+| `ErrRecurringPatternInvalid` | RecurrencePattern のパラメータが不正（MonthlyNth が `1`〜`4` / `last` のいずれでもない、または最初の回の開始日に当てはまらない。`monthly_nth_weekday` 以外で MonthlyNth を指定した） |
+| `ErrRecurringPatternMonthlyNthRequired` | `monthly_nth_weekday` で MonthlyNth が未指定 |
 | `ErrRecurringEndInvalid` | RecurrenceEnd のパラメータが不正（`count` が 2 未満、`until_date` が最初の回の開始日より前、`until_date` が最初の回の開始日から2年を超える、など） |
 | `ErrRecurringTimezoneInvalid` | SeriesTimezone の値が IANA タイムゾーン名として解釈できない |
 | `ErrRecurringSeriesTooFewOccurrences` | シリーズに含まれる候補回が 2 回未満になる（例: 無期限・終了日指定で 2 年以内に 2 回目の候補が発生しないパターンと開始日時の組み合わせ） |
