@@ -30,6 +30,9 @@ export function useViewerAuthQuery(): {
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
+    // ログイン・サインアップ・ログアウトはこのキャッシュを更新しない。共有ページを離れたら結果を捨て、
+    // 戻ったときに確認し直す（古い結果でログイン案内や追加ボタンを出さないため）
+    gcTime: 0,
   })
 
   return {
