@@ -1,8 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.jsonc"],
-  // plugins を省略すると oxlint のデフォルト（unicorn 等）が追加されるため、空配列で明示する。
-  // extends 先の plugins とは和集合でマージされる。
   "plugins": [],
   "rules": {
     "no-console": "error"
