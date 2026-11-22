@@ -14,7 +14,7 @@ packages/schema/
 │       └── HealthResponse.yaml  # スキーマ定義（コンポーネントごとに1ファイル）
 ├── redocly.yaml               # lint ルール設定
 ├── oapi-codegen.yaml          # バックエンド (Go) 向けコード生成設定
-├── orval.config.ts            # フロントエンド (TypeScript) 向けコード生成設定
+├── orval.config.ts            # フロントエンド (apps/web・apps/e2e) 向けコード生成設定
 └── tsconfig.json              # TypeScript 設定
 ```
 

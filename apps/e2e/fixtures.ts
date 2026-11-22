@@ -6,6 +6,7 @@ import {
   type Page,
 } from '@playwright/test'
 import { expectStatus, UserApi } from './support/api'
+import { getSignupUrl, type SignupRequest } from './support/generated/api'
 import { FIXED_NOW } from './support/clock'
 
 export type TestUser = {
@@ -50,9 +51,8 @@ export const test = base.extend<Fixtures>({
       // 並列実行・再実行でも衝突しないよう、メールアドレスを UUID で一意にする
       const email = `e2e-${randomUUID()}@example.com`
       const displayName = `E2E User ${contexts.length}`
-      const res = await request.post('/api/auth/signup', {
-        data: { email, password: PASSWORD, displayName },
-      })
+      const data: SignupRequest = { email, password: PASSWORD, displayName }
+      const res = await request.post(getSignupUrl(), { data })
       await expectStatus(res, 201)
 
       return {

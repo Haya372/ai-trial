@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - apps/e2e/**
+      - packages/schema/**
       - pnpm-lock.yaml
       - biome.jsonc
       - .oxlintrc.jsonc
@@ -29,5 +30,7 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Lint (includes format check)
+      - name: Generate API client
+        run: pnpm generate:frontend
+      - name: Lint (includes format and type check)
         run: pnpm --filter e2e lint
