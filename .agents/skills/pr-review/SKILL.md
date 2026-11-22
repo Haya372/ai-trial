@@ -69,7 +69,7 @@ git fetch origin <baseRefName> pull/<PR番号>/head
 
 | 変更したファイル | 参照するレビュー観点 |
 |---|---|
-| `apps/backend/` | `docs/guidelines/backend-review-criteria.md` |
+| `apps/backend/`・`packages/schema/` | `docs/guidelines/backend-review-criteria.md` |
 | `apps/web/`・`packages/ui/` | `docs/guidelines/frontend-review-criteria.md` |
 | Markdownドキュメント・スキル | `docs/guidelines/document-review-criteria.md` |
 | 拡張子が `.go`・`.sql`・`.ts`・`.tsx`・`.css`・`.html`・`.md` 以外のファイル | `docs/guidelines/tooling-review-criteria.md` |
