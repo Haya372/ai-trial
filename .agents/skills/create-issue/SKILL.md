@@ -12,6 +12,8 @@ description: GitHubにIssueを起票するとき。
 | テンプレート | 用途 |
 |---|---|
 | `feature.md` | PRDをもとにした機能実装Issue |
+| `bug.md` | 不具合の修正 |
+| `refactoring.md` | 振る舞いを変えないコードの改善 |
 | `task.md` | ドキュメント・設定・環境整備など |
 
 ## 命名規則
