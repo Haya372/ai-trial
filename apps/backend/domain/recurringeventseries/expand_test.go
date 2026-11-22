@@ -298,3 +298,20 @@ func TestExpandOccurrences_firstOccurrenceIsTheGivenInstant(t *testing.T) {
 		t.Errorf("first occurrence = %v - %v, want %v - %v", occs[0].StartAt, occs[0].EndAt, start, end)
 	}
 }
+
+func TestExpandOccurrences_rejectsUninitializedRule(t *testing.T) {
+	valid := mustRule(t, daily, nil, mustCount(t, 2), tokyo)
+	noPattern, noEnd, noTimezone := valid, valid, valid
+	noPattern.Pattern = res.RecurrencePattern{}
+	noEnd.End = res.RecurrenceEnd{}
+	noTimezone.Timezone = res.SeriesTimezone{}
+
+	start := localAt(t, tokyo, 2026, time.January, 5, 9, 0)
+	for name, rule := range map[string]res.RecurrenceRule{
+		"pattern": noPattern, "end": noEnd, "timezone": noTimezone,
+	} {
+		t.Run(name, func(t *testing.T) {
+			assertErr(t, start, rule, res.ErrRecurrenceRuleUninitialized)
+		})
+	}
+}

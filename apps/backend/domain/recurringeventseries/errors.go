@@ -1,6 +1,10 @@
 package recurringeventseries
 
-import "github.com/Haya372/ai-trial/backend/domain"
+import (
+	"errors"
+
+	"github.com/Haya372/ai-trial/backend/domain"
+)
 
 // The codes double as details[].code of the recurrence validation error
 // (SPEC-009 POST /events), so several errors share the same code.
@@ -27,3 +31,8 @@ var (
 	ErrLocalDateInvalid = domain.NewDomainError(
 		CodeLocalDateInvalid, "Date does not exist in the calendar")
 )
+
+// ErrRecurrenceRuleUninitialized is not a DomainError: a zero-value rule
+// comes from a caller that skipped the constructors, not from user input, so
+// it surfaces as an internal error instead of a 400.
+var ErrRecurrenceRuleUninitialized = errors.New("recurrence rule has an uninitialized pattern, end or timezone")

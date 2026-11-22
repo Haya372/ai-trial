@@ -30,6 +30,11 @@ type Occurrence struct {
 func ExpandOccurrences(
 	firstStart, firstEnd time.Time, rule RecurrenceRule, excluded []ExcludedDate,
 ) ([]Occurrence, error) {
+	// A zero-value pattern would never advance past the first date, so the
+	// loop in occurrenceDates would not terminate.
+	if rule.Pattern.typ == "" || rule.End.typ == "" || rule.Timezone.loc == nil {
+		return nil, ErrRecurrenceRuleUninitialized
+	}
 	loc := rule.Timezone.Location()
 	localStart := firstStart.In(loc)
 	first := LocalDateOf(localStart)
