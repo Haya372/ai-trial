@@ -57,12 +57,12 @@ func ExpandOccurrences(
 		}
 		return atWallClock(d, localStart, loc)
 	}
-	starts, candidates := occurrenceStarts(rule.Pattern, first, stop, excluded, startAt)
-	if count, ok := rule.End.Count(); ok {
-		if len(starts) < count {
+	count, hasCount := rule.End.Count()
+	starts, candidates := occurrenceStarts(rule.Pattern, first, stop, count, excluded, startAt)
+	if hasCount {
+		if candidates < count {
 			return nil, fmt.Errorf("%w: %d occurrences do not fit by %s", ErrRecurringSeriesSpanExceeded, count, stop)
 		}
-		starts = starts[:count]
 	} else if candidates < minCount {
 		return nil, fmt.Errorf("%w: got %d", ErrRecurringSeriesTooFewOccurrences, candidates)
 	}
@@ -76,11 +76,12 @@ func ExpandOccurrences(
 }
 
 // occurrenceStarts returns the start of each non-excluded candidate up to
-// stop, and the number of candidates before exclusion. A date whose start
-// does not exist (a day removed from the calendar) is not a candidate, like
-// a month without the day.
+// stop, and the number of candidates before exclusion. A positive limit stops
+// after that many candidates, excluded ones included, as a count end counts
+// them. A date whose start does not exist (a day removed from the calendar)
+// is not a candidate, like a month without the day.
 func occurrenceStarts(
-	p RecurrencePattern, first, stop LocalDate, excluded []ExcludedDate,
+	p RecurrencePattern, first, stop LocalDate, limit int, excluded []ExcludedDate,
 	startAt func(LocalDate) (time.Time, bool),
 ) ([]time.Time, int) {
 	isExcluded := make(map[LocalDate]bool, len(excluded))
@@ -89,7 +90,7 @@ func occurrenceStarts(
 	}
 	var starts []time.Time
 	candidates := 0
-	for k := 0; ; k++ {
+	for k := 0; limit <= 0 || candidates < limit; k++ {
 		c := candidateAt(p, first, k)
 		if c.periodStart.After(stop) || (c.exists && c.date.After(stop)) {
 			return starts, candidates
@@ -106,6 +107,7 @@ func occurrenceStarts(
 			starts = append(starts, start)
 		}
 	}
+	return starts, candidates
 }
 
 // stopDate validates the parts of rule that depend on the first occurrence

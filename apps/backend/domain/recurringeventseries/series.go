@@ -27,17 +27,25 @@ type RecurringEventSeries interface {
 	// EndBefore returns a copy that ends the day before the occurrence's local
 	// date, for the original series of a "this and following" change or
 	// delete, and the excluded dates from that day on, which the copy drops.
-	// A new series that keeps the rule takes them over, so deleted and
-	// detached occurrences do not come back. Treating the first occurrence as
-	// "all" is the caller's decision, since the series does not know its
-	// first occurrence.
+	// FollowingEnd returns those a new series that keeps the rule takes
+	// over, if any, so deleted and detached occurrences do not come back.
+	// Treating the first occurrence as "all" is the caller's decision, since
+	// the series does not know its first occurrence.
 	EndBefore(occurrenceStart time.Time) (ended RecurringEventSeries, dropped []ExcludedDate)
-	// FollowingEnd returns the end the new series takes over in a "this and
-	// following" change that keeps the rule. A count becomes the number of
-	// remaining occurrences from target on, so the calendar shows the same
-	// occurrences before and after, and so does an until date with a single
-	// occurrence left; other ends carry over as they are.
-	FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, error)
+	// FollowingEnd returns the end and the excluded dates the new series
+	// takes over in a "this and following" change that keeps the rule and
+	// the target's local date, so the calendar shows the same occurrences
+	// before and after. A count becomes the number of remaining candidates,
+	// excluded dates included; an indefinite end becomes an until date on
+	// the last occurrence; an until date carries over; a single remaining
+	// occurrence makes a non-count end a count of 1. The caller checks the
+	// date with CheckDateKept first.
+	FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, []ExcludedDate, error)
+	// CheckDateKept rejects a "this and following" or "all" change that keeps
+	// the rule but moves the target to another local date: the weekday, day
+	// and nth of the series come from its first occurrence, so the excluded
+	// dates and a monthly nth would no longer match. The time may change.
+	CheckDateKept(target, newStart time.Time) error
 }
 
 type seriesEntity struct {
@@ -80,13 +88,9 @@ func (s *seriesEntity) ExcludeOccurrence(occurrenceStart time.Time) (RecurringEv
 }
 
 func (s *seriesEntity) EndBefore(occurrenceStart time.Time) (RecurringEventSeries, []ExcludedDate) {
-	from := s.LocalDateOf(occurrenceStart)
-	// s.excluded is sorted, so the dates from the target on form its tail.
-	i, _ := slices.BinarySearchFunc(s.excluded, from, func(e ExcludedDate, d LocalDate) int {
-		return e.date.compare(d)
-	})
+	i := s.excludedFrom(occurrenceStart)
 	copied := *s
-	copied.rule.End = NewUntilDateEnd(from.addDays(-1))
+	copied.rule.End = NewUntilDateEnd(s.LocalDateOf(occurrenceStart).addDays(-1))
 	copied.excluded = slices.Clone(s.excluded[:i])
 	return &copied, slices.Clone(s.excluded[i:])
 }
@@ -95,29 +99,62 @@ func (s *seriesEntity) EndBefore(occurrenceStart time.Time) (RecurringEventSerie
 // from the series' own occurrences, so missing it is a bug, not user input.
 var errTargetNotAnOccurrence = errors.New("the target is not the start of an occurrence of the series")
 
-func (s *seriesEntity) FollowingEnd(occurrenceStarts []time.Time, target time.Time) (RecurrenceEnd, error) {
+func (s *seriesEntity) FollowingEnd(
+	occurrenceStarts []time.Time, target time.Time,
+) (RecurrenceEnd, []ExcludedDate, error) {
 	// Checking membership catches a caller that passes the edited start
 	// instead of the stored one, which would count from the wrong instant.
 	if !slices.ContainsFunc(occurrenceStarts, target.Equal) {
-		return RecurrenceEnd{}, fmt.Errorf("%w: %s", errTargetNotAnOccurrence, target)
+		return RecurrenceEnd{}, nil, fmt.Errorf("%w: %s", errTargetNotAnOccurrence, target)
 	}
-	remaining := 0
-	for _, start := range occurrenceStarts {
-		if !start.Before(target) {
-			remaining++
-		}
+	remaining, last := countFrom(occurrenceStarts, target)
+	excluded := slices.Clone(s.excluded[s.excludedFrom(target):])
+	if remaining == 1 && s.rule.End.Type() != EndCount {
+		// A single remaining occurrence is a single candidate up to an
+		// until date, which ExpandOccurrences rejects.
+		end, err := RestoreCountEnd(1)
+		return end, nil, err
 	}
 	switch s.rule.End.Type() {
 	case EndCount:
-		return RestoreCountEnd(remaining)
-	case EndUntilDate:
-		// Two or more remaining occurrences are two or more candidates, but
-		// one may be the only candidate up to the until date, which
-		// ExpandOccurrences rejects; a count of 1 keeps that occurrence.
-		if remaining == 1 {
-			return RestoreCountEnd(1)
-		}
+		// A count counts the excluded dates the new series takes over.
+		end, err := RestoreCountEnd(remaining + len(excluded))
+		return end, excluded, err
 	case EndIndefinite:
+		// Carrying "indefinite" over would restart its 2-year window at
+		// the target and add occurrences the calendar did not show.
+		return NewUntilDateEnd(s.LocalDateOf(last)), excluded, nil
+	case EndUntilDate:
 	}
-	return s.rule.End, nil
+	return s.rule.End, excluded, nil
+}
+
+func (s *seriesEntity) CheckDateKept(target, newStart time.Time) error {
+	if s.LocalDateOf(newStart) != s.LocalDateOf(target) {
+		return ErrRecurringOccurrenceDateChangeNotAllowed
+	}
+	return nil
+}
+
+// excludedFrom returns the index of the first excluded date on or after the
+// occurrence's local date; s.excluded is sorted, so those dates form its tail.
+func (s *seriesEntity) excludedFrom(occurrenceStart time.Time) int {
+	i, _ := slices.BinarySearchFunc(s.excluded, s.LocalDateOf(occurrenceStart), func(e ExcludedDate, d LocalDate) int {
+		return e.date.compare(d)
+	})
+	return i
+}
+
+// countFrom returns how many starts are not before target, and the latest one.
+func countFrom(starts []time.Time, target time.Time) (int, time.Time) {
+	n, last := 0, target
+	for _, start := range starts {
+		if !start.Before(target) {
+			n++
+		}
+		if start.After(last) {
+			last = start
+		}
+	}
+	return n, last
 }

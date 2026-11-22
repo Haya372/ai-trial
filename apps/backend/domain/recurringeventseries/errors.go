@@ -21,6 +21,9 @@ const (
 const (
 	CodeRecurringSeriesNotFound         = "RECURRING_SERIES_NOT_FOUND"
 	CodeRecurringExcludedDateDuplicated = "RECURRING_EXCLUDED_DATE_DUPLICATED"
+	// CodeRecurringOccurrenceDateChangeNotAllowed doubles as details[].code
+	// of PUT /events/{id} (SPEC-009).
+	CodeRecurringOccurrenceDateChangeNotAllowed = "DATE_CHANGE_NOT_ALLOWED"
 )
 
 var (
@@ -44,6 +47,9 @@ var (
 		CodeRecurringSeriesNotFound, "Recurring series not found")
 	ErrRecurringExcludedDateDuplicated = domain.NewDomainError(
 		CodeRecurringExcludedDateDuplicated, "The date is already excluded from the series")
+	ErrRecurringOccurrenceDateChangeNotAllowed = domain.NewDomainError(
+		CodeRecurringOccurrenceDateChangeNotAllowed,
+		"The date of an occurrence cannot change without changing the recurrence")
 )
 
 // ErrRecurrenceRuleUninitialized is not a DomainError: a zero-value rule
