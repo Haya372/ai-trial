@@ -74,7 +74,8 @@ Event とは別集約のルートとして扱い、Event 側は RecurringEventSe
 | エラー | 発生条件 |
 |---|---|
 | `ErrRecurringSeriesNotFound` | 指定した ID のシリーズが存在しない、または呼び出しユーザーに属していない |
-| `ErrRecurringPatternInvalid` | RecurrencePattern のパラメータが不正（`monthly_nth_weekday` で MonthlyNth が未指定、または `1`〜`4` / `last` のいずれでもない。`monthly_nth_weekday` 以外で MonthlyNth を指定した） |
+| `ErrRecurringPatternInvalid` | RecurrencePattern のパラメータが不正（MonthlyNth が `1`〜`4` / `last` のいずれでもない、または最初の回の開始日に当てはまらない。`monthly_nth_weekday` 以外で MonthlyNth を指定した） |
+| `ErrRecurringPatternMonthlyNthRequired` | `monthly_nth_weekday` で MonthlyNth が未指定 |
 | `ErrRecurringEndInvalid` | RecurrenceEnd のパラメータが不正（`count` が 2 未満、`until_date` が最初の回の開始日より前、`until_date` が最初の回の開始日から2年を超える、など） |
 | `ErrRecurringTimezoneInvalid` | SeriesTimezone の値が IANA タイムゾーン名として解釈できない |
 | `ErrRecurringSeriesTooFewOccurrences` | シリーズに含まれる候補回が 2 回未満になる（例: 無期限・終了日指定で 2 年以内に 2 回目の候補が発生しないパターンと開始日時の組み合わせ） |
