@@ -27,6 +27,8 @@ function PopoverContent({
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
+        // Dialogs are z-50; without this, a popover opened inside a dialog renders behind it.
+        className="z-50"
         side={side}
         sideOffset={sideOffset}
         align={align}
