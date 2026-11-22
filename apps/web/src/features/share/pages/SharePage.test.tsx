@@ -549,12 +549,23 @@ describe('SharePage', () => {
         headers: new Headers(),
       } as never)
 
-      render(<SharePage token="tok1" />, { wrapper: createWrapper() })
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      })
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <SharePage token="tok1" />
+        </QueryClientProvider>,
+      )
 
       await waitFor(() => {
         expect(screen.getByText('チームMTG')).toBeInTheDocument()
       })
-      await waitFor(() => expect(getMe).toHaveBeenCalled())
+      // 確認の失敗が反映された後でも、メッセージが出ないことを確かめる
+      await waitFor(() => {
+        expect(queryClient.getQueryState(['auth', 'me'])?.status).toBe('error')
+      })
       expect(screen.queryByText(authErrorMessage)).not.toBeInTheDocument()
     })
   })
