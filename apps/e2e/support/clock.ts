@@ -15,9 +15,16 @@ export type FixedDayTime = {
 }
 
 /** FIXED_NOW の日付（JST）を基準に、指定した時刻を API が受け付ける UTC の RFC 3339 文字列で返す */
-export function atFixedDay({ dayOffset = 0, hour, minute = 0 }: FixedDayTime): string {
-  const jstMidnightMs = Math.floor((FIXED_NOW.getTime() + JST_OFFSET_MS) / DAY_MS) * DAY_MS - JST_OFFSET_MS
-  const ms = jstMidnightMs + dayOffset * DAY_MS + (hour * 60 + minute) * 60 * 1000
+export function atFixedDay({
+  dayOffset = 0,
+  hour,
+  minute = 0,
+}: FixedDayTime): string {
+  const jstMidnightMs =
+    Math.floor((FIXED_NOW.getTime() + JST_OFFSET_MS) / DAY_MS) * DAY_MS -
+    JST_OFFSET_MS
+  const ms =
+    jstMidnightMs + dayOffset * DAY_MS + (hour * 60 + minute) * 60 * 1000
   return new Date(ms).toISOString().replace('.000Z', 'Z')
 }
 
@@ -43,7 +50,15 @@ export const nextDayAt = (hour: number, minute = 0): FixedDayTime => ({
   minute,
 })
 
-function toDateString({ year, month, day }: { year: number; month: number; day: number }): string {
+function toDateString({
+  year,
+  month,
+  day,
+}: {
+  year: number
+  month: number
+  day: number
+}): string {
   return `${year}-${pad(month)}-${pad(day)}`
 }
 
@@ -53,7 +68,10 @@ export function fixedDayDateString(dayOffset = 0): string {
 }
 
 /** FIXED_NOW の日付（JST）からの日数を指定し、その日1日分を API の期間指定（startAt〜endAt）で返す */
-export function fixedDayRange(dayOffset = 0): { startAt: string; endAt: string } {
+export function fixedDayRange(dayOffset = 0): {
+  startAt: string
+  endAt: string
+} {
   return {
     startAt: atFixedDay({ dayOffset, hour: 0 }),
     endAt: atFixedDay({ dayOffset: dayOffset + 1, hour: 0 }),

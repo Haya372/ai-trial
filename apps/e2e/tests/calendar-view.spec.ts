@@ -10,7 +10,11 @@ const PREV_WEEK = '2030年6月2日〜8日'
 const NEXT_WEEK = '2030年6月16日〜22日'
 
 test.describe('カレンダー表示', () => {
-  test('月・週ビューを切り替えられ、各ビューに予定が表示される', async ({ page, user, signIn }) => {
+  test('月・週ビューを切り替えられ、各ビューに予定が表示される', async ({
+    page,
+    user,
+    signIn,
+  }) => {
     await user.api.createEvent({
       title: '固定日の定例',
       startAt: atFixedDay({ hour: 14 }),
@@ -27,7 +31,9 @@ test.describe('カレンダー表示', () => {
 
     // 初期表示の月ビューから切り替えると、月初ではなく今日を含む週が表示される
     await page.getByRole('tab', { name: '週', exact: true }).click()
-    await expect(page.getByText(WEEK_OF_FIXED_DAY, { exact: true })).toBeVisible()
+    await expect(
+      page.getByText(WEEK_OF_FIXED_DAY, { exact: true }),
+    ).toBeVisible()
     await expect(calendar.getByText('固定日の定例')).toBeVisible()
 
     // 直前に表示していた日付を含む月に戻る
@@ -36,7 +42,11 @@ test.describe('カレンダー表示', () => {
     await expect(calendar.getByText('固定日の定例')).toBeVisible()
   })
 
-  test('月ビューで前後の月へ移動すると、その月の予定が表示される', async ({ page, user, signIn }) => {
+  test('月ビューで前後の月へ移動すると、その月の予定が表示される', async ({
+    page,
+    user,
+    signIn,
+  }) => {
     // 月ビューのグリッドに前後月の端の日も並ぶため、移動前の月のグリッドに出ない日付を選ぶ
     await user.api.createEvent({
       title: '5月の予定',
@@ -80,7 +90,11 @@ test.describe('カレンダー表示', () => {
     await expect(calendar.getByText('6月の予定')).toBeVisible()
   })
 
-  test('週ビューで前後の週へ移動すると、その週の予定が表示される', async ({ page, user, signIn }) => {
+  test('週ビューで前後の週へ移動すると、その週の予定が表示される', async ({
+    page,
+    user,
+    signIn,
+  }) => {
     await user.api.createEvent({
       title: '前週の予定',
       startAt: atFixedDay({ dayOffset: -7, hour: 14 }),
@@ -112,14 +126,18 @@ test.describe('カレンダー表示', () => {
     await expect(calendar.getByText('今週の予定')).toHaveCount(0)
 
     await page.getByRole('button', { name: '次へ', exact: true }).click()
-    await expect(page.getByText(WEEK_OF_FIXED_DAY, { exact: true })).toBeVisible()
+    await expect(
+      page.getByText(WEEK_OF_FIXED_DAY, { exact: true }),
+    ).toBeVisible()
     await page.getByRole('button', { name: '次へ', exact: true }).click()
     await expect(page.getByText(NEXT_WEEK, { exact: true })).toBeVisible()
     await expect(calendar.getByText('翌週の予定')).toBeVisible()
     await expect(calendar.getByText('今週の予定')).toHaveCount(0)
 
     await page.getByRole('button', { name: '今日', exact: true }).click()
-    await expect(page.getByText(WEEK_OF_FIXED_DAY, { exact: true })).toBeVisible()
+    await expect(
+      page.getByText(WEEK_OF_FIXED_DAY, { exact: true }),
+    ).toBeVisible()
     await expect(calendar.getByText('今週の予定')).toBeVisible()
   })
 })

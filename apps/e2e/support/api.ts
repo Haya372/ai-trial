@@ -1,4 +1,8 @@
-import { type APIRequestContext, type APIResponse, expect } from '@playwright/test'
+import {
+  type APIRequestContext,
+  type APIResponse,
+  expect,
+} from '@playwright/test'
 
 export type CreateEventInput = {
   title: string
@@ -52,7 +56,9 @@ export class UserApi {
 
   /** 共有リンクを発行し、`/share/{token}` 形式のパスを返す。有効期限は省略時に予定の終了日時になる */
   async createShare(eventId: string): Promise<string> {
-    const res = await this.request.post(`/api/events/${eventId}/shares`, { data: {} })
+    const res = await this.request.post(`/api/events/${eventId}/shares`, {
+      data: {},
+    })
     await expectStatus(res, 201)
     return (await res.json()).url
   }
@@ -64,7 +70,10 @@ export class UserApi {
     await expectStatus(res, 201)
   }
 
-  async createTag(input: { name: string; color: TagColor }): Promise<TagResponse> {
+  async createTag(input: {
+    name: string
+    color: TagColor
+  }): Promise<TagResponse> {
     const res = await this.request.post('/api/tags', { data: input })
     await expectStatus(res, 201)
     return res.json()
@@ -78,14 +87,20 @@ export class UserApi {
   }
 
   /** 画面表示に頼らず、サーバーに登録されている予定を確かめる */
-  async listEvents(range: { startAt: string; endAt: string }): Promise<EventResponse[]> {
+  async listEvents(range: {
+    startAt: string
+    endAt: string
+  }): Promise<EventResponse[]> {
     const res = await this.request.get('/api/events', { params: range })
     await expectStatus(res, 200)
     return (await res.json()).events
   }
 }
 
-export async function expectStatus(res: APIResponse, status: number): Promise<void> {
+export async function expectStatus(
+  res: APIResponse,
+  status: number,
+): Promise<void> {
   // 失敗時にレスポンス本文を出し、バリデーションエラー等の原因を追えるようにする
   expect(res.status(), `${res.url()}: ${await res.text()}`).toBe(status)
 }

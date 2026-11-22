@@ -3,7 +3,8 @@ import { expect, test } from '../fixtures'
 import { atFixedDay, type FixedDayTime } from '../support/clock'
 
 /** 今日のタイムラインパネル（section の aria-label で region になる） */
-const timelineOf = (page: Page) => page.getByRole('region', { name: '今日のタイムライン' })
+const timelineOf = (page: Page) =>
+  page.getByRole('region', { name: '今日のタイムライン' })
 
 /**
  * パネル上部の次の予定カード。リストの予定にも同じタイトルが出るため、カードに絞って確かめる。
@@ -24,7 +25,11 @@ async function pauseAtFixedDay(page: Page, time: FixedDayTime): Promise<void> {
 }
 
 test.describe('今日のタイムライン', () => {
-  test('今日の予定だけが時系列で並び、次の予定と空き時間が表示される', async ({ page, user, signIn }) => {
+  test('今日の予定だけが時系列で並び、次の予定と空き時間が表示される', async ({
+    page,
+    user,
+    signIn,
+  }) => {
     // API（GET /events）が開始日時の順で返すため、作成順を変えてもパネル側の並び替えは確かめられない。
     // 並び替えは buildTimeline のユニットテストで確かめ、ここでは画面に出る順序だけを確かめる
     await user.api.createEvent({
@@ -81,7 +86,11 @@ test.describe('今日のタイムライン', () => {
     ])
   })
 
-  test('時刻が進むと、次の予定までの時間と現在時刻の位置が更新される', async ({ page, user, signIn }) => {
+  test('時刻が進むと、次の予定までの時間と現在時刻の位置が更新される', async ({
+    page,
+    user,
+    signIn,
+  }) => {
     await user.api.createEvent({
       title: '朝会',
       startAt: atFixedDay({ hour: 9 }),
@@ -127,7 +136,11 @@ test.describe('今日のタイムライン', () => {
     ])
   })
 
-  test('パネルの予定から詳細を開いて削除すると、パネルからも消える', async ({ page, user, signIn }) => {
+  test('パネルの予定から詳細を開いて削除すると、パネルからも消える', async ({
+    page,
+    user,
+    signIn,
+  }) => {
     await user.api.createEvent({
       title: '設計レビュー',
       startAt: atFixedDay({ hour: 14 }),
@@ -148,11 +161,15 @@ test.describe('今日のタイムライン', () => {
     await expect(detail.getByText('会議室A')).toBeVisible()
 
     await detail.getByRole('button', { name: '削除', exact: true }).click()
-    const confirm = page.getByRole('alertdialog', { name: 'この予定を削除しますか？' })
+    const confirm = page.getByRole('alertdialog', {
+      name: 'この予定を削除しますか？',
+    })
     await confirm.getByRole('button', { name: '削除', exact: true }).click()
 
     await expect(detail).toBeHidden()
-    await expect(timeline.getByText('今日の予定はありません', { exact: true })).toBeVisible()
+    await expect(
+      timeline.getByText('今日の予定はありません', { exact: true }),
+    ).toBeVisible()
     await expect(timeline.getByRole('button')).toHaveCount(0)
     await expect(calendar.getByText('設計レビュー')).toHaveCount(0)
   })

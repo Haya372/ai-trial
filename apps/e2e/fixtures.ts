@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { test as base, type APIRequestContext, expect, type Page } from '@playwright/test'
+import {
+  test as base,
+  type APIRequestContext,
+  expect,
+  type Page,
+} from '@playwright/test'
 import { expectStatus, UserApi } from './support/api'
 import { FIXED_NOW } from './support/clock'
 
@@ -50,7 +55,12 @@ export const test = base.extend<Fixtures>({
       })
       await expectStatus(res, 201)
 
-      return { email, password: PASSWORD, displayName, api: new UserApi(request) }
+      return {
+        email,
+        password: PASSWORD,
+        displayName,
+        api: new UserApi(request),
+      }
     })
 
     await Promise.all(contexts.map((c) => c.dispose()))
