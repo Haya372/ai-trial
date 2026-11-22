@@ -60,10 +60,17 @@ test.describe('今日のタイムライン', () => {
     })
 
     await signIn(user)
+
+    // カレンダーの表示期間を移動しても、パネルは今日の予定を表示し続けることも確かめる。
+    // 止めた時計は取得結果の反映を妨げ、再開すると実時間で表示が進むため、移動と描画を終えてから時計を止める
+    await page.getByRole('button', { name: '次へ', exact: true }).click()
+    await expect(page.getByText('2030年7月', { exact: true })).toBeVisible()
+    await expect(page.getByRole('table').getByText('7月の予定')).toBeVisible()
+
     await pauseAtFixedDay(page, { hour: 10, minute: 5 })
 
-    const timeline = timelineOf(page)
-    const items = [
+    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと25分')
+    await expect(timelineOf(page).getByRole('listitem')).toHaveText([
       '前日から〜08:00前日からの作業',
       '60分の空き',
       '09:00〜10:15朝会',
@@ -71,19 +78,7 @@ test.describe('今日のタイムライン', () => {
       '10:05',
       '15分の空き',
       '10:30〜12:00設計レビュー',
-    ]
-
-    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと25分')
-    await expect(timeline.getByRole('listitem')).toHaveText(items)
-
-    // カレンダーの表示期間を移動しても、パネルは今日の予定を表示し続ける。
-    // 止めたままだと7月の取得結果が反映されないため、時計を動かしてから移動する（実時間で数秒進むだけで表示は変わらない）
-    await page.clock.resume()
-    await page.getByRole('button', { name: '次へ', exact: true }).click()
-    await expect(page.getByText('2030年7月', { exact: true })).toBeVisible()
-    await expect(page.getByRole('table').getByText('7月の予定')).toBeVisible()
-    await expect(nextEventCardOf(page)).toHaveText('設計レビューあと25分')
-    await expect(timeline.getByRole('listitem')).toHaveText(items)
+    ])
   })
 
   test('時刻が進むと、次の予定までの時間と現在時刻の位置が更新される', async ({ page, user, signIn }) => {
