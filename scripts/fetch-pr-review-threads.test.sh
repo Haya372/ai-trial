@@ -59,6 +59,9 @@ thread() {
   echo ','
   # 6: 印のない1件目に作成者が返信した
   thread '[["author", "指摘G"], ["author", "対応しました"]]'
+  echo ','
+  # 7: 退会したユーザーのコメントは、GraphQLで author が null になる
+  thread '[["human", "指摘H"], [null, "削除されたユーザーのコメント"]]'
   echo ']}}}}}]'
 } > "$WORK_DIR/threads.json"
 
@@ -92,7 +95,9 @@ assert "本文の途中の印は作成者の返信とみなす" '.threads[4].nee
 assert "作成者が投稿した印のない1件目は指摘とみなす" '.threads[5] | [.needs_reply, [.unanswered_comments[].id]]' '[true,[100]]'
 assert "印のない1件目への作成者の返信は返信とみなす" '.threads[6] | [.needs_reply, .unanswered_comments]' '[false,[]]'
 
-assert "最後のコメントがpr-reviewの返信" '[.threads[].last_comment_is_pr_review_reply]' '[false,false,true,false,false,false,false]'
+assert "投稿者がnullのコメントは返信とみなさない" '.threads[7] | [.needs_reply, [.unanswered_comments[].id]]' '[true,[100,101]]'
+
+assert "最後のコメントがpr-reviewの返信" '[.threads[].last_comment_is_pr_review_reply]' '[false,false,true,false,false,false,false,false]'
 
 assert "本文が空のレビューは出力しない" '[.reviews[].id]' '[1,2,4]'
 assert "pr-reviewのレビュー本文は返信不要" '.reviews[0].needs_reply' 'false'
@@ -102,6 +107,18 @@ assert "作成者の返信より後のレビュー本文は未返信" '.reviews[
 assert "作成者の返信より前の通常コメントは返信不要" '.issue_comments[0].needs_reply' 'false'
 assert "作成者自身の通常コメントは返信不要" '.issue_comments[1].needs_reply' 'false'
 assert "作成者の返信より後の通常コメントは未返信" '.issue_comments[2].needs_reply' 'true'
+
+# botのログイン名は、RESTでは末尾に [bot] が付き、GraphQL（スレッドのコメント）では付かない
+OUTPUT=$(jq -n \
+  --argjson pr 1 \
+  --arg author 'author[bot]' \
+  --slurpfile reviews <(sed 's/"login": "author"/"login": "author[bot]"/' "$WORK_DIR/reviews.json") \
+  --slurpfile issue_comments <(sed 's/"login": "author"/"login": "author[bot]"/' "$WORK_DIR/issue_comments.json") \
+  --slurpfile threads "$WORK_DIR/threads.json" \
+  -f "$SCRIPT_DIR/fetch-pr-review-threads.jq")
+
+assert "botの作成者のスレッドへの返信は返信とみなす" '.threads[1].needs_reply' 'false'
+assert "botの作成者の通常コメントは返信とみなす" '[.issue_comments[].needs_reply]' '[false,false,true]'
 
 if [[ $FAILED -ne 0 ]]; then
   exit 1

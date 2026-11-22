@@ -3,7 +3,10 @@
 
 # pr-reviewスキルの投稿は本文の先頭に印を付ける。作成者とpr-reviewの投稿者が同じアカウントの場合があるため、印で区別する
 def is_pr_review_post: (.body // "") | startswith("<!-- pr-review -->");
-def is_author_reply: .author == $author and (is_pr_review_post | not);
+# botのログイン名は、REST（$author・レビュー・通常コメント）では末尾に [bot] が付き、GraphQL（スレッド）では付かない
+# 退会したユーザーは author が null になる
+def login_key: (. // "") | sub("\\[bot\\]$"; "");
+def is_author_reply: (.author | login_key) == ($author | login_key) and (is_pr_review_post | not);
 
 ($reviews[0] | add // []) as $reviews
 | [($issue_comments[0] | add // [])[] | {
