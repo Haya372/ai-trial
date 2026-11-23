@@ -32,13 +32,14 @@ func buildEventTestRouter() *chi.Mux {
 	eventQueryRepo := repository.NewEventQueryRepository(routeTestPool, logger, testTracerProvider)
 	eventRepo := repository.NewEventRepository(routeTestPool, logger, testTracerProvider)
 	tagRepo := repository.NewTagRepository(routeTestPool, logger, testTracerProvider)
+	seriesRepo := repository.NewRecurringEventSeriesRepository(routeTestPool, logger, testTracerProvider)
 	txMgr := db.NewPgxTxManager(routeTestPool)
 
 	signup := authuc.NewSignupCommand(userRepo, sessRepo, txMgr, usecase.RealClock{})
 	login := authuc.NewLoginCommand(userRepo, sessRepo, usecase.RealClock{})
 	logout := authuc.NewLogoutCommand(sessRepo)
 	listEvents := eventuc.NewListEventsQuery(eventQueryRepo)
-	createEvent := eventuc.NewCreateEventCommand(eventRepo, tagRepo, txMgr)
+	createEvent := eventuc.NewCreateEventCommand(eventRepo, seriesRepo, tagRepo, txMgr)
 	updateEvent := eventuc.NewUpdateEventCommand(eventRepo, tagRepo, txMgr, logger)
 	deleteEvent := eventuc.NewDeleteEventCommand(eventRepo, logger)
 
@@ -852,5 +853,164 @@ func TestRoute_PutEvent_utcDatetimeWithMilliseconds_returns200(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestRoute_PostEvent_withRecurrence_Daily_Count3_returns201
+// POST /events with a daily/count=3 recurrence → 201 with recurringSeries in
+// the response body. GET /events covering that range returns all 3 occurrences.
+func TestRoute_PostEvent_withRecurrence_Daily_Count3_returns201(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "recurrence-daily-count3@ex.com")
+
+	start := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	body := fmt.Sprintf(`{
+		"title": "Daily series",
+		"startAt": "%s",
+		"endAt":   "%s",
+		"recurrence": {
+			"pattern":  {"type": "daily"},
+			"end":      {"type": "count", "count": 3},
+			"timezone": "UTC"
+		}
+	}`, start.Format(time.RFC3339), end.Format(time.RFC3339))
+
+	postReq := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(body))
+	postReq.AddCookie(cookie)
+	postRec := httptest.NewRecorder()
+	router.ServeHTTP(postRec, postReq)
+
+	if postRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", postRec.Code, postRec.Body.String())
+	}
+
+	var createResp struct {
+		RecurringSeries *struct {
+			ID  string `json:"id"`
+			End struct {
+				Type  string `json:"type"`
+				Count *int   `json:"count"`
+			} `json:"end"`
+			Timezone string `json:"timezone"`
+		} `json:"recurringSeries"`
+	}
+	if err := json.NewDecoder(postRec.Body).Decode(&createResp); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if createResp.RecurringSeries == nil {
+		t.Fatal("expected recurringSeries in response, got null")
+	}
+	if createResp.RecurringSeries.End.Type != "count" {
+		t.Errorf("end.type mismatch: got %q", createResp.RecurringSeries.End.Type)
+	}
+	if createResp.RecurringSeries.End.Count == nil || *createResp.RecurringSeries.End.Count != 3 {
+		t.Errorf("end.count mismatch: got %v", createResp.RecurringSeries.End.Count)
+	}
+	if createResp.RecurringSeries.Timezone != "UTC" {
+		t.Errorf("timezone mismatch: got %q", createResp.RecurringSeries.Timezone)
+	}
+
+	// GET /events covering all 3 occurrences (day 1–3)
+	rangeStart := start.Add(-time.Hour)
+	rangeEnd := start.Add(3*24*time.Hour + time.Hour)
+	getReq := httptest.NewRequest(http.MethodGet, eventsRangePath(rangeStart, rangeEnd), nil)
+	getReq.AddCookie(cookie)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("GET /events expected 200, got %d: %s", getRec.Code, getRec.Body.String())
+	}
+	var getResp struct {
+		Events []struct {
+			Title string `json:"title"`
+		} `json:"events"`
+	}
+	if err := json.NewDecoder(getRec.Body).Decode(&getResp); err != nil {
+		t.Fatalf("decode GET response: %v", err)
+	}
+	if len(getResp.Events) != 3 {
+		t.Fatalf("expected 3 occurrences, got %d: %+v", len(getResp.Events), getResp.Events)
+	}
+	for i, e := range getResp.Events {
+		if e.Title != "Daily series" {
+			t.Errorf("occurrence[%d] title mismatch: got %q", i, e.Title)
+		}
+	}
+}
+
+// TestRoute_PostEvent_withRecurrence_InvalidTimezone_returns400
+// POST /events with an invalid timezone → 400 VALIDATION_ERROR.
+// No events or series must be persisted.
+func TestRoute_PostEvent_withRecurrence_InvalidTimezone_returns400(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+
+	cookie := signupAndGetCookie(t, router, "recurrence-bad-tz@ex.com")
+	userID := getUserIDFromCookie(t, router, cookie)
+
+	start := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+	body := fmt.Sprintf(`{
+		"title": "Bad timezone",
+		"startAt": "%s",
+		"endAt":   "%s",
+		"recurrence": {
+			"pattern":  {"type": "daily"},
+			"end":      {"type": "count", "count": 3},
+			"timezone": "Invalid/Zone"
+		}
+	}`, start.Format(time.RFC3339), end.Format(time.RFC3339))
+
+	req := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(body))
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var respBody struct {
+		Code    string `json:"code"`
+		Details []struct {
+			Field string `json:"field"`
+			Code  string `json:"code"`
+		} `json:"details"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&respBody); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if respBody.Code != codeValidationError {
+		t.Errorf("code mismatch: got %q, want VALIDATION_ERROR", respBody.Code)
+	}
+	if len(respBody.Details) == 0 {
+		t.Fatal("expected at least one validation detail")
+	}
+	if respBody.Details[0].Field != "recurrence.timezone" {
+		t.Errorf("detail[0].field mismatch: got %q", respBody.Details[0].Field)
+	}
+
+	// No events must have been created: list in a wide range returns nothing.
+	rangeStart := start.Add(-time.Hour)
+	rangeEnd := start.Add(10 * 24 * time.Hour)
+	getReq := httptest.NewRequest(http.MethodGet, eventsRangePath(rangeStart, rangeEnd), nil)
+	getReq.AddCookie(cookie)
+	getRec := httptest.NewRecorder()
+	router.ServeHTTP(getRec, getReq)
+
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("GET /events expected 200, got %d", getRec.Code)
+	}
+	var getResp struct {
+		Events []any `json:"events"`
+	}
+	if err := json.NewDecoder(getRec.Body).Decode(&getResp); err != nil {
+		t.Fatalf("decode GET response: %v", err)
+	}
+	if len(getResp.Events) != 0 {
+		t.Errorf("expected 0 events after failed recurrence, got %d (user=%s)", len(getResp.Events), userID)
 	}
 }

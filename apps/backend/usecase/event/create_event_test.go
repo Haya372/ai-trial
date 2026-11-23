@@ -12,6 +12,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain"
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
 	eventmock "github.com/Haya372/ai-trial/backend/domain/event/generated"
+	rsmock "github.com/Haya372/ai-trial/backend/domain/recurringeventseries/generated"
 	"github.com/Haya372/ai-trial/backend/domain/tag"
 	tagmock "github.com/Haya372/ai-trial/backend/domain/tag/generated"
 	eventuc "github.com/Haya372/ai-trial/backend/usecase/event"
@@ -43,7 +44,9 @@ func TestCreateEventCommand_Execute_Success(t *testing.T) {
 		},
 	)
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{})
+	noopSR := rsmock.NewMockRepository(ctrl)
+	noopTR := tagmock.NewMockRepository(ctrl)
+	cmd := eventuc.NewCreateEventCommand(repo, noopSR, noopTR, &testutil.StubTxManager{})
 	out, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:       testCreateTitle,
 		Description: "Team sync",
@@ -93,7 +96,9 @@ func TestCreateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 	userID := uuid.New()
 	now := time.Now().UTC()
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{})
+	noopSR := rsmock.NewMockRepository(ctrl)
+	noopTR := tagmock.NewMockRepository(ctrl)
+	cmd := eventuc.NewCreateEventCommand(repo, noopSR, noopTR, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   "",
 		StartAt: now,
@@ -110,7 +115,7 @@ func TestCreateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 	if len(ve.Details) == 0 || ve.Details[0].Field != "title" {
 		t.Errorf("expected validation error on field title, got: %v", ve.Details)
 	}
-	if ve.Details[0].Code != "REQUIRED" {
+	if ve.Details[0].Code != codeRequired {
 		t.Errorf("expected code REQUIRED, got %q", ve.Details[0].Code)
 	}
 }
@@ -123,7 +128,9 @@ func TestCreateEventCommand_Execute_EndAtEqualStartAt_ReturnsValidationError(t *
 	userID := uuid.New()
 	now := time.Now().UTC()
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{})
+	noopSR := rsmock.NewMockRepository(ctrl)
+	noopTR := tagmock.NewMockRepository(ctrl)
+	cmd := eventuc.NewCreateEventCommand(repo, noopSR, noopTR, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -153,7 +160,9 @@ func TestCreateEventCommand_Execute_RepositoryError_WrapsError(t *testing.T) {
 	now := time.Now().UTC()
 	repo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(nil, errDBFailure)
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{})
+	noopSR := rsmock.NewMockRepository(ctrl)
+	noopTR := tagmock.NewMockRepository(ctrl)
+	cmd := eventuc.NewCreateEventCommand(repo, noopSR, noopTR, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -182,7 +191,9 @@ func TestCreateEventCommand_Execute_CreatesInsideTransaction(t *testing.T) {
 	)
 
 	now := time.Now().UTC()
-	cmd := eventuc.NewCreateEventCommand(repo, tagmock.NewMockRepository(ctrl), markingTxManager{})
+	noopSR := rsmock.NewMockRepository(ctrl)
+	noopTR := tagmock.NewMockRepository(ctrl)
+	cmd := eventuc.NewCreateEventCommand(repo, noopSR, noopTR, markingTxManager{})
 	if _, err := cmd.Execute(context.Background(), uuid.New(), eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -211,7 +222,7 @@ func TestCreateEventCommand_Execute_WithTags_ReturnsTagsInOrder(t *testing.T) {
 		nil,
 	)
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagRepo, &testutil.StubTxManager{})
+	cmd := eventuc.NewCreateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{})
 	out, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -242,7 +253,7 @@ func TestCreateEventCommand_Execute_TooManyTags_ReturnsValidationError(t *testin
 	now := time.Now().UTC()
 	tagIDs := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()} // 6 tags
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagRepo, &testutil.StubTxManager{})
+	cmd := eventuc.NewCreateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -273,7 +284,7 @@ func TestCreateEventCommand_Execute_DuplicateTags_ReturnsValidationError(t *test
 	now := time.Now().UTC()
 	dup := uuid.New()
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagRepo, &testutil.StubTxManager{})
+	cmd := eventuc.NewCreateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -308,7 +319,7 @@ func TestCreateEventCommand_Execute_TagNotFound_ReturnsValidationError(t *testin
 	// FindByIDsForShare returns empty slice (tag not found / foreign).
 	tagRepo.EXPECT().FindByIDsForShare(gomock.Any(), []uuid.UUID{missingTagID}).Return([]tag.Tag{}, nil)
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagRepo, &testutil.StubTxManager{})
+	cmd := eventuc.NewCreateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -346,7 +357,7 @@ func TestCreateEventCommand_Execute_ForeignTag_ReturnsValidationError(t *testing
 		nil,
 	)
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagRepo, &testutil.StubTxManager{})
+	cmd := eventuc.NewCreateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{})
 	_, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -391,7 +402,7 @@ func TestCreateEventCommand_Execute_FindByIDsForShareCalledInsideTransaction(t *
 		},
 	)
 
-	cmd := eventuc.NewCreateEventCommand(repo, tagRepo, markingTxManager{})
+	cmd := eventuc.NewCreateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, markingTxManager{})
 	if _, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
@@ -415,7 +426,9 @@ func TestCreateEventCommand_Execute_NilTagIDs_ReturnsEmptyTags(t *testing.T) {
 	)
 
 	// No FindByIDsForShare call expected when TagIDs is nil.
-	cmd := eventuc.NewCreateEventCommand(repo, tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{})
+	noopSR := rsmock.NewMockRepository(ctrl)
+	noopTR := tagmock.NewMockRepository(ctrl)
+	cmd := eventuc.NewCreateEventCommand(repo, noopSR, noopTR, &testutil.StubTxManager{})
 	out, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
 		Title:   testCreateTitle,
 		StartAt: now,
