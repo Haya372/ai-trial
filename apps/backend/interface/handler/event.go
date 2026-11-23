@@ -190,17 +190,13 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 		ri := &eventuc.RecurrenceInput{
 			PatternType: string(body.Recurrence.Pattern.Type),
 			EndType:     string(body.Recurrence.End.Type),
+			UntilDate:   body.Recurrence.End.UntilDate,
+			Count:       body.Recurrence.End.Count,
 			Timezone:    body.Recurrence.Timezone,
 		}
 		if body.Recurrence.Pattern.MonthlyNth != nil {
 			s := string(*body.Recurrence.Pattern.MonthlyNth)
 			ri.MonthlyNth = &s
-		}
-		if body.Recurrence.End.UntilDate != nil {
-			ri.UntilDate = body.Recurrence.End.UntilDate
-		}
-		if body.Recurrence.End.Count != nil {
-			ri.Count = body.Recurrence.End.Count
 		}
 		in.Recurrence = ri
 	}
