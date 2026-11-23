@@ -27,6 +27,8 @@ import (
 const (
 	patternMonthlyDay = "monthly_day"
 	patternMonthlyNth = "monthly_nth_weekday"
+	fieldMonthlyNth   = "recurrence.pattern.monthlyNth"
+	fieldCount        = "recurrence.end.count"
 )
 
 // expectReadBack makes eventRepo.FindByID return the saved occurrence with the
@@ -373,7 +375,7 @@ func TestCreateEventCommand_Execute_RecurrenceValidation(t *testing.T) {
 		{
 			name:      "count end without count",
 			in:        eventuc.RecurrenceInput{PatternType: patternWeekly, EndType: endCount, Timezone: timezoneUTC},
-			wantField: "recurrence.end.count",
+			wantField: fieldCount,
 			wantCode:  codeRequired,
 		},
 		{
@@ -390,7 +392,7 @@ func TestCreateEventCommand_Execute_RecurrenceValidation(t *testing.T) {
 			in: eventuc.RecurrenceInput{
 				PatternType: patternWeekly, EndType: endCount, Count: ptr(1), Timezone: timezoneUTC,
 			},
-			wantField: "recurrence.end.count",
+			wantField: fieldCount,
 			wantCode:  codeOutOfRange,
 		},
 		{
@@ -419,21 +421,73 @@ func TestCreateEventCommand_Execute_RecurrenceValidation(t *testing.T) {
 			wantCode:  codeOutOfRange,
 		},
 		{
-			// count=2 for a monthly series where startAt=Nov 30 and timezone=UTC
-			// means 2nd occurrence is Dec 30 — that fits within 2 years.
-			// Use a "too few" case instead: monthly_day starting on the 31st,
-			// until_date one day later → only 1 occurrence fits.
+			// Monthly from 2026-11-23: the next candidate, 2026-12-23, is after
+			// the until date, so only the first occurrence fits.
 			name: "too few occurrences",
 			in: eventuc.RecurrenceInput{
 				PatternType: patternMonthlyDay,
 				EndType:     endUntilDate,
-				// startAt = 2026-11-23; next monthly_day occurrence = 2026-12-23;
-				// but we set untilDate to 2026-11-30 so only 1 occurrence (Nov 23) fits
-				UntilDate: ptr("2026-11-30"),
-				Timezone:  timezoneUTC,
+				UntilDate:   ptr("2026-11-30"),
+				Timezone:    timezoneUTC,
 			},
 			wantField: "recurrence",
 			wantCode:  codeTooFewOccurrences,
+		},
+		{
+			name: "monthlyNth not in the enum",
+			in: eventuc.RecurrenceInput{
+				PatternType: patternMonthlyNth, MonthlyNth: ptr("5"),
+				EndType: endCount, Count: ptr(2), Timezone: timezoneUTC,
+			},
+			wantField: fieldMonthlyNth,
+			wantCode:  codeInvalidFormat,
+		},
+		{
+			name: "monthlyNth with a pattern other than monthly_nth_weekday",
+			in: eventuc.RecurrenceInput{
+				PatternType: patternWeekly, MonthlyNth: ptr("1"),
+				EndType: endCount, Count: ptr(2), Timezone: timezoneUTC,
+			},
+			wantField: fieldMonthlyNth,
+			wantCode:  codeInvalidFormat,
+		},
+		{
+			// 2026-11-23 is the 4th Monday of November, not the 1st.
+			name: "monthlyNth does not fall on the first occurrence",
+			in: eventuc.RecurrenceInput{
+				PatternType: patternMonthlyNth, MonthlyNth: ptr("1"),
+				EndType: endCount, Count: ptr(2), Timezone: timezoneUTC,
+			},
+			wantField: fieldMonthlyNth,
+			wantCode:  codeInvalidFormat,
+		},
+		{
+			name: "untilDate not on the calendar",
+			in: eventuc.RecurrenceInput{
+				PatternType: patternWeekly, EndType: endUntilDate,
+				UntilDate: ptr("2027-02-30"), Timezone: timezoneUTC,
+			},
+			wantField: fieldUntilDateEnd,
+			wantCode:  codeInvalidFormat,
+		},
+		{
+			// The span ends on 2028-11-23.
+			name: "untilDate more than 2 years after startAt",
+			in: eventuc.RecurrenceInput{
+				PatternType: patternWeekly, EndType: endUntilDate,
+				UntilDate: ptr("2028-11-24"), Timezone: timezoneUTC,
+			},
+			wantField: fieldUntilDateEnd,
+			wantCode:  codeOutOfRange,
+		},
+		{
+			// About 105 weekly occurrences fit in 2 years.
+			name: "count does not fit in 2 years",
+			in: eventuc.RecurrenceInput{
+				PatternType: patternWeekly, EndType: endCount, Count: ptr(200), Timezone: timezoneUTC,
+			},
+			wantField: fieldCount,
+			wantCode:  codeOutOfRange,
 		},
 	}
 
