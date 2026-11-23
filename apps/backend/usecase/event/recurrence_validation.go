@@ -8,8 +8,10 @@ import (
 	rs "github.com/Haya372/ai-trial/backend/domain/recurringeventseries"
 )
 
-// buildRule validates RecurrenceInput in the order specified in the design
-// document and returns a RecurrenceRule or a ValidationError.
+// buildRule returns the first problem as a ValidationError whose field is the
+// request path (SPEC-009 POST /events), so the form can show it inline.
+// Empty pattern type, end type and timezone are checked before the domain
+// constructors, which would report them as INVALID_FORMAT instead of REQUIRED.
 func buildRule(in RecurrenceInput) (rs.RecurrenceRule, error) {
 	pattern, err := buildPattern(in)
 	if err != nil {
@@ -26,7 +28,6 @@ func buildRule(in RecurrenceInput) (rs.RecurrenceRule, error) {
 	return rs.RecurrenceRule{Pattern: pattern, End: end, Timezone: tz}, nil
 }
 
-// buildPattern validates and constructs the RecurrencePattern part of the rule.
 func buildPattern(in RecurrenceInput) (rs.RecurrencePattern, error) {
 	if in.PatternType == "" {
 		return rs.RecurrencePattern{}, validationDetail(
@@ -40,22 +41,12 @@ func buildPattern(in RecurrenceInput) (rs.RecurrencePattern, error) {
 	return pattern, nil
 }
 
-// buildEnd validates and constructs the RecurrenceEnd part of the rule.
 func buildEnd(in RecurrenceInput) (rs.RecurrenceEnd, error) {
 	if in.EndType == "" {
 		return rs.RecurrenceEnd{}, validationDetail(
 			"recurrence.end.type", "REQUIRED", "recurrence end type is required",
 		)
 	}
-	switch rs.EndType(in.EndType) {
-	case rs.EndIndefinite, rs.EndUntilDate, rs.EndCount:
-		// valid
-	default:
-		return rs.RecurrenceEnd{}, validationDetail(
-			"recurrence.end.type", "INVALID_FORMAT", "recurrence end type is invalid",
-		)
-	}
-
 	switch rs.EndType(in.EndType) {
 	case rs.EndIndefinite:
 		return rs.NewIndefiniteEnd(), nil
@@ -64,8 +55,9 @@ func buildEnd(in RecurrenceInput) (rs.RecurrenceEnd, error) {
 	case rs.EndCount:
 		return buildCountEnd(in)
 	}
-	// unreachable: all EndType values handled above
-	return rs.RecurrenceEnd{}, nil
+	return rs.RecurrenceEnd{}, validationDetail(
+		"recurrence.end.type", "INVALID_FORMAT", "recurrence end type is invalid",
+	)
 }
 
 func buildUntilDateEnd(in RecurrenceInput) (rs.RecurrenceEnd, error) {
@@ -104,7 +96,6 @@ func buildCountEnd(in RecurrenceInput) (rs.RecurrenceEnd, error) {
 	return end, nil
 }
 
-// buildTimezone validates and constructs the SeriesTimezone part of the rule.
 func buildTimezone(in RecurrenceInput) (rs.SeriesTimezone, error) {
 	if in.Timezone == "" {
 		return rs.SeriesTimezone{}, validationDetail(
@@ -120,8 +111,8 @@ func buildTimezone(in RecurrenceInput) (rs.SeriesTimezone, error) {
 	return tz, nil
 }
 
-// toExpandValidationError maps errors from ExpandOccurrences to ValidationErrors
-// per the design document.
+// toExpandValidationError names the field each ExpandOccurrences error comes
+// from; the domain errors only carry the code.
 func toExpandValidationError(err error) error {
 	var de *domain.DomainError
 	if !errors.As(err, &de) {
@@ -129,7 +120,8 @@ func toExpandValidationError(err error) error {
 	}
 	switch {
 	case errors.Is(de, rs.ErrRecurringPatternInvalid):
-		// monthlyNth does not apply to the first occurrence
+		// Here the nth is a valid value that the first occurrence's date
+		// does not fall on.
 		return validationDetail("recurrence.pattern.monthlyNth", de.Code(), de.Message())
 	case errors.Is(de, rs.ErrRecurringEndInvalid):
 		return validationDetail("recurrence.end.untilDate", de.Code(), de.Message())
@@ -141,7 +133,6 @@ func toExpandValidationError(err error) error {
 	return err
 }
 
-// toPatternValidationError maps NewRecurrencePattern errors to ValidationErrors.
 func toPatternValidationError(err error, patternType string) error {
 	var de *domain.DomainError
 	if !errors.As(err, &de) {
@@ -151,11 +142,11 @@ func toPatternValidationError(err error, patternType string) error {
 	case errors.Is(de, rs.ErrRecurringPatternMonthlyNthRequired):
 		return validationDetail("recurrence.pattern.monthlyNth", de.Code(), de.Message())
 	case errors.Is(de, rs.ErrRecurringPatternInvalid):
-		// type out of range → field is pattern.type; monthlyNth issue → monthlyNth
+		// The domain uses one error for a bad type and a bad monthlyNth, so a
+		// known type means the monthlyNth is at fault.
 		switch rs.PatternType(patternType) {
 		case rs.PatternDaily, rs.PatternWeekly, rs.PatternBiweekly,
 			rs.PatternMonthlyDay, rs.PatternMonthlyNthWeekday:
-			// type is valid; it must be a monthlyNth issue
 			return validationDetail("recurrence.pattern.monthlyNth", de.Code(), de.Message())
 		default:
 			return validationDetail("recurrence.pattern.type", de.Code(), de.Message())
@@ -164,7 +155,6 @@ func toPatternValidationError(err error, patternType string) error {
 	return err
 }
 
-// toEndValidationError maps NewCountEnd errors to ValidationErrors.
 func toEndValidationError(err error) error {
 	var de *domain.DomainError
 	if !errors.As(err, &de) {
