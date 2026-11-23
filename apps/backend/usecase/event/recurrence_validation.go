@@ -2,6 +2,7 @@ package event
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Haya372/ai-trial/backend/domain"
@@ -74,11 +75,11 @@ func buildUntilDateEnd(in RecurrenceInput) (rs.RecurrenceEnd, error) {
 			"recurrence.end.untilDate", "INVALID_FORMAT", "untilDate must be YYYY-MM-DD",
 		)
 	}
+	// time.Parse already rejects days missing from the calendar, so an error
+	// here would be a bug rather than bad input.
 	ld, err := rs.NewLocalDate(t.Year(), t.Month(), t.Day())
 	if err != nil {
-		return rs.RecurrenceEnd{}, validationDetail(
-			"recurrence.end.untilDate", "INVALID_FORMAT", "untilDate is not a valid calendar date",
-		)
+		return rs.RecurrenceEnd{}, fmt.Errorf("untilDate %s: %w", *in.UntilDate, err)
 	}
 	return rs.NewUntilDateEnd(ld), nil
 }
