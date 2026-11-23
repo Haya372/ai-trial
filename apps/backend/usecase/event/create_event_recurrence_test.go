@@ -29,6 +29,24 @@ const (
 	patternMonthlyNth = "monthly_nth_weekday"
 )
 
+// expectReadBack makes eventRepo.FindByID return the saved occurrence with the
+// given ID, standing in for reading the first occurrence back after the bulk
+// insert. occs points at the slice the CreateOccurrences stub captured.
+func expectReadBack(t *testing.T, eventRepo *eventmock.MockRepository, occs *[]domainevent.Event) {
+	t.Helper()
+	eventRepo.EXPECT().FindByID(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, id uuid.UUID) (domainevent.Event, error) {
+			for _, e := range *occs {
+				if e.ID() == id {
+					return e, nil
+				}
+			}
+			t.Errorf("FindByID(%v): not a saved occurrence", id)
+			return nil, domainevent.ErrEventNotFound
+		},
+	)
+}
+
 // TestCreateEventCommand_Execute_WithRecurrence_Weekly_Count3 creates a weekly
 // series with count=3 and verifies that the series and all three occurrences are
 // written inside a single transaction, each sharing the same SeriesID.
@@ -58,6 +76,7 @@ func TestCreateEventCommand_Execute_WithRecurrence_Weekly_Count3(t *testing.T) {
 			return nil
 		},
 	)
+	expectReadBack(t, eventRepo, &capturedOccs)
 	// eventRepo.Create must NOT be called for a recurring event
 	eventRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Times(0)
 
@@ -133,6 +152,7 @@ func TestCreateEventCommand_Execute_WithRecurrence_InTransaction(t *testing.T) {
 
 	startAt := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
 	endAt := startAt.Add(time.Hour)
+	var capturedOccs []domainevent.Event
 
 	seriesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
 		func(ctx context.Context, s rs.RecurringEventSeries) (rs.RecurringEventSeries, error) {
@@ -147,9 +167,11 @@ func TestCreateEventCommand_Execute_WithRecurrence_InTransaction(t *testing.T) {
 			if !inTx(ctx) {
 				t.Error("CreateOccurrences must be called inside a transaction")
 			}
+			capturedOccs = occs
 			return nil
 		},
 	)
+	expectReadBack(t, eventRepo, &capturedOccs)
 
 	cmd := eventuc.NewCreateEventCommand(eventRepo, seriesRepo, tagRepo, markingTxManager{})
 	_, err := cmd.Execute(context.Background(), uuid.New(), eventuc.CreateEventInput{
@@ -195,6 +217,7 @@ func TestCreateEventCommand_Execute_WithRecurrence_WithTags_AllOccurrencesTagged
 			return nil
 		},
 	)
+	expectReadBack(t, eventRepo, &capturedOccs)
 
 	cmd := eventuc.NewCreateEventCommand(eventRepo, seriesRepo, tagRepo, &testutil.StubTxManager{})
 	out, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
@@ -520,5 +543,55 @@ func TestCreateEventCommand_Execute_CreateOccurrencesError_PropagatesError(t *te
 	}
 	if !errors.Is(err, errDBFailure) {
 		t.Errorf("expected wrapped errDBFailure, got %v", err)
+	}
+}
+
+// TestCreateEventCommand_Execute_WithRecurrence_ReturnsStoredFirstOccurrence
+// verifies that the output is the first occurrence as read back after saving,
+// so a sub-microsecond startAt matches what later reads return.
+func TestCreateEventCommand_Execute_WithRecurrence_ReturnsStoredFirstOccurrence(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	eventRepo := eventmock.NewMockRepository(ctrl)
+	seriesRepo := rsmock.NewMockRepository(ctrl)
+	tagRepo := tagmock.NewMockRepository(ctrl)
+
+	userID := uuid.New()
+	startAt := time.Date(2026, 11, 23, 10, 0, 0, 123456789, time.UTC)
+	endAt := startAt.Add(time.Hour)
+	storedStart := startAt.Truncate(time.Microsecond)
+
+	var firstID uuid.UUID
+	seriesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, s rs.RecurringEventSeries) (rs.RecurringEventSeries, error) { return s, nil },
+	)
+	seriesRepo.EXPECT().CreateOccurrences(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, occs []domainevent.Event) error {
+			firstID = occs[0].ID()
+			return nil
+		},
+	)
+	eventRepo.EXPECT().FindByID(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, id uuid.UUID) (domainevent.Event, error) {
+			if id != firstID {
+				t.Errorf("FindByID id = %v, want first occurrence %v", id, firstID)
+			}
+			return domainevent.New(id, userID, testCreateTitle, "", storedStart, storedStart.Add(time.Hour), "", "")
+		},
+	)
+
+	cmd := eventuc.NewCreateEventCommand(eventRepo, seriesRepo, tagRepo, &testutil.StubTxManager{})
+	out, err := cmd.Execute(context.Background(), userID, eventuc.CreateEventInput{
+		Title:   testCreateTitle,
+		StartAt: startAt,
+		EndAt:   endAt,
+		Recurrence: &eventuc.RecurrenceInput{
+			PatternType: patternWeekly, EndType: endCount, Count: ptr(3), Timezone: timezoneUTC,
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !out.Event.StartAt().Equal(storedStart) {
+		t.Errorf("output StartAt = %v, want stored %v", out.Event.StartAt(), storedStart)
 	}
 }

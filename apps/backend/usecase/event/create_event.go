@@ -141,7 +141,7 @@ func (c *CreateEventCommand) createRecurring(
 
 	var savedSeries rs.RecurringEventSeries
 	var tagViews []EventTagView
-	var events []domainevent.Event
+	var first domainevent.Event
 	if err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
 		tagViews, _, err = c.fetchAndApplyTags(ctx, in.TagIDs, domainevent.Event(nil), eventTags, userID)
 		if err != nil {
@@ -151,16 +151,23 @@ func (c *CreateEventCommand) createRecurring(
 		if err != nil {
 			return err
 		}
-		events, err = c.buildOccurrences(userID, in, savedSeries.ID(), occs, eventTags)
+		events, err := c.buildOccurrences(userID, in, savedSeries.ID(), occs, eventTags)
 		if err != nil {
 			return err
 		}
-		return c.seriesRepo.CreateOccurrences(ctx, events)
+		if err := c.seriesRepo.CreateOccurrences(ctx, events); err != nil {
+			return err
+		}
+		// The bulk insert returns no rows, so read the first occurrence back
+		// to return the stored values (e.g. microsecond timestamps) like the
+		// one-off path does.
+		first, err = c.eventRepo.FindByID(ctx, events[0].ID())
+		return err
 	}); err != nil {
 		return CreateEventOutput{}, fmt.Errorf("create recurring event: %w", err)
 	}
 
-	return CreateEventOutput{Event: events[0], Tags: tagViews, Series: savedSeries}, nil
+	return CreateEventOutput{Event: first, Tags: tagViews, Series: savedSeries}, nil
 }
 
 // buildOccurrences constructs one Event per occurrence, attaching the series ID
