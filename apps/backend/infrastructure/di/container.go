@@ -16,6 +16,7 @@ import (
 	"github.com/Haya372/ai-trial/backend/domain/event"
 	"github.com/Haya372/ai-trial/backend/domain/eventshare"
 	"github.com/Haya372/ai-trial/backend/domain/eventsubscription"
+	rs "github.com/Haya372/ai-trial/backend/domain/recurringeventseries"
 	"github.com/Haya372/ai-trial/backend/domain/session"
 	"github.com/Haya372/ai-trial/backend/domain/tag"
 	"github.com/Haya372/ai-trial/backend/domain/user"
@@ -54,6 +55,7 @@ func NewContainer(ctx context.Context) (*dig.Container, error) {
 		repository.NewTagRepository,
 		repository.NewEventShareRepository,
 		repository.NewEventSubscriptionRepository,
+		repository.NewRecurringEventSeriesRepository,
 		newShareTokenLoader,
 		newGetShareByTokenExecutor,
 		newSubscribeToShareExecutor,
@@ -147,9 +149,9 @@ func newListEventsExecutor(s eventuc.QueryService) handler.ListEventsExecutor {
 }
 
 func newCreateEventExecutor(
-	r event.Repository, tr tag.Repository, tx usecase.TransactionManager,
+	r event.Repository, sr rs.Repository, tr tag.Repository, tx usecase.TransactionManager,
 ) handler.CreateEventExecutor {
-	return eventuc.NewCreateEventCommand(r, tr, tx)
+	return eventuc.NewCreateEventCommand(r, sr, tr, tx)
 }
 
 func newUpdateEventExecutor(
