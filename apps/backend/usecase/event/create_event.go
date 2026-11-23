@@ -104,11 +104,15 @@ func (c *CreateEventCommand) createOneOff(
 	var tagViews []EventTagView
 	if err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
 		var err error
-		tagViews, firstOcc, err = c.fetchAndApplyTags(ctx, in.TagIDs, firstOcc, eventTags, userID)
+		tagViews, err = c.lockOwnedTags(ctx, in.TagIDs, userID)
 		if err != nil {
 			return err
 		}
-		saved, err = c.eventRepo.Create(ctx, firstOcc)
+		tagged, err := firstOcc.WithTags(eventTags)
+		if err != nil {
+			return err
+		}
+		saved, err = c.eventRepo.Create(ctx, tagged)
 		return err
 	}); err != nil {
 		return CreateEventOutput{}, fmt.Errorf("create event: %w", err)
@@ -143,7 +147,7 @@ func (c *CreateEventCommand) createRecurring(
 	var tagViews []EventTagView
 	var first domainevent.Event
 	if err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
-		tagViews, _, err = c.fetchAndApplyTags(ctx, in.TagIDs, domainevent.Event(nil), eventTags, userID)
+		tagViews, err = c.lockOwnedTags(ctx, in.TagIDs, userID)
 		if err != nil {
 			return err
 		}
@@ -171,7 +175,7 @@ func (c *CreateEventCommand) createRecurring(
 }
 
 // buildOccurrences constructs one Event per occurrence, attaching the series ID
-// and optional tags to each. It is called inside a transaction.
+// and the tags to each.
 func (c *CreateEventCommand) buildOccurrences(
 	userID uuid.UUID,
 	in CreateEventInput,
@@ -188,46 +192,29 @@ func (c *CreateEventCommand) buildOccurrences(
 		if err != nil {
 			return nil, fmt.Errorf("create occurrence %d: %w", i, err)
 		}
-		e = e.WithSeriesID(seriesID)
-		if len(in.TagIDs) > 0 {
-			e, err = e.WithTags(eventTags)
-			if err != nil {
-				return nil, fmt.Errorf("attach tags to occurrence %d: %w", i, err)
-			}
+		e, err = e.WithSeriesID(seriesID).WithTags(eventTags)
+		if err != nil {
+			return nil, fmt.Errorf("attach tags to occurrence %d: %w", i, err)
 		}
 		events[i] = e
 	}
 	return events, nil
 }
 
-// fetchAndApplyTags locks the requested tags, verifies ownership and attaches
-// them to ev (when ev is non-nil). It is called inside a transaction.
-// Returns the tag views, the (possibly updated) event, and any error.
-func (c *CreateEventCommand) fetchAndApplyTags(
-	ctx context.Context,
-	tagIDs []uuid.UUID,
-	ev domainevent.Event,
-	eventTags []domainevent.EventTag,
-	userID uuid.UUID,
-) ([]EventTagView, domainevent.Event, error) {
+// lockOwnedTags locks the requested tags (FOR SHARE) so they cannot be
+// deleted before the event rows refer to them, and checks that the caller
+// owns them. Call it inside the transaction that saves the event.
+func (c *CreateEventCommand) lockOwnedTags(
+	ctx context.Context, tagIDs []uuid.UUID, userID uuid.UUID,
+) ([]EventTagView, error) {
 	if len(tagIDs) == 0 {
-		return nil, ev, nil
+		return nil, nil
 	}
 	locked, err := c.tagRepo.FindByIDsForShare(ctx, tagIDs)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	views, err := verifyAndBuildTagViews(tagIDs, locked, userID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if ev != nil {
-		ev, err = ev.WithTags(eventTags)
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	return views, ev, nil
+	return verifyAndBuildTagViews(tagIDs, locked, userID)
 }
 
 // verifyAndBuildTagViews checks that all requested tag IDs exist and are owned
