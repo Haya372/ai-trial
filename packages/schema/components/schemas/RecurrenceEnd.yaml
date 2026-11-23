@@ -1,0 +1,14 @@
+type: object
+required: [type]
+properties:
+  type:
+    type: string
+    enum: [indefinite, until_date, count]
+  untilDate:
+    type: string
+    format: date
+    x-go-type: string
+    description: Local date in the series timezone. Required only when type is until_date.
+  count:
+    type: integer
+    description: Required only when type is count. At least 2 in requests; responses may return 1.

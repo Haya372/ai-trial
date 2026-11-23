@@ -1,0 +1,12 @@
+type: object
+required: [id, pattern, end, timezone]
+properties:
+  id:
+    type: string
+    format: uuid
+  pattern:
+    $ref: "./RecurrencePattern.yaml"
+  end:
+    $ref: "./RecurrenceEnd.yaml"
+  timezone:
+    type: string

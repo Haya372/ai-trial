@@ -40,6 +40,7 @@ function event(overrides: Partial<EventResponse>): EventResponse {
     isSubscribed: false,
     subscriptionId: null,
     tags: [],
+    recurringSeries: null,
     ...overrides,
   }
 }

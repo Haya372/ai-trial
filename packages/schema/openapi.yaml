@@ -85,3 +85,11 @@ components:
       $ref: "./components/schemas/TagResponse.yaml"
     TagsListResponse:
       $ref: "./components/schemas/TagsListResponse.yaml"
+    RecurrencePattern:
+      $ref: "./components/schemas/RecurrencePattern.yaml"
+    RecurrenceEnd:
+      $ref: "./components/schemas/RecurrenceEnd.yaml"
+    RecurrenceSpec:
+      $ref: "./components/schemas/RecurrenceSpec.yaml"
+    RecurringSeriesResponse:
+      $ref: "./components/schemas/RecurringSeriesResponse.yaml"

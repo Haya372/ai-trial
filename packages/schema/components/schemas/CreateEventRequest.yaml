@@ -30,3 +30,10 @@ properties:
     description: >-
       Tag IDs to attach in attachment order. Max 5, no duplicates, owner-only
       tags. Omitted means no tags.
+  recurrence:
+    oneOf:
+      - $ref: "./RecurrenceSpec.yaml"
+      - type: "null"
+    description: >-
+      Recurrence settings. Omitted or null creates a one-off event.
+      An object creates a recurring series.

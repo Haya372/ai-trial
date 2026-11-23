@@ -53,6 +53,7 @@ const mockEvent: EventResponse = {
   isSubscribed: false,
   subscriptionId: null,
   tags: [],
+  recurringSeries: null,
 }
 
 function renderDialog(

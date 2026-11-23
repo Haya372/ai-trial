@@ -109,6 +109,7 @@ vi.mock('../../timeline/components/TodayTimelinePanel', () => ({
             isSubscribed: false,
             subscriptionId: null,
             tags: [],
+            recurringSeries: null,
           })
         }
       >
@@ -166,6 +167,7 @@ const fullEvent: EventResponse = {
   isSubscribed: false,
   subscriptionId: null,
   tags: [],
+  recurringSeries: null,
 }
 
 describe('CalendarPage', () => {
