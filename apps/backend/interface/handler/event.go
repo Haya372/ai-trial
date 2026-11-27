@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	rs "github.com/Haya372/ai-trial/backend/domain/recurringeventseries"
 	"github.com/Haya372/ai-trial/backend/domain/user"
 	api "github.com/Haya372/ai-trial/backend/interface/api/generated"
 	"github.com/Haya372/ai-trial/backend/interface/ctxkey"
@@ -32,16 +33,17 @@ type eventTagResponseBody struct {
 // eventResponseBody is the JSON shape for a single event response.
 // Defined here because oapi-codegen v2 inlines these fields per-operation.
 type eventResponseBody struct {
-	ID             uuid.UUID              `json:"id"`
-	Title          string                 `json:"title"`
-	Description    *string                `json:"description,omitempty"`
-	StartAt        time.Time              `json:"startAt"`
-	EndAt          time.Time              `json:"endAt"`
-	Location       *string                `json:"location,omitempty"`
-	URL            *string                `json:"url,omitempty"`
-	IsSubscribed   bool                   `json:"isSubscribed"`
-	SubscriptionID *uuid.UUID             `json:"subscriptionId"`
-	Tags           []eventTagResponseBody `json:"tags"`
+	ID              uuid.UUID                    `json:"id"`
+	Title           string                       `json:"title"`
+	Description     *string                      `json:"description,omitempty"`
+	StartAt         time.Time                    `json:"startAt"`
+	EndAt           time.Time                    `json:"endAt"`
+	Location        *string                      `json:"location,omitempty"`
+	URL             *string                      `json:"url,omitempty"`
+	IsSubscribed    bool                         `json:"isSubscribed"`
+	SubscriptionID  *uuid.UUID                   `json:"subscriptionId"`
+	Tags            []eventTagResponseBody       `json:"tags"`
+	RecurringSeries *api.RecurringSeriesResponse `json:"recurringSeries"`
 }
 
 // eventsListResponseBody is the JSON shape for the list events response.
@@ -140,16 +142,17 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 			tags[j] = eventTagResponseBody{ID: t.ID, Name: t.Name, Color: t.Color}
 		}
 		resp.Events[i] = eventResponseBody{
-			ID:             e.ID,
-			Title:          e.Title,
-			StartAt:        e.StartAt,
-			EndAt:          e.EndAt,
-			Description:    optionalString(e.Description),
-			Location:       optionalString(e.Location),
-			URL:            optionalString(e.URL),
-			IsSubscribed:   e.IsSubscribed,
-			SubscriptionID: e.SubscriptionID,
-			Tags:           tags,
+			ID:              e.ID,
+			Title:           e.Title,
+			StartAt:         e.StartAt,
+			EndAt:           e.EndAt,
+			Description:     optionalString(e.Description),
+			Location:        optionalString(e.Location),
+			URL:             optionalString(e.URL),
+			IsSubscribed:    e.IsSubscribed,
+			SubscriptionID:  e.SubscriptionID,
+			Tags:            tags,
+			RecurringSeries: nil,
 		}
 	}
 
@@ -183,13 +186,29 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 		in.TagIDs = make([]uuid.UUID, len(*body.TagIds))
 		copy(in.TagIDs, *body.TagIds)
 	}
+	if body.Recurrence != nil {
+		ri := &eventuc.RecurrenceInput{
+			PatternType: string(body.Recurrence.Pattern.Type),
+			EndType:     string(body.Recurrence.End.Type),
+			UntilDate:   body.Recurrence.End.UntilDate,
+			Count:       body.Recurrence.End.Count,
+			Timezone:    body.Recurrence.Timezone,
+		}
+		if body.Recurrence.Pattern.MonthlyNth != nil {
+			s := string(*body.Recurrence.Pattern.MonthlyNth)
+			ri.MonthlyNth = &s
+		}
+		in.Recurrence = ri
+	}
 	return in
 }
 
 // toEventResponse builds the EventResponse for create/update endpoints.
 // These endpoints only act on the caller's own event, so IsSubscribed/SubscriptionId
 // are always false/nil.
-func toEventResponse(ev domainevent.Event, tagViews []eventuc.EventTagView) api.EventResponse {
+func toEventResponse(
+	ev domainevent.Event, tagViews []eventuc.EventTagView, series rs.RecurringEventSeries,
+) api.EventResponse {
 	apiTags := make([]api.EventTagResponse, len(tagViews))
 	for i, t := range tagViews {
 		apiTags[i] = api.EventTagResponse{
@@ -199,16 +218,55 @@ func toEventResponse(ev domainevent.Event, tagViews []eventuc.EventTagView) api.
 		}
 	}
 	return api.EventResponse{
-		Id:             ev.ID(),
-		Title:          ev.Title(),
-		StartAt:        ev.StartAt(),
-		EndAt:          ev.EndAt(),
-		Description:    optionalString(ev.Description()),
-		Location:       optionalString(ev.Location()),
-		Url:            optionalString(ev.URL()),
-		IsSubscribed:   false,
-		SubscriptionId: nil,
-		Tags:           apiTags,
+		Id:              ev.ID(),
+		Title:           ev.Title(),
+		StartAt:         ev.StartAt(),
+		EndAt:           ev.EndAt(),
+		Description:     optionalString(ev.Description()),
+		Location:        optionalString(ev.Location()),
+		Url:             optionalString(ev.URL()),
+		IsSubscribed:    false,
+		SubscriptionId:  nil,
+		Tags:            apiTags,
+		RecurringSeries: toRecurringSeriesResponse(series),
+	}
+}
+
+// toRecurringSeriesResponse converts a domain RecurringEventSeries to the API
+// response type. Returns nil when series is nil.
+func toRecurringSeriesResponse(series rs.RecurringEventSeries) *api.RecurringSeriesResponse {
+	if series == nil {
+		return nil
+	}
+	rule := series.Rule()
+	pattern := rule.Pattern
+	end := rule.End
+
+	var apiNth *api.RecurrencePatternMonthlyNth
+	if nth, ok := pattern.MonthlyNth(); ok {
+		v := api.RecurrencePatternMonthlyNth(nth)
+		apiNth = &v
+	}
+
+	apiEnd := api.RecurrenceEnd{
+		Type: api.RecurrenceEndType(end.Type()),
+	}
+	if ud, ok := end.UntilDate(); ok {
+		s := ud.String()
+		apiEnd.UntilDate = &s
+	}
+	if c, ok := end.Count(); ok {
+		apiEnd.Count = &c
+	}
+
+	return &api.RecurringSeriesResponse{
+		Id: series.ID(),
+		Pattern: api.RecurrencePattern{
+			Type:       api.RecurrencePatternType(pattern.Type()),
+			MonthlyNth: apiNth,
+		},
+		End:      apiEnd,
+		Timezone: rule.Timezone.Name(),
 	}
 }
 
@@ -243,7 +301,7 @@ func (h *EventHandler) CreateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags))
+	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags, out.Series))
 	if err != nil {
 		h.logger.Error("failed to marshal create event response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
@@ -280,7 +338,7 @@ func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags))
+	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags, nil))
 	if err != nil {
 		h.logger.Error("failed to marshal update event response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")

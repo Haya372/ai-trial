@@ -7,6 +7,7 @@ required:
   - isSubscribed
   - subscriptionId
   - tags
+  - recurringSeries
 properties:
   id:
     type: string
@@ -45,3 +46,9 @@ properties:
     description: >-
       Attached tags in insertion order. Always an empty array for untagged
       events and for events added via share link (isSubscribed=true).
+  recurringSeries:
+    oneOf:
+      - $ref: "./RecurringSeriesResponse.yaml"
+      - type: "null"
+    description: >-
+      The recurring series this event belongs to, or null for one-off events.

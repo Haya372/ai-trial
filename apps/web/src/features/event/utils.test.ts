@@ -61,6 +61,7 @@ describe('toFormValues', () => {
         { id: 'tag-2', name: '趣味', color: 'green' },
         { id: 'tag-1', name: '仕事', color: 'blue' },
       ],
+      recurringSeries: null,
     }
     const values = toFormValues(event)
     expect(values.tagIds).toEqual(['tag-2', 'tag-1'])
@@ -100,6 +101,7 @@ describe('toFormValues', () => {
       isSubscribed: false,
       subscriptionId: null,
       tags: [],
+      recurringSeries: null,
     }
     const values = toFormValues(event, initialStart)
     expect(values.startAt).toBe(toDateTimeLocalValue(event.startAt))
@@ -117,6 +119,7 @@ describe('toFormValues', () => {
       isSubscribed: false,
       subscriptionId: null,
       tags: [],
+      recurringSeries: null,
     }
     const values = toFormValues(event)
     expect(values.description).toBe('')
