@@ -1,5 +1,9 @@
 pre-push:
+  piped: true
   jobs:
+    - name: gitleaks
+      run: bash scripts/gitleaks-pre-push.sh
+      use_stdin: true
     - name: go-build-lint
       glob: "apps/backend/**/*.{go,sql,yaml}"
       root: "apps/backend"
@@ -27,6 +31,8 @@ pre-commit:
     - name: go-release-age
       glob: "apps/backend/go.{mod,sum}"
       run: bash scripts/check-go-release-age.sh
+    - name: shell-lint
+      run: mise exec -- bash scripts/lint-shell.sh
     - name: markdown-lint
       glob: "{**/*.md,*.md}"
       run: mise exec -- markdownlint-cli2 {staged_files}

@@ -35,8 +35,8 @@ mise install
 # 3. 依存パッケージをインストール
 mise exec -- pnpm install
 
-# 4. git hooks をセットアップ
-mise exec -- pnpm exec lefthook install
+# 4. git hooks をセットアップ（core.hooksPath が設定済みの環境では解除してから .git/hooks に生成する）
+mise exec -- pnpm exec lefthook install --reset-hooks-path
 
 # 5. gh-stack をインストール（スタックPR管理用）
 gh extension install github/gh-stack
@@ -48,6 +48,8 @@ gh skill install github/gh-stackも
 /plugin install pr-review-toolkit@claude-plugins-official
 /plugin install superpowers@claude-plugins-official
 ```
+
+`git config core.hooksPath` が値を返す既存の環境では、手順4のコマンドを一度実行して `core.hooksPath` を解除する。lefthook は `core.hooksPath` が設定されているとフックを生成しないため、解除しないとフック（gitleaks を含む）が実行されない。
 
 `.claude/settings.json` の `enabledPlugins` はインストール済みプラグインを自動有効化するだけで、未インストールの場合は自動インストールされない（Claude Code の既知の制限）。上記コマンドで各自インストールすること。
 
