@@ -557,6 +557,57 @@ func TestEventHandler_CreateEvent_RecurrenceValidationError_Returns400WithDetail
 	}
 }
 
+func TestEventHandler_CreateEvent_MonthlyNthWeekdaySeries_ReturnsMonthlyNth(t *testing.T) {
+	userID := uuid.New()
+	nth := "last"
+	pattern, err := rs.NewRecurrencePattern(valMonthlyNthWeekday, &nth)
+	if err != nil {
+		t.Fatalf("NewRecurrencePattern: %v", err)
+	}
+	tz, err := rs.NewSeriesTimezone(valUTC)
+	if err != nil {
+		t.Fatalf("NewSeriesTimezone: %v", err)
+	}
+	series, err := rs.New(uuid.New(), userID,
+		rs.RecurrenceRule{Pattern: pattern, End: rs.NewIndefiniteEnd(), Timezone: tz}, nil)
+	if err != nil {
+		t.Fatalf("rs.New: %v", err)
+	}
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			ev, _ := domainevent.New(uuid.New(), userID, in.Title, "", in.StartAt, in.EndAt, "", "")
+			return eventuc.CreateEventOutput{Event: ev, Tags: []eventuc.EventTagView{}, Series: series}, nil
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	now := time.Date(2026, 11, 30, 10, 0, 0, 0, time.UTC)
+	body := map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: now.Format(time.RFC3339),
+		testKeyEndAt:   now.Add(time.Hour).Format(time.RFC3339),
+	}
+	req := createEventRequest(t, body)
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		RecurringSeries json.RawMessage `json:"recurringSeries"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	assertJSONEqual(t, resp.RecurringSeries, `{"id":"`+series.ID().String()+`",`+
+		`"pattern":{"type":"monthly_nth_weekday","monthlyNth":"last"},`+
+		`"end":{"type":"indefinite"},"timezone":"UTC"}`)
+}
+
 // TestEventHandler_CreateEvent_UntilDateSeries_ReturnsRecurringSeries tests that
 // an until_date series is correctly serialized in the response (untilDate format).
 func TestEventHandler_CreateEvent_UntilDateSeries_ReturnsRecurringSeries(t *testing.T) {
