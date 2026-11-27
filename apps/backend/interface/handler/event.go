@@ -152,7 +152,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 			IsSubscribed:    e.IsSubscribed,
 			SubscriptionID:  e.SubscriptionID,
 			Tags:            tags,
-			RecurringSeries: nil,
+			RecurringSeries: toRecurringSeriesResponseFromReadModel(e.RecurringSeries),
 		}
 	}
 
@@ -233,40 +233,58 @@ func toEventResponse(
 }
 
 // toRecurringSeriesResponse converts a domain RecurringEventSeries to the API
-// response type. Returns nil when series is nil.
+// response type. Returns nil when series is nil. It goes through the read
+// model so POST/PUT and GET /events build the response in one place.
 func toRecurringSeriesResponse(series rs.RecurringEventSeries) *api.RecurringSeriesResponse {
 	if series == nil {
 		return nil
 	}
 	rule := series.Rule()
-	pattern := rule.Pattern
-	end := rule.End
+	m := &eventuc.RecurringSeriesReadModel{
+		ID:          series.ID(),
+		PatternType: string(rule.Pattern.Type()),
+		EndType:     string(rule.End.Type()),
+		Timezone:    rule.Timezone.Name(),
+	}
+	if nth, ok := rule.Pattern.MonthlyNth(); ok {
+		s := string(nth)
+		m.MonthlyNth = &s
+	}
+	if ud, ok := rule.End.UntilDate(); ok {
+		s := ud.String()
+		m.UntilDate = &s
+	}
+	if c, ok := rule.End.Count(); ok {
+		m.Count = &c
+	}
+	return toRecurringSeriesResponseFromReadModel(m)
+}
 
+// toRecurringSeriesResponseFromReadModel is the single place that builds the
+// recurringSeries response for GET /events, POST /events and PUT /events/{id}
+// (the latter two via toRecurringSeriesResponse), so changing it changes every
+// endpoint's response. Returns nil when m is nil.
+func toRecurringSeriesResponseFromReadModel(m *eventuc.RecurringSeriesReadModel) *api.RecurringSeriesResponse {
+	if m == nil {
+		return nil
+	}
 	var apiNth *api.RecurrencePatternMonthlyNth
-	if nth, ok := pattern.MonthlyNth(); ok {
-		v := api.RecurrencePatternMonthlyNth(nth)
+	if m.MonthlyNth != nil {
+		v := api.RecurrencePatternMonthlyNth(*m.MonthlyNth)
 		apiNth = &v
 	}
-
-	apiEnd := api.RecurrenceEnd{
-		Type: api.RecurrenceEndType(end.Type()),
-	}
-	if ud, ok := end.UntilDate(); ok {
-		s := ud.String()
-		apiEnd.UntilDate = &s
-	}
-	if c, ok := end.Count(); ok {
-		apiEnd.Count = &c
-	}
-
 	return &api.RecurringSeriesResponse{
-		Id: series.ID(),
+		Id: m.ID,
 		Pattern: api.RecurrencePattern{
-			Type:       api.RecurrencePatternType(pattern.Type()),
+			Type:       api.RecurrencePatternType(m.PatternType),
 			MonthlyNth: apiNth,
 		},
-		End:      apiEnd,
-		Timezone: rule.Timezone.Name(),
+		End: api.RecurrenceEnd{
+			Type:      api.RecurrenceEndType(m.EndType),
+			UntilDate: m.UntilDate,
+			Count:     m.Count,
+		},
+		Timezone: m.Timezone,
 	}
 }
 

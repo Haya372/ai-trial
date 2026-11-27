@@ -2,12 +2,18 @@
 -- Unions the user's own events (with tag joins) with subscribed events
 -- (SPEC-004). Tags are LEFT JOINed so untagged events produce one NULL-tag
 -- row; the Go side aggregates rows into EventReadModel per event (ADR-022).
+-- The subscribed side sends NULL series columns so the owner's series is
+-- never exposed to subscribers (SPEC-009).
 -- UNION ALL is safe because a user can never subscribe to their own event.
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
        e.created_at, e.updated_at,
        FALSE AS is_subscribed, NULL::uuid AS subscription_id,
+       rs.id AS series_id, rs.pattern_type AS series_pattern_type, rs.monthly_nth AS series_monthly_nth,
+       rs.end_type AS series_end_type, rs.end_until_date AS series_end_until_date,
+       rs.end_count AS series_end_count, rs.timezone AS series_timezone,
        et.tag_id, et.position, t.name AS tag_name, t.color AS tag_color
 FROM events e
+LEFT JOIN recurring_event_series rs ON rs.id = e.series_id
 LEFT JOIN event_tags et ON et.event_id = e.id
 LEFT JOIN tags t ON t.id = et.tag_id
 WHERE e.user_id = sqlc.arg('user_id')
@@ -19,6 +25,7 @@ UNION ALL
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
        e.created_at, e.updated_at,
        TRUE AS is_subscribed, es.id AS subscription_id,
+       NULL::uuid, NULL::varchar, NULL::varchar, NULL::varchar, NULL::date, NULL::smallint, NULL::text,
        NULL::uuid, NULL::smallint, NULL::text, NULL::text
 FROM event_subscriptions es
 JOIN events e ON e.id = es.event_id
@@ -35,8 +42,12 @@ ORDER BY start_at, subscription_id NULLS FIRST, position NULLS FIRST;
 SELECT e.id, e.user_id, e.title, e.description, e.start_at, e.end_at, e.location, e.url,
        e.created_at, e.updated_at,
        FALSE AS is_subscribed, NULL::uuid AS subscription_id,
+       rs.id AS series_id, rs.pattern_type AS series_pattern_type, rs.monthly_nth AS series_monthly_nth,
+       rs.end_type AS series_end_type, rs.end_until_date AS series_end_until_date,
+       rs.end_count AS series_end_count, rs.timezone AS series_timezone,
        et.tag_id, et.position, t.name AS tag_name, t.color AS tag_color
 FROM events e
+LEFT JOIN recurring_event_series rs ON rs.id = e.series_id
 JOIN event_tags et_filter ON et_filter.event_id = e.id
                          AND et_filter.tag_id = sqlc.arg('tag_id')
 LEFT JOIN event_tags et ON et.event_id = e.id

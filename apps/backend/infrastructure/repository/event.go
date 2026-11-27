@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -47,9 +48,17 @@ type eventListRow struct {
 	Url            pgtype.Text
 	IsSubscribed   bool
 	SubscriptionID pgtype.UUID
-	TagID          pgtype.UUID
-	TagName        pgtype.Text
-	TagColor       pgtype.Text
+	// Series columns are all NULL for one-off and subscribed events.
+	SeriesID           pgtype.UUID
+	SeriesPatternType  pgtype.Text
+	SeriesMonthlyNth   pgtype.Text
+	SeriesEndType      pgtype.Text
+	SeriesEndUntilDate pgtype.Date
+	SeriesEndCount     pgtype.Int2
+	SeriesTimezone     pgtype.Text
+	TagID              pgtype.UUID
+	TagName            pgtype.Text
+	TagColor           pgtype.Text
 }
 
 // newEventReadModelFromListRow builds an EventReadModel (without tags) from a
@@ -71,18 +80,44 @@ func newEventReadModelFromListRow(row eventListRow) eventuc.EventReadModel {
 		subscriptionID = &sid
 	}
 	return eventuc.EventReadModel{
-		ID:             uuid.UUID(row.ID.Bytes),
-		UserID:         uuid.UUID(row.UserID.Bytes),
-		Title:          row.Title,
-		Description:    desc,
-		StartAt:        row.StartAt.Time,
-		EndAt:          row.EndAt.Time,
-		Location:       location,
-		URL:            url,
-		IsSubscribed:   row.IsSubscribed,
-		SubscriptionID: subscriptionID,
-		Tags:           []eventuc.EventTagReadModel{},
+		ID:              uuid.UUID(row.ID.Bytes),
+		UserID:          uuid.UUID(row.UserID.Bytes),
+		Title:           row.Title,
+		Description:     desc,
+		StartAt:         row.StartAt.Time,
+		EndAt:           row.EndAt.Time,
+		Location:        location,
+		URL:             url,
+		IsSubscribed:    row.IsSubscribed,
+		SubscriptionID:  subscriptionID,
+		Tags:            []eventuc.EventTagReadModel{},
+		RecurringSeries: newRecurringSeriesReadModelFromListRow(row),
 	}
+}
+
+func newRecurringSeriesReadModelFromListRow(row eventListRow) *eventuc.RecurringSeriesReadModel {
+	if !row.SeriesID.Valid {
+		return nil
+	}
+	m := &eventuc.RecurringSeriesReadModel{
+		ID:          uuid.UUID(row.SeriesID.Bytes),
+		PatternType: row.SeriesPatternType.String,
+		EndType:     row.SeriesEndType.String,
+		Timezone:    row.SeriesTimezone.String,
+	}
+	if row.SeriesMonthlyNth.Valid {
+		nth := row.SeriesMonthlyNth.String
+		m.MonthlyNth = &nth
+	}
+	if row.SeriesEndUntilDate.Valid {
+		d := row.SeriesEndUntilDate.Time.Format(time.DateOnly)
+		m.UntilDate = &d
+	}
+	if row.SeriesEndCount.Valid {
+		c := int(row.SeriesEndCount.Int16)
+		m.Count = &c
+	}
+	return m
 }
 
 // aggregateEventRows collapses a 1-row-per-tag result set (from both
@@ -139,7 +174,11 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 					ID: r.ID, UserID: r.UserID, Title: r.Title, Description: r.Description,
 					StartAt: r.StartAt, EndAt: r.EndAt, Location: r.Location, Url: r.Url,
 					IsSubscribed: r.IsSubscribed, SubscriptionID: r.SubscriptionID,
-					TagID: r.TagID, TagName: r.TagName, TagColor: r.TagColor,
+					SeriesID: r.SeriesID, SeriesPatternType: r.SeriesPatternType,
+					SeriesMonthlyNth: r.SeriesMonthlyNth, SeriesEndType: r.SeriesEndType,
+					SeriesEndUntilDate: r.SeriesEndUntilDate, SeriesEndCount: r.SeriesEndCount,
+					SeriesTimezone: r.SeriesTimezone,
+					TagID:          r.TagID, TagName: r.TagName, TagColor: r.TagColor,
 				}
 			}
 		}
@@ -158,7 +197,11 @@ func (r *eventQueryRepository) List(ctx context.Context, filter eventuc.ListFilt
 					ID: r.ID, UserID: r.UserID, Title: r.Title, Description: r.Description,
 					StartAt: r.StartAt, EndAt: r.EndAt, Location: r.Location, Url: r.Url,
 					IsSubscribed: r.IsSubscribed, SubscriptionID: r.SubscriptionID,
-					TagID: r.TagID, TagName: r.TagName, TagColor: r.TagColor,
+					SeriesID: r.SeriesID, SeriesPatternType: r.SeriesPatternType,
+					SeriesMonthlyNth: r.SeriesMonthlyNth, SeriesEndType: r.SeriesEndType,
+					SeriesEndUntilDate: r.SeriesEndUntilDate, SeriesEndCount: r.SeriesEndCount,
+					SeriesTimezone: r.SeriesTimezone,
+					TagID:          r.TagID, TagName: r.TagName, TagColor: r.TagColor,
 				}
 			}
 		}

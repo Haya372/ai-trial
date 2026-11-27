@@ -45,6 +45,25 @@ type EventReadModel struct {
 	// Tags are the event's attached tags in position order. Untagged events
 	// and subscribed events always have an empty (non-nil) slice.
 	Tags []EventTagReadModel
+	// RecurringSeries is nil for one-off events and for subscribed events:
+	// the owner's series is never exposed to subscribers (SPEC-009).
+	RecurringSeries *RecurringSeriesReadModel
+}
+
+// RecurringSeriesReadModel holds the stored values as they are, without domain
+// validation (ADR-022). Each optional field is set whenever its column is not
+// NULL, without looking at PatternType or EndType; that only monthly_nth_weekday
+// has MonthlyNth, until_date has UntilDate and count has Count is an invariant
+// the write side guarantees when it saves the series.
+type RecurringSeriesReadModel struct {
+	ID          uuid.UUID
+	PatternType string
+	MonthlyNth  *string
+	EndType     string
+	// UntilDate is a YYYY-MM-DD local date in Timezone.
+	UntilDate *string
+	Count     *int
+	Timezone  string
 }
 
 type ListEventsQuery struct {

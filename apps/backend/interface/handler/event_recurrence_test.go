@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -63,7 +64,7 @@ func TestEventHandler_CreateEvent_RecurrenceInput_MappedCorrectly(t *testing.T) 
 		testKeyEndAt:   now.Add(time.Hour).Format(time.RFC3339),
 		keyRecurrence: map[string]any{
 			keyPattern: map[string]any{
-				keyType:      "monthly_nth_weekday",
+				keyType:      valMonthlyNthWeekday,
 				"monthlyNth": "2",
 			},
 			keyEnd: map[string]any{
@@ -371,7 +372,8 @@ func TestEventHandler_UpdateEvent_RecurringSeriesNullInResponse(t *testing.T) {
 }
 
 // TestEventHandler_GetEvents_RecurringSeriesNullInResponse verifies that
-// GET /events returns "recurringSeries": null for each event (#404 scope).
+// GET /events returns "recurringSeries": null (key present) for events without
+// a series, i.e. one-off and subscribed events.
 func TestEventHandler_GetEvents_RecurringSeriesNullInResponse(t *testing.T) {
 	userID := uuid.New()
 	now := time.Now().UTC()
@@ -410,6 +412,96 @@ func TestEventHandler_GetEvents_RecurringSeriesNullInResponse(t *testing.T) {
 	}
 	if string(val) != jsonNull {
 		t.Errorf("expected null for GET events, got %s", val)
+	}
+}
+
+func TestEventHandler_GetEvents_ReturnsRecurringSeries(t *testing.T) {
+	seriesID := uuid.New()
+	nth, untilDate, count := "last", "2027-03-31", 1
+
+	tests := []struct {
+		name   string
+		series eventuc.RecurringSeriesReadModel
+		want   string
+	}{
+		{
+			name: "count end",
+			series: eventuc.RecurringSeriesReadModel{
+				ID: seriesID, PatternType: valWeekly, EndType: valCount, Count: &count, Timezone: valAsiaTokyoTZ,
+			},
+			want: `{"id":"` + seriesID.String() + `","pattern":{"type":"weekly"},` +
+				`"end":{"type":"count","count":1},"timezone":"Asia/Tokyo"}`,
+		},
+		{
+			name: "monthly nth weekday until date",
+			series: eventuc.RecurringSeriesReadModel{
+				ID: seriesID, PatternType: valMonthlyNthWeekday, MonthlyNth: &nth,
+				EndType: valUntilDate, UntilDate: &untilDate, Timezone: valUTC,
+			},
+			want: `{"id":"` + seriesID.String() + `","pattern":{"type":"monthly_nth_weekday","monthlyNth":"last"},` +
+				`"end":{"type":"until_date","untilDate":"2027-03-31"},"timezone":"UTC"}`,
+		},
+		{
+			name: "indefinite end",
+			series: eventuc.RecurringSeriesReadModel{
+				ID: seriesID, PatternType: "daily", EndType: "indefinite", Timezone: valUTC,
+			},
+			want: `{"id":"` + seriesID.String() + `","pattern":{"type":"daily"},` +
+				`"end":{"type":"indefinite"},"timezone":"UTC"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			now := time.Now().UTC()
+			stub := &stubListEventsExec{
+				fn: func(_ context.Context, _ uuid.UUID, _ eventuc.ListEventsInput) ([]eventuc.EventReadModel, error) {
+					series := tt.series
+					return []eventuc.EventReadModel{
+						{ID: uuid.New(), Title: "Event", StartAt: now, EndAt: now.Add(time.Hour), RecurringSeries: &series},
+					}, nil
+				},
+			}
+			h := handler.NewEventHandler(
+				stub, &stubCreateEventExec{}, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger,
+			)
+
+			req := getEventsRequest(t, testRangeStartAt, testRangeEndAt)
+			user := newStubUser(uuid.New(), "u@ex.com", "U")
+			req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, user))
+			w := httptest.NewRecorder()
+
+			h.GetEvents(w, req, testGetEventsParams(t))
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+			}
+			var body struct {
+				Events []struct {
+					RecurringSeries json.RawMessage `json:"recurringSeries"`
+				} `json:"events"`
+			}
+			if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if len(body.Events) != 1 {
+				t.Fatalf("expected 1 event, got %d", len(body.Events))
+			}
+			assertJSONEqual(t, body.Events[0].RecurringSeries, tt.want)
+		})
+	}
+}
+
+func assertJSONEqual(t *testing.T, got json.RawMessage, want string) {
+	t.Helper()
+	var g, w any
+	if err := json.Unmarshal(got, &g); err != nil {
+		t.Fatalf("unmarshal got %s: %v", got, err)
+	}
+	if err := json.Unmarshal([]byte(want), &w); err != nil {
+		t.Fatalf("unmarshal want: %v", err)
+	}
+	if !reflect.DeepEqual(g, w) {
+		t.Errorf("JSON mismatch:\n got: %s\nwant: %s", got, want)
 	}
 }
 
@@ -463,6 +555,57 @@ func TestEventHandler_CreateEvent_RecurrenceValidationError_Returns400WithDetail
 	if detail["code"] != "OUT_OF_RANGE" {
 		t.Errorf("code mismatch: got %v", detail["code"])
 	}
+}
+
+func TestEventHandler_CreateEvent_MonthlyNthWeekdaySeries_ReturnsMonthlyNth(t *testing.T) {
+	userID := uuid.New()
+	nth := "last"
+	pattern, err := rs.NewRecurrencePattern(valMonthlyNthWeekday, &nth)
+	if err != nil {
+		t.Fatalf("NewRecurrencePattern: %v", err)
+	}
+	tz, err := rs.NewSeriesTimezone(valUTC)
+	if err != nil {
+		t.Fatalf("NewSeriesTimezone: %v", err)
+	}
+	series, err := rs.New(uuid.New(), userID,
+		rs.RecurrenceRule{Pattern: pattern, End: rs.NewIndefiniteEnd(), Timezone: tz}, nil)
+	if err != nil {
+		t.Fatalf("rs.New: %v", err)
+	}
+
+	stub := &stubCreateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.CreateEventInput) (eventuc.CreateEventOutput, error) {
+			ev, _ := domainevent.New(uuid.New(), userID, in.Title, "", in.StartAt, in.EndAt, "", "")
+			return eventuc.CreateEventOutput{Event: ev, Tags: []eventuc.EventTagView{}, Series: series}, nil
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, stub, &stubUpdateEventExec{}, &stubDeleteEventExec{}, testLogger)
+
+	now := time.Date(2026, 11, 30, 10, 0, 0, 0, time.UTC)
+	body := map[string]any{
+		testKeyTitle:   testEventTitle,
+		testKeyStartAt: now.Format(time.RFC3339),
+		testKeyEndAt:   now.Add(time.Hour).Format(time.RFC3339),
+	}
+	req := createEventRequest(t, body)
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.User, newStubUser(userID, "u@ex.com", "U")))
+	w := httptest.NewRecorder()
+
+	h.CreateEvent(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		RecurringSeries json.RawMessage `json:"recurringSeries"`
+	}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	assertJSONEqual(t, resp.RecurringSeries, `{"id":"`+series.ID().String()+`",`+
+		`"pattern":{"type":"monthly_nth_weekday","monthlyNth":"last"},`+
+		`"end":{"type":"indefinite"},"timezone":"UTC"}`)
 }
 
 // TestEventHandler_CreateEvent_UntilDateSeries_ReturnsRecurringSeries tests that
