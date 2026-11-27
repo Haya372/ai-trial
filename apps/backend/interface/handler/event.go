@@ -152,7 +152,7 @@ func (h *EventHandler) GetEvents(w http.ResponseWriter, r *http.Request, params 
 			IsSubscribed:    e.IsSubscribed,
 			SubscriptionID:  e.SubscriptionID,
 			Tags:            tags,
-			RecurringSeries: nil,
+			RecurringSeries: toRecurringSeriesResponseFromReadModel(e.RecurringSeries),
 		}
 	}
 
@@ -267,6 +267,33 @@ func toRecurringSeriesResponse(series rs.RecurringEventSeries) *api.RecurringSer
 		},
 		End:      apiEnd,
 		Timezone: rule.Timezone.Name(),
+	}
+}
+
+// toRecurringSeriesResponseFromReadModel converts the list query's read model,
+// which carries stored values as plain strings (ADR-022), to the API response
+// type. Returns nil when m is nil.
+func toRecurringSeriesResponseFromReadModel(m *eventuc.RecurringSeriesReadModel) *api.RecurringSeriesResponse {
+	if m == nil {
+		return nil
+	}
+	var apiNth *api.RecurrencePatternMonthlyNth
+	if m.MonthlyNth != nil {
+		v := api.RecurrencePatternMonthlyNth(*m.MonthlyNth)
+		apiNth = &v
+	}
+	return &api.RecurringSeriesResponse{
+		Id: m.ID,
+		Pattern: api.RecurrencePattern{
+			Type:       api.RecurrencePatternType(m.PatternType),
+			MonthlyNth: apiNth,
+		},
+		End: api.RecurrenceEnd{
+			Type:      api.RecurrenceEndType(m.EndType),
+			UntilDate: m.UntilDate,
+			Count:     m.Count,
+		},
+		Timezone: m.Timezone,
 	}
 }
 
