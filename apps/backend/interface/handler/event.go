@@ -233,41 +233,31 @@ func toEventResponse(
 }
 
 // toRecurringSeriesResponse converts a domain RecurringEventSeries to the API
-// response type. Returns nil when series is nil.
+// response type. Returns nil when series is nil. It goes through the read
+// model so POST/PUT and GET /events build the response in one place.
 func toRecurringSeriesResponse(series rs.RecurringEventSeries) *api.RecurringSeriesResponse {
 	if series == nil {
 		return nil
 	}
 	rule := series.Rule()
-	pattern := rule.Pattern
-	end := rule.End
-
-	var apiNth *api.RecurrencePatternMonthlyNth
-	if nth, ok := pattern.MonthlyNth(); ok {
-		v := api.RecurrencePatternMonthlyNth(nth)
-		apiNth = &v
+	m := &eventuc.RecurringSeriesReadModel{
+		ID:          series.ID(),
+		PatternType: string(rule.Pattern.Type()),
+		EndType:     string(rule.End.Type()),
+		Timezone:    rule.Timezone.Name(),
 	}
-
-	apiEnd := api.RecurrenceEnd{
-		Type: api.RecurrenceEndType(end.Type()),
+	if nth, ok := rule.Pattern.MonthlyNth(); ok {
+		s := string(nth)
+		m.MonthlyNth = &s
 	}
-	if ud, ok := end.UntilDate(); ok {
+	if ud, ok := rule.End.UntilDate(); ok {
 		s := ud.String()
-		apiEnd.UntilDate = &s
+		m.UntilDate = &s
 	}
-	if c, ok := end.Count(); ok {
-		apiEnd.Count = &c
+	if c, ok := rule.End.Count(); ok {
+		m.Count = &c
 	}
-
-	return &api.RecurringSeriesResponse{
-		Id: series.ID(),
-		Pattern: api.RecurrencePattern{
-			Type:       api.RecurrencePatternType(pattern.Type()),
-			MonthlyNth: apiNth,
-		},
-		End:      apiEnd,
-		Timezone: rule.Timezone.Name(),
-	}
+	return toRecurringSeriesResponseFromReadModel(m)
 }
 
 // toRecurringSeriesResponseFromReadModel converts the list query's read model,
