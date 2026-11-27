@@ -42,7 +42,7 @@ func listEvents(t *testing.T, filter eventuc.ListFilter) []eventuc.EventReadMode
 	return events
 }
 
-func strPtr(s string) *string { return &s }
+const seriesTZ = "Asia/Tokyo"
 
 func assertSeriesReadModel(t *testing.T, got *eventuc.RecurringSeriesReadModel, want eventuc.RecurringSeriesReadModel) {
 	t.Helper()
@@ -77,7 +77,7 @@ func TestEventQueryRepository_List_ReturnsRecurringSeriesOfOccurrences(t *testin
 	countSeries := buildSeries(t, uuid.New(), u.ID(), "weekly", nil, countEnd(t, 2))
 	seedSeriesOccurrences(t, countSeries, base, []int{0, 7})
 
-	nthSeries := buildSeries(t, uuid.New(), u.ID(), "monthly_nth_weekday", strPtr("1"),
+	nthSeries := buildSeries(t, uuid.New(), u.ID(), "monthly_nth_weekday", new("1"),
 		rs.NewUntilDateEnd(localDate(t, 2027, 3, 31)))
 	seedSeriesOccurrences(t, nthSeries, base, []int{1})
 
@@ -90,11 +90,11 @@ func TestEventQueryRepository_List_ReturnsRecurringSeriesOfOccurrences(t *testin
 
 	two := 2
 	wantCount := eventuc.RecurringSeriesReadModel{
-		ID: countSeries.ID(), PatternType: "weekly", EndType: "count", Count: &two, Timezone: "Asia/Tokyo",
+		ID: countSeries.ID(), PatternType: "weekly", EndType: "count", Count: &two, Timezone: seriesTZ,
 	}
 	wantNth := eventuc.RecurringSeriesReadModel{
-		ID: nthSeries.ID(), PatternType: "monthly_nth_weekday", MonthlyNth: strPtr("1"),
-		EndType: "until_date", UntilDate: strPtr("2027-03-31"), Timezone: "Asia/Tokyo",
+		ID: nthSeries.ID(), PatternType: "monthly_nth_weekday", MonthlyNth: new("1"),
+		EndType: "until_date", UntilDate: new("2027-03-31"), Timezone: seriesTZ,
 	}
 	// Ordered by start_at: day 0 (count), day 1 (nth), day 7 (count).
 	assertSeriesReadModel(t, events[0].RecurringSeries, wantCount)
@@ -123,7 +123,7 @@ func TestEventQueryRepository_List_OccurrenceWithTags_IsAggregatedWithSeries(t *
 		t.Errorf("expected 2 tags, got %d", len(events[0].Tags))
 	}
 	assertSeriesReadModel(t, events[0].RecurringSeries, eventuc.RecurringSeriesReadModel{
-		ID: s.ID(), PatternType: "daily", EndType: "indefinite", Timezone: "Asia/Tokyo",
+		ID: s.ID(), PatternType: "daily", EndType: "indefinite", Timezone: seriesTZ,
 	})
 }
 
@@ -144,7 +144,7 @@ func TestEventQueryRepository_List_FilteredByTag_ReturnsRecurringSeries(t *testi
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 	assertSeriesReadModel(t, events[0].RecurringSeries, eventuc.RecurringSeriesReadModel{
-		ID: s.ID(), PatternType: "daily", EndType: "indefinite", Timezone: "Asia/Tokyo",
+		ID: s.ID(), PatternType: "daily", EndType: "indefinite", Timezone: seriesTZ,
 	})
 }
 
