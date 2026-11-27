@@ -11,7 +11,7 @@
 | EmailNotification | 送信履歴1件を表す集約ルート。ID・ユーザーID・宛先アドレスのスナップショット・メール種別・状態・試行回数・時刻群・失敗コード・本文用パラメータを持つ |
 | EmailKind | メールの種別を表す値オブジェクト。種別の識別子をとる。具体的な値はメールの種類を追加する仕様書で定義する。各値には対応する `EmailTemplate` の登録が必須 |
 | EmailStatus | 送信履歴の状態を表す値オブジェクト。`pending`（送信待ち）・`sent`（送信完了）・`failed`（送信失敗）のいずれか |
-| EmailTemplate | メール種別ごとの件名・本文のテンプレート。パスワードの埋め込みは禁止。アプリケーション起動時に静的レジストリへ登録し、`EmailKind` をキーに取り出す |
+| EmailTemplate | メール種別ごとの件名・本文のテンプレートと、埋め込むパラメータのキーの定義。パスワードの埋め込みは禁止。アプリケーション起動時に静的レジストリへ登録し、`EmailKind` をキーに取り出す |
 | TemplateParams | 本文テンプレートに埋め込む1通分のパラメータ（リセット用URL等）。`pending` の間だけ EmailNotification に保持し、`sent` / `failed` に遷移した時点で空にする |
 | FailureCode | 送信失敗の原因を表す値オブジェクト。値と一時的・恒久的の分類は仕様書で定義する。送信先が返したエラー文は宛先アドレスを含みうるため保持しない |
 | RecipientEmail | 送信要求時点のユーザー登録メールアドレスをスナップショットした宛先アドレス。以後、ユーザー側のアドレス変更の影響を受けない |
@@ -25,6 +25,7 @@
 - 送信要求は `UserID`・`EmailKind`・`TemplateParams` を取り、以下を満たすときだけ EmailNotification を生成できる
   - 指定した `UserID` のユーザーが存在すること（存在しなければ要求はエラーになり、集約は生成しない）
   - `EmailKind` に対応する `EmailTemplate` が登録されていること
+  - `TemplateParams` のキーが `EmailTemplate` の定義と一致すること（不足・余分がないこと）
 - 生成直後の EmailNotification は以下を満たす
   - `status = pending`、`attempt_count = 0`、`sent_at = null`
   - `recipient_email` は要求時点のユーザーの登録アドレスのスナップショットで、以降変更しない
@@ -42,7 +43,7 @@
 |---|---|---|
 | `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_code` を更新、`next_attempt_at` を次の試行時刻に進める（初回失敗から10秒後、2回目失敗から20秒後） |
 | `pending → sent` | `EmailTransport` がメールを受け付けた | `sent_at = now`、`next_attempt_at = null`、`template_params = '{}'` |
-| `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_code` を更新、`next_attempt_at = null`、`template_params = '{}'` |
+| `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、テンプレートへの埋め込みに失敗した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_code` を更新、`next_attempt_at = null`、`template_params = '{}'` |
 
 - `sent` および `failed` は終端状態で、以後の送信・状態変化は行わない
 
@@ -71,6 +72,7 @@
 |---|---|
 | `ErrEmailRecipientNotFound` | 送信要求時の `UserID` に対応するユーザーが存在しない |
 | `ErrEmailTemplateNotRegistered` | 指定した `EmailKind` に対応する `EmailTemplate` が登録されていない |
+| `ErrInvalidTemplateParams` | `TemplateParams` のキーが `EmailTemplate` の定義と一致しない |
 
 ## 関連ドキュメント
 

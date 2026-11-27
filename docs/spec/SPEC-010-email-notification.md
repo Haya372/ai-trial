@@ -54,6 +54,7 @@
 #### 件名・本文
 
 - 件名・本文は、メールの種類ごとに定義したテンプレートからだけ作る。ユースケースから件名・本文の文字列を直接渡せない
+- テンプレートは埋め込むパラメータのキーを定義する。送信要求のパラメータのキーがテンプレートの定義と一致しない（不足・余分がある）場合、送信要求をエラーにする
 - テンプレートとパラメータにパスワードを含めない
 - 本文に入れる値（リセット用URLなど）は、送信完了・送信失敗のどちらかになった時点で送信履歴から削除する。送信待ちの間だけ保持する
 
@@ -73,7 +74,9 @@
 | `auth_failed` | 恒久的 | 送信先への認証に失敗した |
 | `permanent_rejection` | 恒久的 | 上記以外の恒久的なエラーで拒否された |
 
-- 送信処理が停止したことで送信失敗にする場合は、失敗コード `worker_interrupted` を記録する
+- `EmailTransport` 以外の原因で送信失敗にする場合は、以下の失敗コードを記録する。どちらも恒久的な失敗として扱う
+  - `template_render_failed`: テンプレートへのパラメータの埋め込みに失敗した
+  - `worker_interrupted`: 試行中に送信処理が停止し、3回目の試行の結果を記録できなかった
 - 最大試行回数は3回（初回＋再送2回）。再送の間隔は1回目の失敗から10秒後、2回目の失敗から20秒後とする
 - 試行回数は送信履歴を確保するときに加算する。送信中に送信処理が停止しても、試行回数は戻らない
 
@@ -94,6 +97,8 @@
 ### エッジケース・境界値
 
 - 送信要求時に指定したユーザーが存在しない場合 → 送信要求をエラーにし、送信履歴を作成しない
+- 送信要求時に指定したメールの種類のテンプレートが登録されていない、またはパラメータのキーがテンプレートの定義と一致しない場合 → 送信要求をエラーにし、送信履歴を作成しない
+- 送信時にテンプレートへのパラメータの埋め込みに失敗した場合 → 送信せずに「送信失敗」にし、失敗コード `template_render_failed` を記録する
 - 送信待ちの間にユーザーが登録メールアドレスを変更した場合 → 送信要求時点のアドレスへ送る
 - 送信処理が複数動いている場合 → 確保済みで有効期限内の送信履歴は、他の送信処理が確保しない
 - 送信処理が `EmailTransport` へ渡した後、送信履歴を「送信完了」にする前に停止した場合 → 確保の有効期限を過ぎたあと、同じメールを再送しうる（二重送信は許容し、未送信を防ぐことを優先する。配送は少なくとも1回で、ちょうど1回は保証しない）
@@ -109,7 +114,7 @@
 - 送信要求は `UserID`・`EmailKind`・`TemplateParams` を受け取るユースケース層のコマンド（`SendEmailCommand`）として公開し、呼び出し元ユースケースのトランザクションに参加する（トランザクショナルアウトボックス方式）。これにより、業務データの永続化と送信履歴の `pending` 作成が原子的になる（[ADR-024](../adr/ADR-024-transaction-management.md)・[ADR-038](../adr/ADR-038-email-async-outbox.md)）
 - 実際の送信・再送・状態遷移・本文に入れる値のクリアは、送信ワーカー（APIサーバーと同一プロセス内の常駐コンポーネント）が担う。ワーカーは `pending` の履歴を `FOR UPDATE SKIP LOCKED` で1件確保して試行回数を加算し、確保をコミットしてから `EmailTransport` インターフェース経由でメールを送り、結果を別のトランザクションで記録する。`EmailTransport` の呼び出し中はDBのトランザクションを開かない（[ADR-038](../adr/ADR-038-email-async-outbox.md)）
 - `EmailTransport` は宛先・差出人・件名・本文を受け取り、「受け付けた」「一時的な失敗」「恒久的な失敗」のいずれかを返す。失敗のときは失敗コード（「制約条件」の表）を返す。送信サービス・送信プロトコルに依存する処理はこの実装に閉じ込める
-- `EmailKind` と対応する `EmailTemplate`（件名・本文・埋め込みパラメータ）はアプリケーション起動時に静的レジストリへ登録する。登録のない `EmailKind` を指定した送信要求はエラーにし、集約を生成しない
+- `EmailKind` と対応する `EmailTemplate`（件名・本文・埋め込むパラメータのキー）はアプリケーション起動時に静的レジストリへ登録する。登録のない `EmailKind`、またはキーがテンプレートの定義と一致しない `TemplateParams` を指定した送信要求はエラーにし、集約を生成しない。宛先アドレスは `user.Repository.FindByID` で取得する
 
 ### DB設計
 
@@ -156,6 +161,7 @@ sequenceDiagram
     participant UC as 呼び出し元ユースケース<br/>(例: パスワードリセット)
     participant Send as SendEmailCommand
     participant TX as TransactionManager
+    participant Users as user.Repository
     participant Repo as EmailNotificationRepository
     participant DB
 
@@ -163,8 +169,9 @@ sequenceDiagram
     activate TX
     UC->>UC: 業務データの永続化<br/>(例: リセットトークン発行)
     UC->>Send: Execute(UserID, Kind, TemplateParams)
-    Send->>Repo: FindUser(UserID) で宛先アドレスを取得
-    Repo-->>Send: User{email}
+    Send->>Send: EmailTemplate[Kind] の登録と、TemplateParams のキーを検証
+    Send->>Users: FindByID(UserID) で宛先アドレスを取得
+    Users-->>Send: User{email}
     Send->>Repo: Insert(pending, next_attempt_at = NOW, template_params = …)
     Repo->>DB: INSERT INTO email_notifications
     DB-->>Repo: ok
@@ -197,6 +204,7 @@ sequenceDiagram
             Worker->>DB: UPDATE attempt_count=attempt_count+1,<br/>next_attempt_at=NOW+60s（確保の有効期限）
             Worker->>DB: COMMIT
             Worker->>Worker: EmailTemplate[Kind] に template_params を埋め、件名・本文を作成
+            Note over Worker,DB: 埋め込みに失敗したら送信せず status='failed'<br/>（last_failure_code='template_render_failed'）を記録する
             Worker->>Transport: Send(recipient_email, 差出人, 件名, 本文)（タイムアウト30秒）
             Note over Worker,DB: 結果の記録（短いトランザクション）。<br/>WHERE id=… AND status='pending' AND attempt_count=確保時の値
             alt 受け付けた
