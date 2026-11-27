@@ -49,6 +49,8 @@ gh skill install github/gh-stackも
 /plugin install superpowers@claude-plugins-official
 ```
 
+`git config core.hooksPath` が値を返す既存の環境では、手順4のコマンドを一度実行して `core.hooksPath` を解除する。lefthook は `core.hooksPath` が設定されているとフックを生成しないため、解除しないとフック（gitleaks を含む）が実行されない。
+
 `.claude/settings.json` の `enabledPlugins` はインストール済みプラグインを自動有効化するだけで、未インストールの場合は自動インストールされない（Claude Code の既知の制限）。上記コマンドで各自インストールすること。
 
 ### コマンド実行の注意事項
