@@ -41,7 +41,7 @@ type UpdateTagExecutor interface {
 // DeleteTagExecutor is satisfied by taguc.DeleteTagCommand. It is kept as its
 // own port like DeleteEventExecutor: different usecase, coincidentally same shape.
 //
-//nolint:iface
+//nolint:iface // separate ports for separate usecases, see above
 type DeleteTagExecutor interface {
 	Execute(ctx context.Context, userID uuid.UUID, id uuid.UUID) error
 }

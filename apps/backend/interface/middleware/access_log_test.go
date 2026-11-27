@@ -191,7 +191,8 @@ func TestAccessLog_shareRoutes_doNotLogShareToken(t *testing.T) {
 
 			req := httptest.NewRequestWithContext(t.Context(), tc.method, tc.path, nil)
 			if tc.sessionID != "" {
-				req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: tc.sessionID}) //nolint:gosec
+				//nolint:gosec // a request cookie in a test; Secure/HttpOnly do not apply
+				req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: tc.sessionID})
 			}
 			router.ServeHTTP(httptest.NewRecorder(), req)
 

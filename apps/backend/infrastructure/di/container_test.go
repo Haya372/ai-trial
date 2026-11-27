@@ -1,7 +1,7 @@
 // package di (not di_test): newRouter is unexported wiring with no public API
 // surface worth exporting solely for tests.
 //
-//nolint:testpackage
+//nolint:testpackage // tests unexported functions, see above
 package di
 
 import (

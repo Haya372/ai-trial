@@ -2,7 +2,7 @@
 // unexported plumbing with no public API surface worth exporting solely
 // for tests.
 //
-//nolint:testpackage
+//nolint:testpackage // tests unexported functions, see above
 package repository
 
 import (

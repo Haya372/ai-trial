@@ -83,7 +83,8 @@ func requestWithCookie(t *testing.T, cookieValue string) *http.Request {
 	t.Helper()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/me", nil)
 	if cookieValue != "" {
-		req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: cookieValue}) //nolint:gosec
+		//nolint:gosec // a request cookie in a test; Secure/HttpOnly do not apply
+		req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: cookieValue})
 	}
 	return req
 }
@@ -214,7 +215,8 @@ func TestRequireAuth_emptyCookieValue_returns401WithoutLookup(t *testing.T) {
 	}))
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/me", nil)
-	req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: ""}) //nolint:gosec
+	//nolint:gosec // a request cookie in a test; Secure/HttpOnly do not apply
+	req.AddCookie(&http.Cookie{Name: testSessionCookieName, Value: ""})
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 

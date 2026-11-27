@@ -95,7 +95,7 @@ func loginRequest(t *testing.T, email string) *http.Request {
 }
 
 func sessionCookieForRequest(value string) *http.Cookie {
-	return &http.Cookie{ //nolint:gosec
+	return &http.Cookie{ //nolint:gosec // a request cookie in a test; Secure/HttpOnly do not apply
 		Name:  testSessionCookieName,
 		Value: value,
 	}

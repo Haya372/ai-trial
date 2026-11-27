@@ -22,6 +22,10 @@ linters:
     - nlreturn
     - mnd
   settings:
+    # ADR-040: a suppression must name the linter and say why it is safe.
+    nolintlint:
+      require-explanation: true
+      require-specific: true
     forbidigo:
       forbid:
         # forbidigo's default rule, kept because setting `forbid` replaces it.
