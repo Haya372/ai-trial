@@ -8,11 +8,12 @@
 
 | 用語 | 説明 |
 |---|---|
-| EmailNotification | 送信履歴1件を表す集約ルート。ID・ユーザーID・宛先アドレスのスナップショット・メール種別・状態・試行回数・時刻群・失敗理由・本文用パラメータを持つ |
+| EmailNotification | 送信履歴1件を表す集約ルート。ID・ユーザーID・宛先アドレスのスナップショット・メール種別・状態・試行回数・時刻群・失敗コード・本文用パラメータを持つ |
 | EmailKind | メールの種別を表す値オブジェクト。種別の識別子をとる。具体的な値はメールの種類を追加する仕様書で定義する。各値には対応する `EmailTemplate` の登録が必須 |
 | EmailStatus | 送信履歴の状態を表す値オブジェクト。`pending`（送信待ち）・`sent`（送信完了）・`failed`（送信失敗）のいずれか |
 | EmailTemplate | メール種別ごとの件名・本文のテンプレート。パスワードの埋め込みは禁止。アプリケーション起動時に静的レジストリへ登録し、`EmailKind` をキーに取り出す |
 | TemplateParams | 本文テンプレートに埋め込む1通分のパラメータ（リセット用URL等）。`pending` の間だけ EmailNotification に保持し、`sent` / `failed` に遷移した時点で空にする |
+| FailureCode | 送信失敗の原因を表す値オブジェクト。値と一時的・恒久的の分類は仕様書で定義する。送信先が返したエラー文は宛先アドレスを含みうるため保持しない |
 | RecipientEmail | 送信要求時点のユーザー登録メールアドレスをスナップショットした宛先アドレス。以後、ユーザー側のアドレス変更の影響を受けない |
 | EmailTransport | 件名・本文・宛先・差出人を受け取ってメールを送るインターフェース。結果を「受け付けた」「一時的な失敗」「恒久的な失敗」のいずれかで返す。送信サービス・送信プロトコルに依存する処理はこの実装に閉じ込める |
 | 送信ワーカー (EmailSenderWorker) | バックグラウンドで `pending` の送信履歴をロック取得し、テンプレートに `TemplateParams` を埋めて `EmailTransport` へ渡すコンポーネント。送信履歴の状態遷移と `TemplateParams` のクリアを担う |
@@ -39,9 +40,9 @@
 
 | 遷移 | トリガー | 副作用 |
 |---|---|---|
-| `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_reason` を更新、`next_attempt_at` を次の試行時刻に進める（初回失敗から10秒後、2回目失敗から20秒後） |
+| `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_code` を更新、`next_attempt_at` を次の試行時刻に進める（初回失敗から10秒後、2回目失敗から20秒後） |
 | `pending → sent` | `EmailTransport` がメールを受け付けた | `sent_at = now`、`next_attempt_at = null`、`template_params = '{}'` |
-| `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_reason` を更新、`next_attempt_at = null`、`template_params = '{}'` |
+| `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_code` を更新、`next_attempt_at = null`、`template_params = '{}'` |
 
 - `sent` および `failed` は終端状態で、以後の送信・状態変化は行わない
 
@@ -61,6 +62,7 @@
 - `status = pending` のとき、`next_attempt_at` は NULL ではない
 - `status <> pending` のとき、`next_attempt_at` は NULL
 - `status = sent` のとき、`sent_at` は NULL ではない
+- `status = failed` のとき、`last_failure_code` は NULL ではない
 - 終端状態（`sent` / `failed`）のとき、`template_params` は空オブジェクト
 
 ## エラー
