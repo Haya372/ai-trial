@@ -18,6 +18,8 @@ jobs:
       contents: read
     env:
       SEMGREP_VERSION: "1.161.0"
+      # --metrics off covers usage metrics; this stops the version-check request.
+      SEMGREP_ENABLE_VERSION_CHECK: "0"
     steps:
       - uses: actions/checkout@v7.0.1
         with:
