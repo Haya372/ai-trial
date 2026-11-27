@@ -33,6 +33,7 @@ workflows:
         - 'jdx/mise-action@v5.2.8'
     '.github/workflows/sast.yml':
         - 'actions/checkout@v7.0.1'
+        - 'jdx/mise-action@v5.2.8'
     '.github/workflows/schema-ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-node@v7.1.0'
