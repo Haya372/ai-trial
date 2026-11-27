@@ -31,6 +31,8 @@ pre-commit:
     - name: go-release-age
       glob: "apps/backend/go.{mod,sum}"
       run: bash scripts/check-go-release-age.sh
+    - name: shell-lint
+      run: mise exec -- bash scripts/lint-shell.sh
     - name: markdown-lint
       glob: "{**/*.md,*.md}"
       run: mise exec -- markdownlint-cli2 {staged_files}
