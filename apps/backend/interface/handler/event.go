@@ -260,9 +260,10 @@ func toRecurringSeriesResponse(series rs.RecurringEventSeries) *api.RecurringSer
 	return toRecurringSeriesResponseFromReadModel(m)
 }
 
-// toRecurringSeriesResponseFromReadModel converts the list query's read model,
-// which carries stored values as plain strings (ADR-022), to the API response
-// type. Returns nil when m is nil.
+// toRecurringSeriesResponseFromReadModel is the single place that builds the
+// recurringSeries response for GET /events, POST /events and PUT /events/{id}
+// (the latter two via toRecurringSeriesResponse), so changing it changes every
+// endpoint's response. Returns nil when m is nil.
 func toRecurringSeriesResponseFromReadModel(m *eventuc.RecurringSeriesReadModel) *api.RecurringSeriesResponse {
 	if m == nil {
 		return nil
