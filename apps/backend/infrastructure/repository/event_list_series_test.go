@@ -111,7 +111,7 @@ func TestEventQueryRepository_List_OccurrenceWithTags_IsAggregatedWithSeries(t *
 
 	s := buildSeries(t, uuid.New(), u.ID(), "daily", nil, rs.NewIndefiniteEnd())
 	seedSeriesOccurrences(t, s, base, []int{0},
-		mustEventTag(t, tag1.ID(), 0), mustEventTag(t, tag2.ID(), 1))
+		mustEventTag(t, tag1.ID(), 1), mustEventTag(t, tag2.ID(), 2))
 
 	events := listEvents(t, eventuc.ListFilter{
 		UserID: u.ID(), StartDate: base.Add(-time.Hour), EndDate: base.Add(time.Hour),
@@ -134,7 +134,7 @@ func TestEventQueryRepository_List_FilteredByTag_ReturnsRecurringSeries(t *testi
 	base := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
 
 	s := buildSeries(t, uuid.New(), u.ID(), "daily", nil, rs.NewIndefiniteEnd())
-	seedSeriesOccurrences(t, s, base, []int{0}, mustEventTag(t, tg.ID(), 0))
+	seedSeriesOccurrences(t, s, base, []int{0}, mustEventTag(t, tg.ID(), 1))
 
 	tagID := tg.ID()
 	events := listEvents(t, eventuc.ListFilter{
