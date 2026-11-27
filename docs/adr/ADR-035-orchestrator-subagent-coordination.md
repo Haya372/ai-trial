@@ -141,7 +141,7 @@ GitHubの認証情報はホストにだけ置き、コンテナには渡さな�
 worktreeはホスト上のディレクトリで、コンテナが書いた内容を後からホスト側のツールが読む。そのため、gitctl と運用で次の対策をとる。
 
 - **`.git` ポインタの検査**: gitctl は実行のたびに、worktree直下の `.git` が本物のgitdirを指しているかを検査し、改ざんされていればそのタスクの操作を拒否する
-- **危険パスの変更はユーザー承認を必須にする**: ホストやCIで実行されうるファイルへの変更を検出したら、ユーザーが明示的に承認するまでコミット・pushしない。対象は `.claude/`・`.agents/`・`.githooks/`・`lefthook.yml`・`.github/`・`.devcontainer/`・`mise.toml`・`Makefile`・`package.json` の scripts 等。承認時は差分をユーザーに提示する
+- **危険パスの変更はユーザー承認を必須にする**: ホストやCIで実行されうるファイルへの変更を検出したら、ユーザーが明示的に承認するまでコミット・pushしない。対象は `.claude/`・`.agents/`・`lefthook.yml`・`scripts/`・`.github/`・`.devcontainer/`・`mise.toml`・`Makefile`・`package.json` の scripts 等。承認時は差分をユーザーに提示する
 - **タスク用worktreeをホストのツールで開かない**: シェルのプロンプトやIDEがworktreeで `git status` 等を実行すると、改ざんされた `.git` ポインタを辿ってホスト上でコードが実行される（「検証結果」で確認済み）。タスク用worktreeは専用ディレクトリに置き、ホストのシェル・IDEでは開かない。内容の確認は gitctl が出力する差分で行う
 
 ### 5. オーケストレーターはホスト上で動かす
