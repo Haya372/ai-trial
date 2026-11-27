@@ -76,7 +76,7 @@
 
 - `EmailTransport` 以外の原因で送信失敗にする場合は、以下の失敗コードを記録する。どちらも恒久的な失敗として扱う
   - `template_render_failed`: テンプレートへのパラメータの埋め込みに失敗した
-  - `worker_interrupted`: 試行中に送信処理が停止し、3回目の試行の結果を記録できなかった
+  - `worker_interrupted`: 3回目の確保の後に送信処理が停止し、結果を記録できなかった（送信されたかどうかは分からない）
 - 最大試行回数は3回（初回＋再送2回）。再送の間隔は1回目の失敗から10秒後、2回目の失敗から20秒後とする
 - 試行回数は送信履歴を確保するときに加算する。送信中に送信処理が停止しても、試行回数は戻らない
 
@@ -126,7 +126,7 @@
 | `email_notifications` | `kind` | `VARCHAR` | NOT NULL | メール種別。値域はアプリケーション層（Goの定数）で管理する（[ADR-019](../adr/ADR-019-enum-management.md)）。具体的な値はメールの種類を追加する仕様書で定義する |
 | `email_notifications` | `status` | `VARCHAR` | NOT NULL | `pending` / `sent` / `failed`。値域はアプリケーション層で管理（ADR-019） |
 | `email_notifications` | `template_params` | `JSONB` | NOT NULL, DEFAULT `'{}'::jsonb` | 本文に入れる値（リセット用URL等）。`pending` の間だけ値を持ち、終端状態（`sent` / `failed`）へ遷移時に `'{}'` にクリアする（[ADR-039](../adr/ADR-039-email-template-params-storage.md)） |
-| `email_notifications` | `attempt_count` | `SMALLINT` | NOT NULL, DEFAULT `0`, CHECK (`attempt_count >= 0`) | 試行回数（送信ワーカーが `EmailTransport` へ渡した回数） |
+| `email_notifications` | `attempt_count` | `SMALLINT` | NOT NULL, DEFAULT `0`, CHECK (`attempt_count >= 0`) | 試行回数。送信ワーカーが確保をコミットするときに1加算する（`EmailTransport` を呼ぶ前に停止しても戻らない） |
 | `email_notifications` | `requested_at` | `TIMESTAMPTZ` | NOT NULL, DEFAULT `NOW()` | 送信要求時刻 |
 | `email_notifications` | `next_attempt_at` | `TIMESTAMPTZ` | NULL 許容 | 次に送信を試す最早時刻。`status = pending` のときだけ非null |
 | `email_notifications` | `sent_at` | `TIMESTAMPTZ` | NULL 許容 | 送信完了時刻。`status = sent` のとき非null |
@@ -204,7 +204,7 @@ sequenceDiagram
             Worker->>DB: UPDATE attempt_count=attempt_count+1,<br/>next_attempt_at=NOW+60s（確保の有効期限）
             Worker->>DB: COMMIT
             Worker->>Worker: EmailTemplate[Kind] に template_params を埋め、件名・本文を作成
-            Note over Worker,DB: 埋め込みに失敗したら送信せず status='failed'<br/>（last_failure_code='template_render_failed'）を記録する
+            Note over Worker,DB: 埋め込みに失敗したら送信せず、下の結果の記録と同じ条件で<br/>status='failed', last_failure_code='template_render_failed',<br/>next_attempt_at=NULL, template_params='{}' を記録する（0行なら WARN ログ）
             Worker->>Transport: Send(recipient_email, 差出人, 件名, 本文)（タイムアウト30秒）
             Note over Worker,DB: 結果の記録（短いトランザクション）。<br/>WHERE id=… AND status='pending' AND attempt_count=確保時の値
             alt 受け付けた

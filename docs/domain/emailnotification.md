@@ -37,11 +37,11 @@
 
 状態は `pending → sent` / `pending → failed` / `pending → pending` のいずれかの遷移だけを許す。各遷移は送信ワーカーがトリガーになる。
 
-送信ワーカーは送信履歴を確保するときに `attempt_count` を1加算し、`next_attempt_at` を確保の有効期限（60秒後）に進めてコミットしてから送信する。以下の「`attempt_count`」は、この加算後の値を指す。
+送信ワーカーは送信履歴を確保するときに `attempt_count` を1加算し、`next_attempt_at` を確保の有効期限（値は仕様書を参照）まで進めてコミットしてから送信する。確保時点で `attempt_count` がすでに3の場合は加算せず、同じトランザクションで `failed` へ遷移させる。以下の「`attempt_count`」は、確保時に加算した後の値を指す。
 
 | 遷移 | トリガー | 副作用 |
 |---|---|---|
-| `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_code` を更新、`next_attempt_at` を次の試行時刻に進める（初回失敗から10秒後、2回目失敗から20秒後） |
+| `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_code` を更新、`next_attempt_at` を次の試行時刻に進める（間隔は仕様書を参照） |
 | `pending → sent` | `EmailTransport` がメールを受け付けた | `sent_at = now`、`next_attempt_at = null`、`template_params = '{}'` |
 | `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、テンプレートへの埋め込みに失敗した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_code` を更新、`next_attempt_at = null`、`template_params = '{}'` |
 
