@@ -35,8 +35,8 @@ mise install
 # 3. 依存パッケージをインストール
 mise exec -- pnpm install
 
-# 4. git hooks をセットアップ
-mise exec -- pnpm exec lefthook install
+# 4. git hooks をセットアップ（core.hooksPath が設定済みの環境では解除してから .git/hooks に生成する）
+mise exec -- pnpm exec lefthook install --reset-hooks-path
 
 # 5. gh-stack をインストール（スタックPR管理用）
 gh extension install github/gh-stack

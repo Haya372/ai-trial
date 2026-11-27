@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# push するコミット範囲だけを gitleaks でスキャンする。
+# lefthook の pre-push から、git が渡す標準入力（push する ref の一覧）を受け取って実行する。
 set -euo pipefail
 
 while IFS=' ' read -r _local_ref local_sha _remote_ref remote_sha; do
@@ -17,5 +19,3 @@ while IFS=' ' read -r _local_ref local_sha _remote_ref remote_sha; do
         --log-opts="$log_opts" \
         --verbose
 done
-
-"$(git rev-parse --show-toplevel)/node_modules/.bin/lefthook" run pre-push

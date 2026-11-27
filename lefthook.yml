@@ -1,5 +1,9 @@
 pre-push:
+  piped: true
   jobs:
+    - name: gitleaks
+      run: bash scripts/gitleaks-pre-push.sh
+      use_stdin: true
     - name: go-build-lint
       glob: "apps/backend/**/*.{go,sql,yaml}"
       root: "apps/backend"
