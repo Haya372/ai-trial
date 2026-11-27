@@ -51,18 +51,19 @@ type EventReadModel struct {
 }
 
 // RecurringSeriesReadModel holds the stored values as they are, without domain
-// validation (ADR-022); the write side guarantees they are valid.
+// validation (ADR-022). Each optional field is set whenever its column is not
+// NULL, without looking at PatternType or EndType; that only monthly_nth_weekday
+// has MonthlyNth, until_date has UntilDate and count has Count is an invariant
+// the write side guarantees when it saves the series.
 type RecurringSeriesReadModel struct {
 	ID          uuid.UUID
 	PatternType string
-	// MonthlyNth is set only when PatternType is monthly_nth_weekday.
-	MonthlyNth *string
-	EndType    string
-	// UntilDate is a YYYY-MM-DD local date in Timezone, set only when EndType is until_date.
+	MonthlyNth  *string
+	EndType     string
+	// UntilDate is a YYYY-MM-DD local date in Timezone.
 	UntilDate *string
-	// Count is set only when EndType is count.
-	Count    *int
-	Timezone string
+	Count     *int
+	Timezone  string
 }
 
 type ListEventsQuery struct {
