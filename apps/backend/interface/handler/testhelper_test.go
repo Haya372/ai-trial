@@ -17,17 +17,18 @@ const (
 	codeInvalidDateRange  = "INVALID_DATE_RANGE"
 
 	// Recurrence JSON field keys and common values used across handler tests.
-	keyRecurrence  = "recurrence"
-	keyPattern     = "pattern"
-	keyType        = "type"
-	keyEnd         = "end"
-	keyTimezone    = "timezone"
-	valWeekly      = "weekly"
-	valCount       = "count"
-	valUntilDate   = "until_date"
-	valUTC         = "UTC"
-	valAsiaTokyoTZ = "Asia/Tokyo"
-	jsonNull       = "null"
+	keyRecurrence        = "recurrence"
+	keyPattern           = "pattern"
+	keyType              = "type"
+	keyEnd               = "end"
+	keyTimezone          = "timezone"
+	valWeekly            = "weekly"
+	valCount             = "count"
+	valUntilDate         = "until_date"
+	valMonthlyNthWeekday = "monthly_nth_weekday"
+	valUTC               = "UTC"
+	valAsiaTokyoTZ       = "Asia/Tokyo"
+	jsonNull             = "null"
 )
 
 var (
