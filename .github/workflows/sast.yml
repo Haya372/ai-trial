@@ -28,6 +28,7 @@ jobs:
           install: true
           install_args: semgrep
       - name: Run Semgrep
+        id: semgrep
         run: |
           semgrep scan \
             --config p/golang \
@@ -38,6 +39,7 @@ jobs:
             --json-output semgrep.json \
             --text
       - name: Annotate findings
-        if: failure()
+        # Skip when the job failed before Semgrep wrote semgrep.json (e.g. install failure).
+        if: failure() && steps.semgrep.outcome == 'failure' && hashFiles('semgrep.json') != ''
         run: |
           jq -r '.results[] | "::error file=\(.path),line=\(.start.line),endLine=\(.end.line),title=\(.check_id)::\(.extra.message | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A"))"' semgrep.json
