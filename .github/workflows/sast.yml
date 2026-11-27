@@ -16,9 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      # --metrics off covers usage metrics; this stops the version-check request.
-      SEMGREP_ENABLE_VERSION_CHECK: "0"
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -34,7 +31,6 @@ jobs:
             --config p/golang \
             --config p/typescript \
             --config p/react \
-            --metrics off \
             --error \
             --json-output semgrep.json \
             --text
