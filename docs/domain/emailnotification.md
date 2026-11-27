@@ -35,23 +35,26 @@
 
 状態は `pending → sent` / `pending → failed` / `pending → pending` のいずれかの遷移だけを許す。各遷移は送信ワーカーがトリガーになる。
 
+送信ワーカーは送信履歴を確保するときに `attempt_count` を1加算し、`next_attempt_at` を確保の有効期限（60秒後）に進めてコミットしてから送信する。以下の「`attempt_count`」は、この加算後の値を指す。
+
 | 遷移 | トリガー | 副作用 |
 |---|---|---|
-| `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count` がまだ上限未満 | `attempt_count` を1加算、`last_failure_reason` を更新、`next_attempt_at` を次の試行時刻に進める（初回失敗から10秒後、2回目失敗から20秒後） |
-| `pending → sent` | `EmailTransport` がメールを受け付けた | `attempt_count` を1加算、`sent_at = now`、`next_attempt_at = null`、`template_params = '{}'` |
-| `pending → failed` | `EmailTransport` が恒久的な失敗を返した、または `attempt_count` が上限に達した一時的な失敗を返した | `attempt_count` を1加算、`last_failure_reason` を更新、`next_attempt_at = null`、`template_params = '{}'` |
+| `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_reason` を更新、`next_attempt_at` を次の試行時刻に進める（初回失敗から10秒後、2回目失敗から20秒後） |
+| `pending → sent` | `EmailTransport` がメールを受け付けた | `sent_at = now`、`next_attempt_at = null`、`template_params = '{}'` |
+| `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_reason` を更新、`next_attempt_at = null`、`template_params = '{}'` |
 
 - `sent` および `failed` は終端状態で、以後の送信・状態変化は行わない
 
 ### 再送
 
 - 試行回数は最大3回（初回1回 + 再送2回）。3回目の試行が一時的な失敗で終わったら `failed` へ遷移させる
+- 送信結果は、確保したときの `attempt_count` と一致し、`status = pending` の場合だけ記録する。一致しない場合（確保の有効期限が切れて別のワーカーが確保した等）は記録しない
 - 送信ワーカーは `status = pending AND next_attempt_at <= now` の履歴だけを取り出す
-- 同時に複数のワーカーインスタンスが動く場合でも、1件の履歴を同時に取り出さない（取り出しは `FOR UPDATE SKIP LOCKED` で排他する）
+- 同時に複数のワーカーインスタンスが動く場合でも、1件の履歴を同時に確保しない（確保は `FOR UPDATE SKIP LOCKED` で排他し、確保済みの履歴は有効期限まで `next_attempt_at` が未来になるため取り出されない）
 
 ### 重複送信
 
-- 送信ワーカーが `EmailTransport` へ渡した後、`status = sent` へ遷移させる前に停止した場合、再起動後に同じ履歴が再送される可能性がある。重複送信は許容し、未送信を防ぐことを優先する
+- 送信ワーカーが `EmailTransport` へ渡した後、`status = sent` へ遷移させる前に停止した場合、確保の有効期限が切れたあとに同じ履歴が再送される可能性がある。重複送信は許容し、未送信を防ぐことを優先する（配送は少なくとも1回）
 
 ### 不変条件
 

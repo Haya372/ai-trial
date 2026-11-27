@@ -30,7 +30,7 @@ PRD-010 のメール通知基盤では、以下の要件を満たす必要があ
 ## 決定
 
 1. 送信待ちは `email_notifications` テーブルで管理する。業務データの永続化と送信履歴の `pending` 作成を、呼び出し元ユースケースの `TransactionManager.RunInTx`（[ADR-024](./ADR-024-transaction-management.md)）に参加させて同一トランザクションで実行する（トランザクショナルアウトボックス方式）
-2. 送信ワーカーは `status = 'pending' AND next_attempt_at <= NOW()` の行を `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` で1件ずつ取り出して処理する。これにより、ワーカーが複数動いても同じ行を同時に取得しない
+2. 送信ワーカーは `status = 'pending' AND next_attempt_at <= NOW()` の行を `SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1` で1件確保し、同じトランザクションで `attempt_count` を加算して `next_attempt_at` を確保の有効期限まで進めてからコミットする。送信はコミット後にトランザクションの外で行い、結果は確保時の `attempt_count` を条件にした別の短いトランザクションで記録する。これにより、ワーカーが複数動いても同じ行を同時に確保せず、送信の遅延でDB接続とロックを持ち続けず、送信中に停止しても試行回数が戻らない
 3. 送信ワーカーは **API サーバーと同じプロセス内の常駐 goroutine** として動かす。起動時に `EmailSenderWorker.Run(ctx)` を呼び出し、プロセス終了時に `ctx.Done()` で停止する
 4. 送信ワーカーの有効化は環境変数フラグで切り替えられるようにし、将来別プロセスとして切り出せるようコンポーネントを疎結合に保つ
 5. 再送のバックオフは仕様書（SPEC-010）の値を使う（初回失敗から10秒後、2回目失敗から20秒後、最大試行回数は初回+再送2回=3回）

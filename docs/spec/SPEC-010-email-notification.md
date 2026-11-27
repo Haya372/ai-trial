@@ -26,7 +26,7 @@
 
 #### 送信
 
-1. 送信処理が「送信待ち」の送信履歴を取り出す
+1. 送信処理が、次の送信予定時刻を過ぎた「送信待ち」の送信履歴を1件確保する。確保するときに試行回数を1加算し、次の送信予定時刻を確保の有効期限まで進めて、確保を確定する
 2. メールの種類に対応するテンプレートにパラメータを埋め込み、件名・本文を作る
 3. `EmailTransport` へメールを渡す
 4. `EmailTransport` が受け付けたら、送信履歴を「送信完了」にし、送信完了時刻を記録する
@@ -34,9 +34,9 @@
 
 #### 一時的な失敗時の再送
 
-1. `EmailTransport` が一時的な失敗（下記「制約条件」の分類）を返した場合、試行回数と失敗理由を記録し、送信履歴を「送信待ち」のまま次の送信予定時刻を設定する
+1. `EmailTransport` が一時的な失敗（下記「制約条件」の分類）を返し、試行回数（確保時に加算した後の値）が3未満の場合、失敗理由を記録し、送信履歴を「送信待ち」のまま次の送信予定時刻を設定する
 2. 次の送信予定時刻を過ぎたら、送信処理が再度送信する
-3. 最大試行回数に達しても送れなかった場合、送信履歴を「送信失敗」にし、失敗理由を記録する
+3. 試行回数が3の試行も一時的な失敗で終わった場合、送信履歴を「送信失敗」にし、失敗理由を記録する
 4. 送信履歴から本文用のパラメータを削除する
 
 #### 運用者による送信失敗の確認
@@ -63,6 +63,13 @@
 - 一時的な失敗: 接続失敗・タイムアウト・レート制限・送信先の一時エラーなど、時間をおけば成功しうる失敗。再送する
 - 恒久的な失敗: 宛先アドレスの形式不正・送信先が宛先を拒否・認証設定エラーなど、再送しても結果が変わらない失敗。再送せず即座に「送信失敗」にする
 - 最大試行回数は3回（初回＋再送2回）。再送の間隔は1回目の失敗から10秒後、2回目の失敗から20秒後とする
+- 試行回数は送信履歴を確保するときに加算する。送信中に送信処理が停止しても、試行回数は戻らない
+
+#### 確保とタイムアウト
+
+- `EmailTransport` への1回の受け渡しは30秒でタイムアウトさせ、一時的な失敗として扱う
+- 確保の有効期限は確保から60秒とする。有効期限を過ぎても結果が記録されない送信履歴は、送信処理が途中で停止したものとみなし、再び確保の対象にする
+- 送信結果は、確保したときの試行回数と送信履歴の試行回数が一致し、状態が「送信待ち」の場合だけ記録する
 
 #### 記録
 
@@ -75,9 +82,11 @@
 
 - 送信要求時に指定したユーザーが存在しない場合 → 送信要求をエラーにし、送信履歴を作成しない
 - 送信待ちの間にユーザーが登録メールアドレスを変更した場合 → 送信要求時点のアドレスへ送る
-- 送信処理が複数動いている場合 → 同じ送信履歴を二重に送らない
-- 送信処理が `EmailTransport` へ渡した後、送信履歴を「送信完了」にする前に停止した場合 → 再起動後に同じメールを再送しうる（二重送信は許容し、未送信を防ぐことを優先する）
+- 送信処理が複数動いている場合 → 確保済みで有効期限内の送信履歴は、他の送信処理が確保しない
+- 送信処理が `EmailTransport` へ渡した後、送信履歴を「送信完了」にする前に停止した場合 → 確保の有効期限を過ぎたあと、同じメールを再送しうる（二重送信は許容し、未送信を防ぐことを優先する。配送は少なくとも1回で、ちょうど1回は保証しない）
+- 確保した時点で試行回数がすでに3の場合（3回目の試行中に送信処理が停止した） → 送信せずに「送信失敗」にし、失敗理由に送信処理の停止を記録する
 - 3回目の試行が一時的な失敗で終わった場合 → 「送信失敗」にする
+- 送信結果を記録するときに、確保したときの試行回数と一致する「送信待ち」の送信履歴がない場合（有効期限を過ぎて別の送信処理が確保した、またはユーザーの削除で送信履歴が消えた） → 結果を記録せず、WARNログを出す
 
 ## 設計
 
@@ -85,7 +94,7 @@
 
 - `EmailNotification`（エンティティ、集約ルート）— 送信履歴1件を表す。用語・集約の不変条件・状態遷移のルールは [EmailNotification ドメイン](../domain/emailnotification.md) を参照
 - 送信要求は `UserID`・`EmailKind`・`TemplateParams` を受け取るユースケース層のコマンド（`SendEmailCommand`）として公開し、呼び出し元ユースケースのトランザクションに参加する（トランザクショナルアウトボックス方式）。これにより、業務データの永続化と送信履歴の `pending` 作成が原子的になる（[ADR-024](../adr/ADR-024-transaction-management.md)・[ADR-038](../adr/ADR-038-email-async-outbox.md)）
-- 実際の送信・再送・状態遷移・本文に入れる値のクリアは、送信ワーカー（APIサーバーと同一プロセス内の常駐コンポーネント）が担う。ワーカーは `pending` の履歴を `FOR UPDATE SKIP LOCKED` で1件ずつ排他取得し、`EmailTransport` インターフェース経由でメールを送る（[ADR-038](../adr/ADR-038-email-async-outbox.md)）
+- 実際の送信・再送・状態遷移・本文に入れる値のクリアは、送信ワーカー（APIサーバーと同一プロセス内の常駐コンポーネント）が担う。ワーカーは `pending` の履歴を `FOR UPDATE SKIP LOCKED` で1件確保して試行回数を加算し、確保をコミットしてから `EmailTransport` インターフェース経由でメールを送り、結果を別のトランザクションで記録する。`EmailTransport` の呼び出し中はDBのトランザクションを開かない（[ADR-038](../adr/ADR-038-email-async-outbox.md)）
 - `EmailTransport` は宛先・差出人・件名・本文を受け取り、「受け付けた」「一時的な失敗」「恒久的な失敗」のいずれかを返す。失敗のときは失敗理由の文字列も返す。送信サービス・送信プロトコルに依存する処理はこの実装に閉じ込める
 - `EmailKind` と対応する `EmailTemplate`（件名・本文・埋め込みパラメータ）はアプリケーション起動時に静的レジストリへ登録する。登録のない `EmailKind` を指定した送信要求はエラーにし、集約を生成しない
 
@@ -152,7 +161,7 @@ sequenceDiagram
     Note over TX,DB: 業務データと送信履歴が同一トランザクションでコミット
 ```
 
-##### 送信（ワーカーの1件分、成功パス）
+##### 送信（ワーカーの1件分）
 
 ```mermaid
 sequenceDiagram
@@ -161,55 +170,34 @@ sequenceDiagram
     participant Transport as EmailTransport
 
     loop ポーリング間隔ごと
+        Note over Worker,DB: 確保（短いトランザクション）
         Worker->>DB: BEGIN; SELECT ... WHERE status='pending' AND next_attempt_at<=NOW()<br/>LIMIT 1 FOR UPDATE SKIP LOCKED
         DB-->>Worker: 1行 or なし
-        alt 対象あり
-            Worker->>Worker: EmailTemplate[Kind] に template_params を埋め、件名・本文を作成
-            Worker->>Transport: Send(recipient_email, 差出人, 件名, 本文)
-            Transport-->>Worker: 受け付けた
-            Worker->>DB: UPDATE status='sent', sent_at=NOW,<br/>next_attempt_at=NULL,<br/>template_params='{}', attempt_count=attempt_count+1
-            Worker->>DB: COMMIT
-            Note over Worker,DB: 送信要求〜送信完了の所要時間をメトリクスに記録
-        else 対象なし
+        alt 対象なし
             Worker->>DB: COMMIT（アイドルスリープ）
+        else 確保時点で attempt_count = 3（前回の試行中に停止）
+            Worker->>DB: UPDATE status='failed', next_attempt_at=NULL,<br/>last_failure_reason=送信処理の停止, template_params='{}'
+            Worker->>DB: COMMIT
+            Note over Worker,DB: 失敗件数メトリクスを加算、ERRORログを出す
+        else 確保できた
+            Worker->>DB: UPDATE attempt_count=attempt_count+1,<br/>next_attempt_at=NOW+60s（確保の有効期限）
+            Worker->>DB: COMMIT
+            Worker->>Worker: EmailTemplate[Kind] に template_params を埋め、件名・本文を作成
+            Worker->>Transport: Send(recipient_email, 差出人, 件名, 本文)（タイムアウト30秒）
+            Note over Worker,DB: 結果の記録（短いトランザクション）。<br/>WHERE id=… AND status='pending' AND attempt_count=確保時の値
+            alt 受け付けた
+                Transport-->>Worker: 受け付けた
+                Worker->>DB: UPDATE status='sent', sent_at=NOW,<br/>next_attempt_at=NULL, template_params='{}'
+                Note over Worker,DB: 送信要求〜送信完了の所要時間をメトリクスに記録
+            else 一時的な失敗 かつ attempt_count < 3
+                Transport-->>Worker: 一時的な失敗
+                Worker->>DB: UPDATE last_failure_reason=…,<br/>next_attempt_at=NOW+バックオフ(10s→20s)
+            else 一時的な失敗 かつ attempt_count = 3、または恒久的な失敗
+                Transport-->>Worker: 失敗
+                Worker->>DB: UPDATE status='failed', next_attempt_at=NULL,<br/>last_failure_reason=…, template_params='{}'
+                Note over Worker,DB: 失敗件数メトリクスを加算、ERRORログを出す
+            end
+            Note over Worker,DB: 更新が0行なら結果を記録せず WARN ログを出す
         end
     end
-```
-
-##### 一時的な失敗と再送
-
-```mermaid
-sequenceDiagram
-    participant Worker as EmailSenderWorker
-    participant DB
-    participant Transport as EmailTransport
-
-    Worker->>DB: BEGIN; SELECT ... FOR UPDATE SKIP LOCKED
-    DB-->>Worker: 1行
-    Worker->>Transport: Send(...)
-    Transport-->>Worker: 一時的な失敗 (接続失敗・タイムアウト 等)
-    alt attempt_count+1 < 3（再送余地あり）
-        Worker->>DB: UPDATE attempt_count=attempt_count+1,<br/>last_failure_reason=分類+詳細,<br/>next_attempt_at=NOW+バックオフ(10s→20s)
-    else attempt_count+1 = 3（再送なし）
-        Worker->>DB: UPDATE status='failed', next_attempt_at=NULL,<br/>last_failure_reason=…, template_params='{}',<br/>attempt_count=attempt_count+1
-        Note over Worker,DB: 失敗件数メトリクスを加算、送信履歴ID・ユーザーID・種別・理由をERRORログに出す
-    end
-    Worker->>DB: COMMIT
-```
-
-##### 恒久的な失敗（即 failed）
-
-```mermaid
-sequenceDiagram
-    participant Worker as EmailSenderWorker
-    participant DB
-    participant Transport as EmailTransport
-
-    Worker->>DB: BEGIN; SELECT ... FOR UPDATE SKIP LOCKED
-    DB-->>Worker: 1行
-    Worker->>Transport: Send(...)
-    Transport-->>Worker: 恒久的な失敗 (宛先アドレス拒否・認証エラー 等)
-    Worker->>DB: UPDATE status='failed', next_attempt_at=NULL,<br/>last_failure_reason=permanent+詳細,<br/>template_params='{}', attempt_count=attempt_count+1
-    Worker->>DB: COMMIT
-    Note over Worker,DB: 失敗件数メトリクスを加算、ログを出す
 ```
