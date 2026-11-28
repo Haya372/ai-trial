@@ -432,11 +432,37 @@ func TestUpdateEventCommand_Execute_Occurrence_FutureOrAll_NotImplementedYet(t *
 	}
 }
 
-func TestUpdateEventCommand_Execute_Occurrence_SeriesGone_ReturnsEventNotFound(t *testing.T) {
+// A concurrent "single" can detach the last occurrence and delete the empty
+// series while keeping the event, so a missing series does not mean a missing
+// event.
+func TestUpdateEventCommand_Execute_Occurrence_SeriesDeletedConcurrently_UpdatesAsOneOff(t *testing.T) {
+	f := newScopeFixture(t)
+	series := newSeries(t, f.userID, weeklyCount(t, 3))
+	gomock.InOrder(
+		f.repo.EXPECT().FindByID(gomock.Any(), f.eventID).Return(f.occurrence(t, series), nil),
+		f.seriesRepo.EXPECT().FindByIDForUpdate(gomock.Any(), series.ID()).Return(nil, rs.ErrRecurringSeriesNotFound),
+		f.repo.EXPECT().FindByIDForUpdate(gomock.Any(), f.eventID).Return(f.oneOff(t, secondOccStart), nil),
+		f.repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil),
+	)
+
+	in := f.input(secondOccStart)
+	in.Scope = scopeSingle
+	out, err := f.command().Execute(context.Background(), f.userID, in)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out.Series != nil {
+		t.Errorf("Series: got %v, want nil", out.Series)
+	}
+}
+
+// Deleting the series with "all" deletes its occurrences too.
+func TestUpdateEventCommand_Execute_Occurrence_SeriesAndEventDeleted_ReturnsEventNotFound(t *testing.T) {
 	f := newScopeFixture(t)
 	series := newSeries(t, f.userID, weeklyCount(t, 3))
 	f.repo.EXPECT().FindByID(gomock.Any(), f.eventID).Return(f.occurrence(t, series), nil)
 	f.seriesRepo.EXPECT().FindByIDForUpdate(gomock.Any(), series.ID()).Return(nil, rs.ErrRecurringSeriesNotFound)
+	f.repo.EXPECT().FindByIDForUpdate(gomock.Any(), f.eventID).Return(nil, domainevent.ErrEventNotFound)
 
 	in := f.input(secondOccStart)
 	in.Scope = scopeSingle

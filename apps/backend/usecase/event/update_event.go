@@ -56,6 +56,10 @@ const (
 // client sends these scopes before #407 implements them.
 var errScopeNotImplemented = errors.New("scope future and all are not implemented yet")
 
+// errSeriesMissing is not a DomainError: an event row refers to its series
+// through a foreign key, so it comes from inconsistent data, not user input.
+var errSeriesMissing = errors.New("event refers to a series that does not exist")
+
 type UpdateEventCommand struct {
 	repo       domainevent.Repository
 	seriesRepo rs.Repository
@@ -133,6 +137,8 @@ func (c *UpdateEventCommand) lockTarget(
 	}
 	var series rs.RecurringEventSeries
 	if seriesID, ok := ev.SeriesID(); ok {
+		// A missing series is decided by the locked read below: a concurrent
+		// "single" deletes an emptied series but keeps the detached event.
 		if series, err = c.lockSeries(ctx, seriesID); err != nil {
 			return nil, nil, err
 		}
@@ -145,23 +151,27 @@ func (c *UpdateEventCommand) lockTarget(
 	// another request, or converted from a one-off. Locking the new series
 	// after the event breaks the order, but only in that rare race.
 	seriesID, ok := ev.SeriesID()
-	switch {
-	case !ok:
+	if !ok {
 		return ev, nil, nil
-	case series == nil || series.ID() != seriesID:
-		series, err = c.lockSeries(ctx, seriesID)
-		if err != nil {
+	}
+	if series == nil || series.ID() != seriesID {
+		if series, err = c.lockSeries(ctx, seriesID); err != nil {
 			return nil, nil, err
 		}
+	}
+	if series == nil {
+		// The locked event still refers to the series, so the foreign key
+		// keeps the series alive; reaching here means inconsistent data.
+		return nil, nil, fmt.Errorf("%w: event %s, series %s", errSeriesMissing, id, seriesID)
 	}
 	return ev, series, nil
 }
 
+// lockSeries returns nil, without an error, for a series that no longer exists.
 func (c *UpdateEventCommand) lockSeries(ctx context.Context, id uuid.UUID) (rs.RecurringEventSeries, error) {
 	series, err := c.seriesRepo.FindByIDForUpdate(ctx, id)
 	if errors.Is(err, rs.ErrRecurringSeriesNotFound) {
-		// Deleting the series deleted its occurrences too (ON DELETE CASCADE).
-		return nil, domainevent.ErrEventNotFound
+		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("lock series: %w", err)
