@@ -81,33 +81,13 @@ func NewUpdateEventCommand(
 func (c *UpdateEventCommand) Execute(
 	ctx context.Context, userID uuid.UUID, in UpdateEventInput,
 ) (UpdateEventOutput, error) {
-	// Checks that depend only on the request happen before the transaction.
-	if _, err := domainevent.New(
-		in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
-	); err != nil {
+	rule, err := validateUpdateRequest(userID, in)
+	if err != nil {
 		return UpdateEventOutput{}, err
-	}
-	if in.TagIDs != nil {
-		if _, err := domainevent.NewEventTags(*in.TagIDs); err != nil {
-			return UpdateEventOutput{}, toTagValidationError(err)
-		}
-	}
-	switch in.Scope {
-	case "", scopeSingle, scopeFuture, scopeAll:
-	default:
-		return UpdateEventOutput{}, validationDetail("scope", "INVALID_FORMAT", "scope must be single, future or all")
-	}
-	var rule *rs.RecurrenceRule
-	if in.Recurrence.Spec != nil {
-		r, err := parseRule(*in.Recurrence.Spec)
-		if err != nil {
-			return UpdateEventOutput{}, err
-		}
-		rule = &r
 	}
 
 	var out UpdateEventOutput
-	err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
+	err = c.txManager.RunInTx(ctx, func(ctx context.Context) error {
 		existing, series, err := c.lockTarget(ctx, in.ID, userID)
 		if err != nil {
 			return err
@@ -123,6 +103,35 @@ func (c *UpdateEventCommand) Execute(
 		return UpdateEventOutput{}, err
 	}
 	return out, nil
+}
+
+// validateUpdateRequest runs the checks that depend only on the request, so
+// they happen before the transaction. It returns the parsed rule, or nil when
+// the request sends no recurrence object.
+func validateUpdateRequest(userID uuid.UUID, in UpdateEventInput) (*rs.RecurrenceRule, error) {
+	if _, err := domainevent.New(
+		in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
+	); err != nil {
+		return nil, err
+	}
+	if in.TagIDs != nil {
+		if _, err := domainevent.NewEventTags(*in.TagIDs); err != nil {
+			return nil, toTagValidationError(err)
+		}
+	}
+	switch in.Scope {
+	case "", scopeSingle, scopeFuture, scopeAll:
+	default:
+		return nil, validationDetail("scope", "INVALID_FORMAT", "scope must be single, future or all")
+	}
+	if in.Recurrence.Spec == nil {
+		return nil, nil
+	}
+	rule, err := parseRule(*in.Recurrence.Spec)
+	if err != nil {
+		return nil, err
+	}
+	return &rule, nil
 }
 
 // lockTarget locks the series row before the event row. "future" and "all"

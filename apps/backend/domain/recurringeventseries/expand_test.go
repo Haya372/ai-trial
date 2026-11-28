@@ -434,7 +434,7 @@ func TestRecurrenceRule_Equal(t *testing.T) {
 		{"end type", base(), weeklyEnd(res.NewIndefiniteEnd()), false},
 		{"count", base(), weeklyEnd(mustCount(t, 4)), false},
 		{"until date", weeklyEnd(until(t, 2027, 1, 1)), weeklyEnd(until(t, 2027, 1, 2)), false},
-		{"timezone", base(), mustRule(t, weekly, nil, mustCount(t, 3), newYork), false},
+		{"timezone name", base(), mustRule(t, weekly, nil, mustCount(t, 3), newYork), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
