@@ -36,7 +36,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 
 カスタムルールはCIの `.github/workflows/sast.yml` の Semgrep job で実行する（導入経緯は ADR-040）。
 
-1. テスト対象ファイルを書く。ファイル名は `.semgrep/<rule-id>.<対象の拡張子>`（例: `<rule-id>.go`）にし、YAMLを対象にするルールだけ `<rule-id>.test.yml` にする（`<rule-id>.yml` はルールファイルと衝突するため）。検出すべき行の直前に `ruleid: <rule-id>`、検出してはいけない行の直前に `ok: <rule-id>` を、対象言語のコメント記法（`//`・`#` 等）で書く
+1. テスト対象ファイルを書く。ファイル名は `.semgrep/<rule-id>.<対象の拡張子>`（例: `<rule-id>.go`）にし、YAMLを対象にするルールだけ `<rule-id>.test.yml` にする（`<rule-id>.yml` はルールファイルと衝突するため）。検出すべき行の直前に `ruleid: <rule-id>`、検出してはいけない行の直前に `ok: <rule-id>` を、対象言語のコメントとして書く（Go・TypeScript: `// ruleid: <rule-id>`、YAML: `# ruleid: <rule-id>`）
 2. ルールを `.semgrep/<rule-id>.yml` に書く。`message` には、検出したコードをどう直すかを書く
 3. ルールのテストを実行し、`All tests passed` と表示されることを確認する。`.semgrep/` の中をカレントディレクトリにして `.` を渡す（リポジトリルートから `--test .semgrep/` を渡すと、ドットで始まるディレクトリのテストが見つからず、0件のまま成功する）
 
@@ -54,7 +54,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
    - `Run Semgrep` ステップの前に、`working-directory: .semgrep` で `semgrep scan --test .` を実行するステップ
    - `Run Semgrep` ステップの `semgrep scan` に `--config .semgrep/` と `--exclude .semgrep`
 
-カスタムルールだけを実行する場合も、Claude Codeのhook・lefthookには組み込まず、CIだけで実行する（理由は ADR-040 の「Claude Code の hook・pre-commit では実行しない」）。
+カスタムルールだけを実行する場合も、Claude Codeのhook・lefthookには組み込まず、CIだけで実行する（理由は ADR-040 の「決定」の「SAST」節）。
 
 ---
 
