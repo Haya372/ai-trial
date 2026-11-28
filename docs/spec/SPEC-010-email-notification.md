@@ -209,7 +209,7 @@ sequenceDiagram
             Note over Worker,DB: 結果の記録（短いトランザクション）。<br/>WHERE id=… AND status='pending' AND attempt_count=確保時の値
             alt 受け付けた
                 Transport-->>Worker: 受け付けた
-                Worker->>DB: UPDATE status='sent', sent_at=NOW,<br/>next_attempt_at=NULL, template_params='{}'
+                Worker->>DB: UPDATE status='sent', sent_at=NOW, last_failure_code=NULL,<br/>next_attempt_at=NULL, template_params='{}'
                 Note over Worker,DB: 送信要求〜送信完了の所要時間をメトリクスに記録
             else 一時的な失敗 かつ attempt_count < 3
                 Transport-->>Worker: 一時的な失敗

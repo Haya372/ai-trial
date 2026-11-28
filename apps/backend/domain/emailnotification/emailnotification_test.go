@@ -156,6 +156,18 @@ func TestMarkSent(t *testing.T) {
 	}
 }
 
+func TestMarkSent_clearsFailureOfEarlierAttempt(t *testing.T) {
+	n := claimTimes(t, newPending(t), 2) // the first attempt failed with timeout
+
+	sent, err := n.MarkSent(baseTime.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("MarkSent error = %v", err)
+	}
+	if code, ok := sent.LastFailureCode(); ok {
+		t.Errorf("LastFailureCode() = %v, true, want none after a successful attempt", code)
+	}
+}
+
 func TestRecordFailure_transientSchedulesRetryWithBackoff(t *testing.T) {
 	tests := []struct {
 		attempts  int

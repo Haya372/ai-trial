@@ -42,7 +42,7 @@
 | 遷移 | トリガー | 副作用 |
 |---|---|---|
 | `pending → pending`（再送待ち） | `EmailTransport` が一時的な失敗を返し、かつ `attempt_count < 3` | `last_failure_code` を更新、`next_attempt_at` を次の試行時刻に進める（間隔は仕様書を参照） |
-| `pending → sent` | `EmailTransport` がメールを受け付けた | `sent_at = now`、`next_attempt_at = null`、`template_params = '{}'` |
+| `pending → sent` | `EmailTransport` がメールを受け付けた | `sent_at = now`、`last_failure_code = null`、`last_failure_code = null`、`next_attempt_at = null`、`template_params = '{}'` |
 | `pending → failed` | `EmailTransport` が恒久的な失敗を返した、`attempt_count = 3` で一時的な失敗を返した、テンプレートへの埋め込みに失敗した、または確保時点で `attempt_count` がすでに3だった（前回の試行中に停止した） | `last_failure_code` を更新、`next_attempt_at = null`、`template_params = '{}'` |
 
 - `sent` および `failed` は終端状態で、以後の送信・状態変化は行わない

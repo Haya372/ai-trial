@@ -177,6 +177,7 @@ func (n *notificationEntity) MarkSent(now time.Time) (EmailNotification, error) 
 	copied := *n
 	copied.status = StatusSent
 	copied.sentAt = &now
+	copied.lastFailureCode = nil
 	copied.nextAttemptAt = nil
 	copied.params = TemplateParams{}
 	return &copied, nil
