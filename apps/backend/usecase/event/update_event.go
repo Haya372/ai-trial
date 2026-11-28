@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -9,9 +10,18 @@ import (
 	"github.com/google/uuid"
 
 	domainevent "github.com/Haya372/ai-trial/backend/domain/event"
+	rs "github.com/Haya372/ai-trial/backend/domain/recurringeventseries"
 	"github.com/Haya372/ai-trial/backend/domain/tag"
 	"github.com/Haya372/ai-trial/backend/usecase"
 )
+
+// RecurrenceUpdate tells apart the three forms of recurrence in the request.
+type RecurrenceUpdate struct {
+	// Present is false when the request omitted recurrence: keep the current one.
+	Present bool
+	// Spec is nil for recurrence: null (stop repeating).
+	Spec *RecurrenceInput
+}
 
 type UpdateEventInput struct {
 	ID          uuid.UUID
@@ -23,77 +33,287 @@ type UpdateEventInput struct {
 	URL         string
 	// TagIDs, when nil, keeps existing tags unchanged. When non-nil the event's
 	// tags are replaced with this slice (empty slice removes all tags).
-	TagIDs *[]uuid.UUID
+	TagIDs     *[]uuid.UUID
+	Recurrence RecurrenceUpdate
+	// Scope is "" when omitted. The command validates the value.
+	Scope string
 }
 
 type UpdateEventOutput struct {
 	Event domainevent.Event
 	Tags  []EventTagView
+	// Series is the series the returned event belongs to, nil for a one-off.
+	Series rs.RecurringEventSeries
 }
 
+const (
+	scopeSingle = "single"
+	scopeFuture = "future"
+	scopeAll    = "all"
+)
+
+// errScopeNotImplemented is not a DomainError, so it surfaces as a 500: no
+// client sends these scopes before #407 implements them.
+var errScopeNotImplemented = errors.New("scope future and all are not implemented yet")
+
 type UpdateEventCommand struct {
-	repo      domainevent.Repository
-	tagRepo   tag.Repository
-	txManager usecase.TransactionManager
-	logger    *slog.Logger
+	repo       domainevent.Repository
+	seriesRepo rs.Repository
+	tagRepo    tag.Repository
+	txManager  usecase.TransactionManager
+	logger     *slog.Logger
 }
 
 func NewUpdateEventCommand(
-	r domainevent.Repository, tr tag.Repository, tx usecase.TransactionManager, logger *slog.Logger,
+	r domainevent.Repository,
+	sr rs.Repository,
+	tr tag.Repository,
+	tx usecase.TransactionManager,
+	logger *slog.Logger,
 ) *UpdateEventCommand {
-	return &UpdateEventCommand{repo: r, tagRepo: tr, txManager: tx, logger: logger}
+	return &UpdateEventCommand{repo: r, seriesRepo: sr, tagRepo: tr, txManager: tx, logger: logger}
 }
 
 func (c *UpdateEventCommand) Execute(
 	ctx context.Context, userID uuid.UUID, in UpdateEventInput,
 ) (UpdateEventOutput, error) {
-	// Body validation happens before entering the transaction (per design).
+	// Checks that depend only on the request happen before the transaction.
 	if _, err := domainevent.New(
 		in.ID, userID, in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
 	); err != nil {
 		return UpdateEventOutput{}, err
 	}
-
-	// Validate replacement tag count/duplicates before the transaction as well.
 	if in.TagIDs != nil {
 		if _, err := domainevent.NewEventTags(*in.TagIDs); err != nil {
 			return UpdateEventOutput{}, toTagValidationError(err)
 		}
 	}
+	switch in.Scope {
+	case "", scopeSingle, scopeFuture, scopeAll:
+	default:
+		return UpdateEventOutput{}, validationDetail("scope", "INVALID_FORMAT", "scope must be single, future or all")
+	}
+	var rule *rs.RecurrenceRule
+	if in.Recurrence.Spec != nil {
+		r, err := parseRule(*in.Recurrence.Spec)
+		if err != nil {
+			return UpdateEventOutput{}, err
+		}
+		rule = &r
+	}
 
-	var updated domainevent.Event
-	var tagViews []EventTagView
+	var out UpdateEventOutput
 	err := c.txManager.RunInTx(ctx, func(ctx context.Context) error {
-		existing, err := domainevent.FindOwnedForUpdate(ctx, c.repo, c.logger, in.ID, userID)
+		existing, series, err := c.lockTarget(ctx, in.ID, userID)
 		if err != nil {
 			return err
 		}
-
-		newTags, views, err := c.determineTagsInTx(ctx, userID, existing, in.TagIDs)
-		if err != nil {
-			return err
+		if series == nil {
+			out, err = c.updateOneOff(ctx, userID, in, existing, rule)
+		} else {
+			out, err = c.updateOccurrence(ctx, userID, in, existing, series, rule)
 		}
-		tagViews = views
-
-		updated, err = existing.WithContent(
-			in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL,
-		)
-		if err != nil {
-			return err
-		}
-		updated, err = updated.WithTags(newTags)
-		if err != nil {
-			return err
-		}
-		if err := c.repo.Update(ctx, updated); err != nil {
-			return fmt.Errorf("update event: %w", err)
-		}
-		return nil
+		return err
 	})
 	if err != nil {
 		return UpdateEventOutput{}, err
 	}
-	return UpdateEventOutput{Event: updated, Tags: tagViews}, nil
+	return out, nil
+}
+
+// lockTarget locks the series row before the event row. "future" and "all"
+// lock the series and then its occurrences, so taking the event first could
+// deadlock against them. An unlocked read tells which series to lock.
+func (c *UpdateEventCommand) lockTarget(
+	ctx context.Context, id, userID uuid.UUID,
+) (domainevent.Event, rs.RecurringEventSeries, error) {
+	ev, err := domainevent.FindOwned(ctx, c.repo, c.logger, id, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	var series rs.RecurringEventSeries
+	if seriesID, ok := ev.SeriesID(); ok {
+		if series, err = c.lockSeries(ctx, seriesID); err != nil {
+			return nil, nil, err
+		}
+	}
+	ev, err = domainevent.FindOwnedForUpdate(ctx, c.repo, c.logger, id, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	// The series may have changed before the event was locked: detached by
+	// another request, or converted from a one-off. Locking the new series
+	// after the event breaks the order, but only in that rare race.
+	seriesID, ok := ev.SeriesID()
+	switch {
+	case !ok:
+		return ev, nil, nil
+	case series == nil || series.ID() != seriesID:
+		series, err = c.lockSeries(ctx, seriesID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return ev, series, nil
+}
+
+func (c *UpdateEventCommand) lockSeries(ctx context.Context, id uuid.UUID) (rs.RecurringEventSeries, error) {
+	series, err := c.seriesRepo.FindByIDForUpdate(ctx, id)
+	if errors.Is(err, rs.ErrRecurringSeriesNotFound) {
+		// Deleting the series deleted its occurrences too (ON DELETE CASCADE).
+		return nil, domainevent.ErrEventNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lock series: %w", err)
+	}
+	return series, nil
+}
+
+func (c *UpdateEventCommand) updateOneOff(
+	ctx context.Context, userID uuid.UUID, in UpdateEventInput, existing domainevent.Event, rule *rs.RecurrenceRule,
+) (UpdateEventOutput, error) {
+	if in.Scope == scopeFuture || in.Scope == scopeAll {
+		return UpdateEventOutput{}, validationDetail("scope", "NOT_IN_SERIES", "The event does not belong to a series")
+	}
+	if rule != nil {
+		return c.convertToSeries(ctx, userID, in, existing, *rule)
+	}
+	updated, views, err := c.applyContent(ctx, userID, in, existing)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	if err := c.repo.Update(ctx, updated); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update event: %w", err)
+	}
+	return UpdateEventOutput{Event: updated, Tags: views}, nil
+}
+
+func (c *UpdateEventCommand) updateOccurrence(
+	ctx context.Context,
+	userID uuid.UUID,
+	in UpdateEventInput,
+	existing domainevent.Event,
+	series rs.RecurringEventSeries,
+	rule *rs.RecurrenceRule,
+) (UpdateEventOutput, error) {
+	stopsRepeating := in.Recurrence.Present && in.Recurrence.Spec == nil
+	switch in.Scope {
+	case "":
+		return UpdateEventOutput{}, validationDetail("scope", "REQUIRED", "scope is required for an occurrence of a series")
+	case scopeSingle:
+		// A rule sent back unchanged is not a change, so its range is not
+		// checked either.
+		if stopsRepeating || (rule != nil && !rule.Equal(series.Rule())) {
+			return UpdateEventOutput{}, scopeNotAllowed()
+		}
+		return c.detach(ctx, userID, in, existing, series)
+	case scopeAll:
+		if stopsRepeating {
+			return UpdateEventOutput{}, scopeNotAllowed()
+		}
+	}
+	return UpdateEventOutput{}, errScopeNotImplemented
+}
+
+func scopeNotAllowed() error {
+	return validationDetail("scope", "SCOPE_NOT_ALLOWED", "The scope cannot apply this change to the recurrence")
+}
+
+// detach turns the occurrence into a one-off event and excludes its date from
+// the series, deleting the series when no occurrence is left.
+func (c *UpdateEventCommand) detach(
+	ctx context.Context,
+	userID uuid.UUID,
+	in UpdateEventInput,
+	existing domainevent.Event,
+	series rs.RecurringEventSeries,
+) (UpdateEventOutput, error) {
+	updated, views, err := c.applyContent(ctx, userID, in, existing)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	updated = updated.DetachFromSeries()
+	if err := c.repo.Update(ctx, updated); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update event: %w", err)
+	}
+
+	// The stored start, not the edited one, names the date the pattern
+	// would produce, since "single" may move the event to another day.
+	excluded, err := series.ExcludeOccurrence(existing.StartAt())
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("exclude occurrence: %w", err)
+	}
+	n, err := c.seriesRepo.CountOccurrences(ctx, series.ID())
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("count occurrences: %w", err)
+	}
+	if n == 0 {
+		if err := c.seriesRepo.Delete(ctx, series.ID()); err != nil {
+			return UpdateEventOutput{}, fmt.Errorf("delete empty series: %w", err)
+		}
+	} else if err := c.seriesRepo.Update(ctx, excluded); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update series: %w", err)
+	}
+	return UpdateEventOutput{Event: updated, Tags: views}, nil
+}
+
+// convertToSeries makes the one-off event the first occurrence of a new
+// series, so its ID, share links and subscriptions survive.
+func (c *UpdateEventCommand) convertToSeries(
+	ctx context.Context, userID uuid.UUID, in UpdateEventInput, existing domainevent.Event, rule rs.RecurrenceRule,
+) (UpdateEventOutput, error) {
+	if err := checkNewRule(rule); err != nil {
+		return UpdateEventOutput{}, err
+	}
+	occs, err := rs.ExpandOccurrences(in.StartAt, in.EndAt, rule, nil)
+	if err != nil {
+		return UpdateEventOutput{}, toExpandValidationError(err)
+	}
+	updated, views, err := c.applyContent(ctx, userID, in, existing)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	series, err := rs.New(uuid.New(), userID, rule, nil)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("create series: %w", err)
+	}
+	saved, err := c.seriesRepo.Create(ctx, series)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("create series: %w", err)
+	}
+	updated = updated.WithSeriesID(saved.ID())
+	if err := c.repo.Update(ctx, updated); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update event: %w", err)
+	}
+	// occs[0] is the event itself; ExpandOccurrences keeps the given instant.
+	content := occurrenceContent{title: in.Title, description: in.Description, location: in.Location, url: in.URL}
+	rest, err := newOccurrenceEvents(userID, content, saved.ID(), occs[1:], updated.Tags())
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	if err := c.seriesRepo.CreateOccurrences(ctx, rest); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("create occurrences: %w", err)
+	}
+	return UpdateEventOutput{Event: updated, Tags: views, Series: saved}, nil
+}
+
+// applyContent returns existing with the requested content and tags.
+func (c *UpdateEventCommand) applyContent(
+	ctx context.Context, userID uuid.UUID, in UpdateEventInput, existing domainevent.Event,
+) (domainevent.Event, []EventTagView, error) {
+	newTags, views, err := c.determineTagsInTx(ctx, userID, existing, in.TagIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+	updated, err := existing.WithContent(in.Title, in.Description, in.StartAt, in.EndAt, in.Location, in.URL)
+	if err != nil {
+		return nil, nil, err
+	}
+	updated, err = updated.WithTags(newTags)
+	if err != nil {
+		return nil, nil, err
+	}
+	return updated, views, nil
 }
 
 // determineTagsInTx selects the new tag set for the update:

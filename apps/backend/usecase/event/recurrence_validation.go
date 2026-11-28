@@ -11,9 +11,23 @@ import (
 
 // buildRule returns the first problem as a ValidationError whose field is the
 // request path (SPEC-009 POST /events), so the form can show it inline.
-// Empty pattern type, end type and timezone are checked before the domain
-// constructors, which would report them as INVALID_FORMAT instead of REQUIRED.
 func buildRule(in RecurrenceInput) (rs.RecurrenceRule, error) {
+	rule, err := parseRule(in)
+	if err != nil {
+		return rs.RecurrenceRule{}, err
+	}
+	if err := checkNewRule(rule); err != nil {
+		return rs.RecurrenceRule{}, err
+	}
+	return rule, nil
+}
+
+// parseRule checks only the format, so PUT can accept the stored rule sent
+// back unchanged: a series may have a count of 1 after a "this and following"
+// change. Empty pattern type, end type and timezone are checked before the
+// domain constructors, which would report them as INVALID_FORMAT instead of
+// REQUIRED.
+func parseRule(in RecurrenceInput) (rs.RecurrenceRule, error) {
 	pattern, err := buildPattern(in)
 	if err != nil {
 		return rs.RecurrenceRule{}, err
@@ -27,6 +41,18 @@ func buildRule(in RecurrenceInput) (rs.RecurrenceRule, error) {
 		return rs.RecurrenceRule{}, err
 	}
 	return rs.RecurrenceRule{Pattern: pattern, End: end, Timezone: tz}, nil
+}
+
+// checkNewRule applies the limits a rule entered or changed by the user must
+// meet beyond its format. The limits that depend on the first occurrence are
+// left to ExpandOccurrences.
+func checkNewRule(rule rs.RecurrenceRule) error {
+	if n, ok := rule.End.Count(); ok {
+		if _, err := rs.NewCountEnd(n); err != nil {
+			return toEndValidationError(err)
+		}
+	}
+	return nil
 }
 
 func buildPattern(in RecurrenceInput) (rs.RecurrencePattern, error) {
@@ -90,7 +116,7 @@ func buildCountEnd(in RecurrenceInput) (rs.RecurrenceEnd, error) {
 			"recurrence.end.count", "REQUIRED", "count is required when end type is count",
 		)
 	}
-	end, err := rs.NewCountEnd(*in.Count)
+	end, err := rs.RestoreCountEnd(*in.Count)
 	if err != nil {
 		return rs.RecurrenceEnd{}, toEndValidationError(err)
 	}

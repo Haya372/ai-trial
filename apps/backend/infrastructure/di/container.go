@@ -155,9 +155,9 @@ func newCreateEventExecutor(
 }
 
 func newUpdateEventExecutor(
-	r event.Repository, tr tag.Repository, tx usecase.TransactionManager, logger *slog.Logger,
+	r event.Repository, sr rs.Repository, tr tag.Repository, tx usecase.TransactionManager, logger *slog.Logger,
 ) handler.UpdateEventExecutor {
-	return eventuc.NewUpdateEventCommand(r, tr, tx, logger)
+	return eventuc.NewUpdateEventCommand(r, sr, tr, tx, logger)
 }
 
 func newDeleteEventExecutor(r event.Repository, logger *slog.Logger) handler.DeleteEventExecutor {
