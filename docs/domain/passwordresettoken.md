@@ -16,7 +16,7 @@
 ## ビジネスルール
 
 - トークンは `crypto/rand` による32バイトのランダム値をbase64url（パディングなし）でエンコードして生成する（[ADR-033](../adr/ADR-033-session-token-hashing.md) と同一パターン）
-- 平文トークンはDBに保存しない。DBにはSHA-256ハッシュ値のみを保存する
+- `password_reset_tokens` には平文トークンを保存せず、SHA-256ハッシュ値だけを保存する。平文トークンを含む再設定リンクは、再設定メールが送信待ちの間だけ `email_notifications.template_params` に保持し、送信完了・送信失敗になった時点で削除する（[SPEC-011](../spec/SPEC-011-account-lock-password-reset.md)・[ADR-039](../adr/ADR-039-email-template-params-storage.md)）
 - 有効期限は発行から30分とする（`expires_at = created_at + 30分`）
 - 有効期限ちょうどの時刻は失効済みとして扱う（`now >= expires_at` で失効）
 - 同じユーザーに対して新しいトークンを発行するとき、対象ユーザーの users 行を `SELECT ... FOR UPDATE` でロックしてから、同じユーザーの既存のトークンをすべて削除する（同時の申請を直列化し、未使用トークンを1件だけ残す）
