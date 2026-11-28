@@ -54,7 +54,7 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
    - `Run Semgrep` ステップの前に、`working-directory: .semgrep` で `semgrep scan --test .` を実行するステップ
    - `Run Semgrep` ステップの `semgrep scan` に `--config .semgrep/` と `--exclude .semgrep`
 
-lefthookには組み込まない（Semgrepはレジストリのルールセットを含め実行に時間がかかるため、CIだけで実行する）。
+カスタムルールだけを実行する場合も、Claude Codeのhook・lefthookには組み込まず、CIだけで実行する（理由は ADR-040 の「Claude Code の hook・pre-commit では実行しない」）。
 
 ---
 
