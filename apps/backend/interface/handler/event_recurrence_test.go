@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -796,5 +797,37 @@ func TestEventHandler_UpdateEvent_ScopeValidationError_Returns400WithDetails(t *
 	}
 	if len(resp.Details) != 1 || resp.Details[0].Field != "scope" || resp.Details[0].Code != "SCOPE_NOT_ALLOWED" {
 		t.Errorf("details: got %+v", resp.Details)
+	}
+}
+
+// The domain error carries no field, so the handler names startAt for the
+// form to show the error next to it.
+func TestEventHandler_UpdateEvent_DateChangeNotAllowed_Returns400WithStartAtDetail(t *testing.T) {
+	stub := &stubUpdateEventExec{
+		fn: func(context.Context, uuid.UUID, eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			return eventuc.UpdateEventOutput{}, fmt.Errorf("update: %w", rs.ErrRecurringOccurrenceDateChangeNotAllowed)
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+	w := httptest.NewRecorder()
+
+	h.UpdateEvent(w, putEventRequestAsUser(t, uuid.NewString(), validUpdateEventBody))
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Code    string `json:"code"`
+		Details []struct {
+			Field string `json:"field"`
+			Code  string `json:"code"`
+		} `json:"details"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Code != "VALIDATION_ERROR" || len(resp.Details) != 1 ||
+		resp.Details[0].Field != "startAt" || resp.Details[0].Code != "DATE_CHANGE_NOT_ALLOWED" {
+		t.Errorf("got code %q details %+v", resp.Code, resp.Details)
 	}
 }
