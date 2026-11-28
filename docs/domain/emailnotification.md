@@ -11,7 +11,7 @@
 | EmailNotification | 送信履歴1件を表す集約ルート。ID・ユーザーID・宛先アドレスのスナップショット・メール種別・状態・試行回数・時刻群・失敗コード・本文用パラメータを持つ |
 | EmailKind | メールの種別を表す値オブジェクト。種別の識別子をとる。具体的な値はメールの種類を追加する仕様書で定義する。各値には対応する `EmailTemplate` の登録が必須 |
 | EmailStatus | 送信履歴の状態を表す値オブジェクト。`pending`（送信待ち）・`sent`（送信完了）・`failed`（送信失敗）のいずれか |
-| EmailTemplate | メール種別ごとの件名・本文のテンプレートと、埋め込むパラメータのキーの定義。パスワードの埋め込みは禁止。アプリケーション起動時に静的レジストリへ登録し、`EmailKind` をキーに取り出す |
+| EmailTemplate | メール種別ごとの件名・本文のテンプレートと、埋め込むパラメータのキーの定義。パスワードの埋め込みは禁止。アプリケーション起動時に静的レジストリへ登録し、`EmailKind` をキーに取り出す。形式は [ADR-041](../adr/ADR-041-email-template-format.md) を参照 |
 | TemplateParams | 本文テンプレートに埋め込む1通分のパラメータ（リセット用URL等）。`pending` の間だけ EmailNotification に保持し、`sent` / `failed` に遷移した時点で空にする |
 | FailureCode | 送信失敗の原因を表す値オブジェクト。値と一時的・恒久的の分類は仕様書で定義する。送信先が返したエラー文は宛先アドレスを含みうるため保持しない |
 | RecipientEmail | 送信要求時点のユーザー登録メールアドレスをスナップショットした宛先アドレス。以後、ユーザー側のアドレス変更の影響を受けない |
@@ -82,5 +82,6 @@
 - [ADR-024: トランザクション管理層](../adr/ADR-024-transaction-management.md)
 - [ADR-038: メール通知の非同期送信とアウトボックス方式](../adr/ADR-038-email-async-outbox.md)
 - [ADR-039: メール送信待ちパラメータの保存方式](../adr/ADR-039-email-template-params-storage.md)
+- [ADR-041: メールテンプレートの形式とテンプレートエンジン](../adr/ADR-041-email-template-format.md)
 - [情報取り扱いガイドライン](../guidelines/data-handling-guidelines.md)
 - [User ドメイン](./user.md)

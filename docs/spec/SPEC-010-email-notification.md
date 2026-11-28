@@ -114,7 +114,7 @@
 - 送信要求は `UserID`・`EmailKind`・`TemplateParams` を受け取るユースケース層のコマンド（`SendEmailCommand`）として公開し、呼び出し元ユースケースのトランザクションに参加する（トランザクショナルアウトボックス方式）。これにより、業務データの永続化と送信履歴の `pending` 作成が原子的になる（[ADR-024](../adr/ADR-024-transaction-management.md)・[ADR-038](../adr/ADR-038-email-async-outbox.md)）
 - 実際の送信・再送・状態遷移・本文に入れる値のクリアは、送信ワーカー（APIサーバーと同一プロセス内の常駐コンポーネント）が担う。ワーカーは `pending` の履歴を `FOR UPDATE SKIP LOCKED` で1件確保して試行回数を加算し、確保をコミットしてから `EmailTransport` インターフェース経由でメールを送り、結果を別のトランザクションで記録する。`EmailTransport` の呼び出し中はDBのトランザクションを開かない（[ADR-038](../adr/ADR-038-email-async-outbox.md)）
 - `EmailTransport` は宛先・差出人・件名・本文を受け取り、「受け付けた」「一時的な失敗」「恒久的な失敗」のいずれかを返す。失敗のときは失敗コード（「制約条件」の表）を返す。送信サービス・送信プロトコルに依存する処理はこの実装に閉じ込める
-- `EmailKind` と対応する `EmailTemplate`（件名・本文・埋め込むパラメータのキー）はアプリケーション起動時に静的レジストリへ登録する。登録のない `EmailKind`、またはキーがテンプレートの定義と一致しない `TemplateParams` を指定した送信要求はエラーにし、集約を生成しない。宛先アドレスは `user.Repository.FindByID` で取得する
+- `EmailKind` と対応する `EmailTemplate`（件名・本文・埋め込むパラメータのキー）はアプリケーション起動時に静的レジストリへ登録する。登録のない `EmailKind`、またはキーがテンプレートの定義と一致しない `TemplateParams` を指定した送信要求はエラーにし、集約を生成しない。宛先アドレスは `user.Repository.FindByID` で取得する。テンプレートの形式とテンプレートエンジンは [ADR-041](../adr/ADR-041-email-template-format.md) を参照
 
 ### DB設計
 
