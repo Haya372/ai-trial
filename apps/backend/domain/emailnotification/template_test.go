@@ -11,6 +11,13 @@ import (
 
 const kindReset emailnotification.EmailKind = "password_reset"
 
+const (
+	testURL  = "https://example.com/r"
+	keyName  = "name"
+	keyURL   = "url"
+	bodyText = "body"
+)
+
 func mustTemplate(t *testing.T, subject, body string, keys ...string) emailnotification.EmailTemplate {
 	t.Helper()
 	tmpl, err := emailnotification.NewEmailTemplate(subject, body, keys)
@@ -38,9 +45,9 @@ func TestErrors_areDomainErrorsWithCodes(t *testing.T) {
 }
 
 func TestNewEmailTemplate_exposesKeysSorted(t *testing.T) {
-	tmpl := mustTemplate(t, "Hi {{.name}}", "{{.url}}", "url", "name")
+	tmpl := mustTemplate(t, "Hi {{.name}}", "{{.url}}", keyURL, keyName)
 	got := tmpl.Keys()
-	if len(got) != 2 || got[0] != "name" || got[1] != "url" {
+	if len(got) != 2 || got[0] != keyName || got[1] != keyURL {
 		t.Errorf("Keys() = %v, want [name url]", got)
 	}
 }
@@ -51,12 +58,12 @@ func TestNewEmailTemplate_rejectsInvalidDefinitions(t *testing.T) {
 		subject, body string
 		keys          []string
 	}{
-		{"subject syntax error", "Hi {{.name", "body", []string{"name"}},
+		{"subject syntax error", "Hi {{.name", bodyText, []string{keyName}},
 		{"body syntax error", "Hi", "{{if}}", nil},
-		{"undeclared key in subject", "Hi {{.name}}", "body", nil},
-		{"undeclared key in body", "Hi", "{{.url}}", []string{"name"}},
-		{"duplicated key", "{{.name}}", "body", []string{"name", "name"}},
-		{"empty key", "Hi", "body", []string{""}},
+		{"undeclared key in subject", "Hi {{.name}}", bodyText, nil},
+		{"undeclared key in body", "Hi", "{{.url}}", []string{keyName}},
+		{"duplicated key", "{{.name}}", bodyText, []string{keyName, keyName}},
+		{"empty key", "Hi", bodyText, []string{""}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -68,15 +75,15 @@ func TestNewEmailTemplate_rejectsInvalidDefinitions(t *testing.T) {
 }
 
 func TestEmailTemplate_CheckParams(t *testing.T) {
-	tmpl := mustTemplate(t, "Hi {{.name}}", "{{.url}}", "name", "url")
+	tmpl := mustTemplate(t, "Hi {{.name}}", "{{.url}}", keyName, keyURL)
 	tests := []struct {
 		name    string
 		params  map[string]string
 		wantErr bool
 	}{
-		{"exact keys", map[string]string{"name": "a", "url": "b"}, false},
-		{"missing key", map[string]string{"name": "a"}, true},
-		{"extra key", map[string]string{"name": "a", "url": "b", "token": "c"}, true},
+		{"exact keys", map[string]string{keyName: "a", keyURL: "b"}, false},
+		{"missing key", map[string]string{keyName: "a"}, true},
+		{"extra key", map[string]string{keyName: "a", keyURL: "b", "token": "c"}, true},
 		{"empty", nil, true},
 	}
 	for _, tt := range tests {
@@ -93,17 +100,17 @@ func TestEmailTemplate_CheckParams(t *testing.T) {
 }
 
 func TestEmailTemplate_CheckParams_errorOmitsValues(t *testing.T) {
-	tmpl := mustTemplate(t, "Hi", "{{.url}}", "url")
-	err := tmpl.CheckParams(emailnotification.NewTemplateParams(map[string]string{"secret": "https://x/reset?t=abc"}))
+	tmpl := mustTemplate(t, "Hi", "{{.url}}", keyURL)
+	err := tmpl.CheckParams(emailnotification.NewTemplateParams(map[string]string{"unknown": "https://x/reset?t=abc"}))
 	if err == nil || strings.Contains(err.Error(), "abc") {
 		t.Errorf("error = %v, want an error without the parameter value", err)
 	}
 }
 
 func TestEmailTemplate_Render_embedsParamsWithoutEscaping(t *testing.T) {
-	tmpl := mustTemplate(t, "Hello {{.name}}", "Reset: {{.url}}\n", "name", "url")
+	tmpl := mustTemplate(t, "Hello {{.name}}", "Reset: {{.url}}\n", keyName, keyURL)
 	got, err := tmpl.Render(emailnotification.NewTemplateParams(map[string]string{
-		"name": "<sakura>", "url": "https://example.com/r?a=1&b=2",
+		keyName: "<sakura>", keyURL: "https://example.com/r?a=1&b=2",
 	}))
 	if err != nil {
 		t.Fatalf("Render error = %v", err)
@@ -117,7 +124,7 @@ func TestEmailTemplate_Render_embedsParamsWithoutEscaping(t *testing.T) {
 }
 
 func TestEmailTemplate_Render_failsOnMismatchedParams(t *testing.T) {
-	tmpl := mustTemplate(t, "Hi", "{{.url}}", "url")
+	tmpl := mustTemplate(t, "Hi", "{{.url}}", keyURL)
 	_, err := tmpl.Render(emailnotification.NewTemplateParams(map[string]string{"other": "x"}))
 	if !errors.Is(err, emailnotification.ErrInvalidTemplateParams) {
 		t.Errorf("Render error = %v, want ErrInvalidTemplateParams", err)
@@ -125,9 +132,9 @@ func TestEmailTemplate_Render_failsOnMismatchedParams(t *testing.T) {
 }
 
 func TestEmailTemplate_Render_rejectsNewlineInSubject(t *testing.T) {
-	tmpl := mustTemplate(t, "Hi {{.name}}", "body", "name")
+	tmpl := mustTemplate(t, "Hi {{.name}}", bodyText, keyName)
 	for _, name := range []string{"a\r\nBcc: x@example.com", "a\nb", "a\rb"} {
-		got, err := tmpl.Render(emailnotification.NewTemplateParams(map[string]string{"name": name}))
+		got, err := tmpl.Render(emailnotification.NewTemplateParams(map[string]string{keyName: name}))
 		if err == nil {
 			t.Errorf("Render(%q) = %+v, want error", name, got)
 			continue
@@ -146,7 +153,7 @@ func TestEmailTemplate_Render_zeroValueFails(t *testing.T) {
 }
 
 func TestTemplateRegistry_Template(t *testing.T) {
-	tmpl := mustTemplate(t, "Hi", "{{.url}}", "url")
+	tmpl := mustTemplate(t, "Hi", "{{.url}}", keyURL)
 	registry := emailnotification.NewTemplateRegistry(map[emailnotification.EmailKind]emailnotification.EmailTemplate{
 		kindReset: tmpl,
 	})
@@ -155,7 +162,7 @@ func TestTemplateRegistry_Template(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Template error = %v", err)
 	}
-	if len(got.Keys()) != 1 || got.Keys()[0] != "url" {
+	if len(got.Keys()) != 1 || got.Keys()[0] != keyURL {
 		t.Errorf("Template returned keys %v", got.Keys())
 	}
 
@@ -167,7 +174,7 @@ func TestTemplateRegistry_Template(t *testing.T) {
 
 func TestTemplateRegistry_CheckRequest(t *testing.T) {
 	registry := emailnotification.NewTemplateRegistry(map[emailnotification.EmailKind]emailnotification.EmailTemplate{
-		kindReset: mustTemplate(t, "Hi", "{{.url}}", "url"),
+		kindReset: mustTemplate(t, "Hi", "{{.url}}", keyURL),
 	})
 	tests := []struct {
 		name    string
@@ -175,8 +182,11 @@ func TestTemplateRegistry_CheckRequest(t *testing.T) {
 		params  map[string]string
 		wantErr error
 	}{
-		{"valid", kindReset, map[string]string{"url": "x"}, nil},
-		{"unregistered kind", "account_locked", map[string]string{"url": "x"}, emailnotification.ErrEmailTemplateNotRegistered},
+		{"valid", kindReset, map[string]string{keyURL: "x"}, nil},
+		{
+			"unregistered kind", "account_locked", map[string]string{keyURL: "x"},
+			emailnotification.ErrEmailTemplateNotRegistered,
+		},
 		{"mismatched keys", kindReset, map[string]string{"link": "x"}, emailnotification.ErrInvalidTemplateParams},
 	}
 	for _, tt := range tests {
@@ -194,7 +204,7 @@ func TestTemplateRegistry_CheckRequest(t *testing.T) {
 
 func TestNewTemplateRegistry_copiesInput(t *testing.T) {
 	templates := map[emailnotification.EmailKind]emailnotification.EmailTemplate{
-		kindReset: mustTemplate(t, "Hi", "body"),
+		kindReset: mustTemplate(t, "Hi", bodyText),
 	}
 	registry := emailnotification.NewTemplateRegistry(templates)
 	delete(templates, kindReset)

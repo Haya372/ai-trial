@@ -31,6 +31,8 @@ var (
 // EmailNotification is the aggregate root for the delivery record of one
 // email. Transition methods return a new value and leave the receiver as
 // is. See docs/domain/emailnotification.md for the state machine.
+//
+//nolint:interfacebloat // one accessor per field of the aggregate plus its transitions
 type EmailNotification interface {
 	ID() uuid.UUID
 	UserID() uuid.UUID
@@ -129,28 +131,6 @@ func Restore(p RestoreParams) (EmailNotification, error) {
 	return n, nil
 }
 
-func (n *notificationEntity) checkInvariants() error {
-	if _, err := NewEmailStatus(string(n.status)); err != nil {
-		return err
-	}
-	var broken string
-	switch {
-	case n.attemptCount < 0:
-		broken = "attempt count is negative"
-	case (n.status == StatusPending) != (n.nextAttemptAt != nil):
-		broken = "next attempt time must be set exactly while pending"
-	case n.status == StatusSent && n.sentAt == nil:
-		broken = "sent notification has no sent time"
-	case n.status == StatusFailed && n.lastFailureCode == nil:
-		broken = "failed notification has no failure code"
-	case n.status.IsTerminal() && !n.params.IsEmpty():
-		broken = "terminal notification still has template params"
-	default:
-		return nil
-	}
-	return fmt.Errorf("%w: %s (id %s)", errBrokenInvariant, broken, n.id)
-}
-
 func (n *notificationEntity) ID() uuid.UUID             { return n.id }
 func (n *notificationEntity) UserID() uuid.UUID         { return n.userID }
 func (n *notificationEntity) Recipient() RecipientEmail { return n.recipient }
@@ -233,4 +213,30 @@ func (n *notificationEntity) fail(code FailureCode) EmailNotification {
 	copied.nextAttemptAt = nil
 	copied.params = TemplateParams{}
 	return &copied
+}
+
+func (n *notificationEntity) checkInvariants() error {
+	if _, err := NewEmailStatus(string(n.status)); err != nil {
+		return err
+	}
+	if broken := n.brokenInvariant(); broken != "" {
+		return fmt.Errorf("%w: %s (id %s)", errBrokenInvariant, broken, n.id)
+	}
+	return nil
+}
+
+func (n *notificationEntity) brokenInvariant() string {
+	switch {
+	case n.attemptCount < 0:
+		return "attempt count is negative"
+	case (n.status == StatusPending) != (n.nextAttemptAt != nil):
+		return "next attempt time must be set exactly while pending"
+	case n.status == StatusSent && n.sentAt == nil:
+		return "sent notification has no sent time"
+	case n.status == StatusFailed && n.lastFailureCode == nil:
+		return "failed notification has no failure code"
+	case n.status.IsTerminal() && !n.params.IsEmpty():
+		return "terminal notification still has template params"
+	}
+	return ""
 }

@@ -102,21 +102,21 @@ func TestNewRecipientEmail_validatesFormat(t *testing.T) {
 }
 
 func TestTemplateParams_copiesInputAndOutput(t *testing.T) {
-	src := map[string]string{"reset_url": "https://example.com/r", "name": "sakura"}
+	src := map[string]string{"reset_url": testURL, keyName: "sakura"}
 	params := emailnotification.NewTemplateParams(src)
 
 	src["reset_url"] = "mutated"
-	if params.Values()["reset_url"] != "https://example.com/r" {
+	if params.Values()["reset_url"] != testURL {
 		t.Error("mutating the input map changed TemplateParams")
 	}
 
 	out := params.Values()
-	out["name"] = "mutated"
-	if params.Values()["name"] != "sakura" {
+	out[keyName] = "mutated"
+	if params.Values()[keyName] != "sakura" {
 		t.Error("mutating Values() changed TemplateParams")
 	}
 
-	if got, want := params.Keys(), []string{"name", "reset_url"}; !slices.Equal(got, want) {
+	if got, want := params.Keys(), []string{keyName, "reset_url"}; !slices.Equal(got, want) {
 		t.Errorf("Keys() = %v, want %v", got, want)
 	}
 	if params.IsEmpty() {

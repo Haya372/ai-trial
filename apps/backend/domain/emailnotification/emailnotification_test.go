@@ -20,7 +20,7 @@ func newPending(t *testing.T) emailnotification.EmailNotification {
 	}
 	return emailnotification.New(
 		uuid.New(), uuid.New(), recipient, kindReset,
-		emailnotification.NewTemplateParams(map[string]string{"url": "https://example.com/r"}),
+		emailnotification.NewTemplateParams(map[string]string{keyURL: testURL}),
 		baseTime,
 	)
 }
@@ -63,7 +63,7 @@ func assertTerminal(t *testing.T, n emailnotification.EmailNotification, status 
 func TestNew_initialState(t *testing.T) {
 	id, userID := uuid.New(), uuid.New()
 	recipient, _ := emailnotification.NewRecipientEmail("sakura@example.com")
-	params := emailnotification.NewTemplateParams(map[string]string{"url": "https://example.com/r"})
+	params := emailnotification.NewTemplateParams(map[string]string{keyURL: testURL})
 
 	n := emailnotification.New(id, userID, recipient, kindReset, params, baseTime)
 
@@ -94,7 +94,7 @@ func TestNew_initialState(t *testing.T) {
 	if _, ok := n.LastFailureCode(); ok {
 		t.Error("LastFailureCode() is set")
 	}
-	if n.TemplateParams().Values()["url"] != "https://example.com/r" {
+	if n.TemplateParams().Values()[keyURL] != testURL {
 		t.Errorf("TemplateParams() = %v", n.TemplateParams().Values())
 	}
 }
@@ -236,7 +236,8 @@ func TestTransitions_rejectTerminalStates(t *testing.T) {
 		if _, err := n.MarkSent(baseTime); !errors.Is(err, emailnotification.ErrNotPending) {
 			t.Errorf("%s: MarkSent error = %v, want ErrNotPending", n.Status(), err)
 		}
-		if _, err := n.RecordFailure(emailnotification.FailureTimeout, baseTime); !errors.Is(err, emailnotification.ErrNotPending) {
+		_, err := n.RecordFailure(emailnotification.FailureTimeout, baseTime)
+		if !errors.Is(err, emailnotification.ErrNotPending) {
 			t.Errorf("%s: RecordFailure error = %v, want ErrNotPending", n.Status(), err)
 		}
 	}
@@ -247,7 +248,8 @@ func TestResultTransitions_requireClaim(t *testing.T) {
 	if _, err := n.MarkSent(baseTime); !errors.Is(err, emailnotification.ErrNotClaimed) {
 		t.Errorf("MarkSent error = %v, want ErrNotClaimed", err)
 	}
-	if _, err := n.RecordFailure(emailnotification.FailureTimeout, baseTime); !errors.Is(err, emailnotification.ErrNotClaimed) {
+	_, err := n.RecordFailure(emailnotification.FailureTimeout, baseTime)
+	if !errors.Is(err, emailnotification.ErrNotClaimed) {
 		t.Errorf("RecordFailure error = %v, want ErrNotClaimed", err)
 	}
 }
@@ -265,7 +267,7 @@ func validRestoreParams(t *testing.T) emailnotification.RestoreParams {
 		AttemptCount:   1,
 		RequestedAt:    baseTime,
 		NextAttemptAt:  &next,
-		TemplateParams: emailnotification.NewTemplateParams(map[string]string{"url": "x"}),
+		TemplateParams: emailnotification.NewTemplateParams(map[string]string{keyURL: "x"}),
 	}
 }
 
@@ -298,16 +300,17 @@ func TestRestore_returnsStoredFields(t *testing.T) {
 func TestRestore_rejectsBrokenInvariants(t *testing.T) {
 	ts := baseTime
 	code := emailnotification.FailureAuthFailed
+	empty := emailnotification.NewTemplateParams(nil)
 	tests := map[string]func(p *emailnotification.RestoreParams){
 		"pending without next attempt": func(p *emailnotification.RestoreParams) { p.NextAttemptAt = nil },
 		"sent with next attempt": func(p *emailnotification.RestoreParams) {
-			p.Status, p.SentAt, p.TemplateParams = emailnotification.StatusSent, &ts, emailnotification.NewTemplateParams(nil)
+			p.Status, p.SentAt, p.TemplateParams = emailnotification.StatusSent, &ts, empty
 		},
 		"sent without sent_at": func(p *emailnotification.RestoreParams) {
-			p.Status, p.NextAttemptAt, p.TemplateParams = emailnotification.StatusSent, nil, emailnotification.NewTemplateParams(nil)
+			p.Status, p.NextAttemptAt, p.TemplateParams = emailnotification.StatusSent, nil, empty
 		},
 		"failed without failure code": func(p *emailnotification.RestoreParams) {
-			p.Status, p.NextAttemptAt, p.TemplateParams = emailnotification.StatusFailed, nil, emailnotification.NewTemplateParams(nil)
+			p.Status, p.NextAttemptAt, p.TemplateParams = emailnotification.StatusFailed, nil, empty
 		},
 		"terminal with params": func(p *emailnotification.RestoreParams) {
 			p.Status, p.NextAttemptAt, p.LastFailureCode = emailnotification.StatusFailed, nil, &code

@@ -40,6 +40,9 @@ func (c FailureCode) IsTransient() bool {
 	switch c {
 	case FailureConnectionFailed, FailureTimeout, FailureRateLimited, FailureTemporaryRejection:
 		return true
+	case FailureInvalidRecipient, FailureRecipientRejected, FailureAuthFailed, FailurePermanentRejection,
+		FailureTemplateRenderFailed, FailureWorkerInterrupted:
+		return false
 	}
 	return false
 }
