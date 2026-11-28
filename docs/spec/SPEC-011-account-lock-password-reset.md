@@ -329,20 +329,21 @@ sequenceDiagram
     alt 存在しない
         API-->>UI: 410 { code: "GONE", message: "..." }
     else 存在する
-    UC->>DB: BEGIN
-    UC->>DB: SELECT id FROM users WHERE id=user_id FOR UPDATE（users 行を先にロックする）
-    UC->>DB: SELECT id, expires_at FROM password_reset_tokens WHERE token_hash = sha256(token) FOR UPDATE
-    Note over UC,DB: 同じトークンでの同時送信・同時の申請は行ロックで直列化され、後続は削除済みのため 410 になる
-    alt 存在しない or expires_at <= NOW
-        UC->>DB: ROLLBACK
-        API-->>UI: 410 { code: "GONE", message: "..." }
-    else 有効
-        UC->>DB: UPDATE users SET password_hash=bcrypt(password),<br/>failed_login_count=0, locked_until=NULL WHERE id=user_id
-        UC->>DB: DELETE FROM sessions WHERE user_id=?（全端末のセッションを削除）
-        UC->>DB: DELETE FROM password_reset_tokens WHERE id=?（使用済みトークンを削除）
-        UC->>DB: COMMIT
-        API-->>UI: 204 No Content
-    end
+        UC->>UC: newHash = bcrypt(password)（行ロックを持つ前に計算する）
+        UC->>DB: BEGIN
+        UC->>DB: SELECT id FROM users WHERE id=user_id FOR UPDATE（users 行を先にロックする）
+        UC->>DB: SELECT id, expires_at FROM password_reset_tokens WHERE token_hash = sha256(token) FOR UPDATE
+        Note over UC,DB: 同じトークンでの同時送信・同時の申請は行ロックで直列化され、後続は削除済みのため 410 になる
+        alt 存在しない or expires_at <= NOW
+            UC->>DB: ROLLBACK
+            API-->>UI: 410 { code: "GONE", message: "..." }
+        else 有効
+            UC->>DB: UPDATE users SET password_hash=newHash,<br/>failed_login_count=0, locked_until=NULL WHERE id=user_id
+            UC->>DB: DELETE FROM sessions WHERE user_id=?（全端末のセッションを削除）
+            UC->>DB: DELETE FROM password_reset_tokens WHERE id=?（使用済みトークンを削除）
+            UC->>DB: COMMIT
+            API-->>UI: 204 No Content
+        end
     end
     UI->>User: 410 なら「リンクが無効です」を表示し再申請を促す、204 なら「パスワードを再設定しました」を表示しログイン画面へ遷移
 ```
