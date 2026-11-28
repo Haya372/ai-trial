@@ -29,3 +29,19 @@ properties:
     description: >-
       Tag IDs to attach in attachment order. Max 5, no duplicates, owner-only
       tags. Omitted means existing tags are kept; empty array removes all tags.
+  recurrence:
+    oneOf:
+      - $ref: "./RecurrenceSpec.yaml"
+      - type: "null"
+    description: >-
+      Omitted keeps the current recurrence; null stops repeating; an object
+      sets the recurrence (a change when it differs from the current rule).
+  scope:
+    type: string
+    enum:
+      - single
+      - future
+      - all
+    description: >-
+      Required when the event belongs to a series. A one-off event accepts
+      only single or omission.

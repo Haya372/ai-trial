@@ -186,21 +186,28 @@ func buildCreateEventInput(body api.CreateEventJSONRequestBody) eventuc.CreateEv
 		in.TagIDs = make([]uuid.UUID, len(*body.TagIds))
 		copy(in.TagIDs, *body.TagIds)
 	}
-	if body.Recurrence != nil {
-		ri := &eventuc.RecurrenceInput{
-			PatternType: string(body.Recurrence.Pattern.Type),
-			EndType:     string(body.Recurrence.End.Type),
-			UntilDate:   body.Recurrence.End.UntilDate,
-			Count:       body.Recurrence.End.Count,
-			Timezone:    body.Recurrence.Timezone,
-		}
-		if body.Recurrence.Pattern.MonthlyNth != nil {
-			s := string(*body.Recurrence.Pattern.MonthlyNth)
-			ri.MonthlyNth = &s
-		}
-		in.Recurrence = ri
-	}
+	in.Recurrence = toRecurrenceInput(body.Recurrence)
 	return in
+}
+
+// toRecurrenceInput copies the recurrence fields without validating them.
+// Returns nil when spec is nil.
+func toRecurrenceInput(spec *api.RecurrenceSpec) *eventuc.RecurrenceInput {
+	if spec == nil {
+		return nil
+	}
+	ri := &eventuc.RecurrenceInput{
+		PatternType: string(spec.Pattern.Type),
+		EndType:     string(spec.End.Type),
+		UntilDate:   spec.End.UntilDate,
+		Count:       spec.End.Count,
+		Timezone:    spec.Timezone,
+	}
+	if spec.Pattern.MonthlyNth != nil {
+		s := string(*spec.Pattern.MonthlyNth)
+		ri.MonthlyNth = &s
+	}
+	return ri
 }
 
 // toEventResponse builds the EventResponse for create/update endpoints.
@@ -356,7 +363,7 @@ func (h *EventHandler) UpdateEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags, nil))
+	respBody, err := json.Marshal(toEventResponse(out.Event, out.Tags, out.Series))
 	if err != nil {
 		h.logger.Error("failed to marshal update event response", "error", err)
 		response.WriteError(w, http.StatusInternalServerError, errCodeInternal, "Internal server error")
@@ -397,23 +404,43 @@ type eventBodyDateTimes struct {
 }
 
 func decodeEventBody(r *http.Request, dst any) error {
+	_, err := decodeEventBodyRaw(r, dst)
+	return err
+}
+
+// decodeEventBodyRaw is decodeEventBody that also returns the raw body, for
+// a caller that needs to see more of the original JSON.
+func decodeEventBodyRaw(r *http.Request, dst any) ([]byte, error) {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := json.Unmarshal(raw, dst); err != nil {
-		return err
+		return nil, err
 	}
 	var dt eventBodyDateTimes
 	if err := json.Unmarshal(raw, &dt); err != nil {
-		return err
+		return nil, err
 	}
-	return requireUTCDateTimes(dt.StartAt, dt.EndAt)
+	return raw, requireUTCDateTimes(dt.StartAt, dt.EndAt)
+}
+
+// updateBodyRecurrence keeps recurrence as raw JSON: the generated
+// *RecurrenceSpec is nil both when the key is omitted (keep the recurrence)
+// and when it is null (stop repeating), while RawMessage stays nil only for
+// an omitted key.
+type updateBodyRecurrence struct {
+	Recurrence json.RawMessage `json:"recurrence"`
 }
 
 func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventInput, error) {
 	var body api.UpdateEventRequest
-	if err := decodeEventBody(r, &body); err != nil {
+	raw, err := decodeEventBodyRaw(r, &body)
+	if err != nil {
+		return eventuc.UpdateEventInput{}, err
+	}
+	var rec updateBodyRecurrence
+	if err := json.Unmarshal(raw, &rec); err != nil {
 		return eventuc.UpdateEventInput{}, err
 	}
 
@@ -437,6 +464,13 @@ func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventI
 		uuids := make([]uuid.UUID, len(*body.TagIds))
 		copy(uuids, *body.TagIds)
 		in.TagIDs = &uuids
+	}
+	in.Recurrence = eventuc.RecurrenceUpdate{
+		Present: rec.Recurrence != nil,
+		Spec:    toRecurrenceInput(body.Recurrence),
+	}
+	if body.Scope != nil {
+		in.Scope = string(*body.Scope)
 	}
 	return in, nil
 }

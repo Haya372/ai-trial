@@ -678,3 +678,122 @@ func TestEventHandler_CreateEvent_UntilDateSeries_ReturnsRecurringSeries(t *test
 		t.Errorf("timezone mismatch: got %q", resp.RecurringSeries.Timezone)
 	}
 }
+
+// TestEventHandler_UpdateEvent_RecurrenceAndScope_Mapped verifies that the
+// handler tells omitted, null and object recurrence apart and passes scope.
+func TestEventHandler_UpdateEvent_RecurrenceAndScope_Mapped(t *testing.T) {
+	const times = `"title":"x","startAt":"2026-09-01T00:00:00Z","endAt":"2026-09-01T01:00:00Z"`
+	tests := []struct {
+		name      string
+		body      string
+		wantInput eventuc.UpdateEventInput
+	}{
+		{"omitted", `{` + times + `}`, eventuc.UpdateEventInput{}},
+		{
+			"null with single",
+			`{` + times + `,"recurrence":null,"scope":"single"}`,
+			eventuc.UpdateEventInput{Recurrence: eventuc.RecurrenceUpdate{Present: true}, Scope: "single"},
+		},
+		{
+			"object",
+			`{` + times + `,"recurrence":{"pattern":{"type":"monthly_nth_weekday","monthlyNth":"last"},` +
+				`"end":{"type":"count","count":3},"timezone":"Asia/Tokyo"},"scope":"future"}`,
+			eventuc.UpdateEventInput{
+				Recurrence: eventuc.RecurrenceUpdate{Present: true, Spec: &eventuc.RecurrenceInput{
+					PatternType: "monthly_nth_weekday", MonthlyNth: ptrTo("last"),
+					EndType: "count", Count: ptrTo(3), Timezone: "Asia/Tokyo",
+				}},
+				Scope: "future",
+			},
+		},
+		// The command, not the handler, rejects a value outside the enum.
+		{"unknown scope", `{` + times + `,"scope":"weekly"}`, eventuc.UpdateEventInput{Scope: "weekly"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured eventuc.UpdateEventInput
+			stub := &stubUpdateEventExec{
+				fn: func(_ context.Context, uid uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+					captured = in
+					ev, _ := domainevent.New(in.ID, uid, in.Title, "", in.StartAt, in.EndAt, "", "")
+					return eventuc.UpdateEventOutput{Event: ev}, nil
+				},
+			}
+			h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+			w := httptest.NewRecorder()
+
+			h.UpdateEvent(w, putEventRequestAsUser(t, uuid.NewString(), tt.body))
+
+			if w.Code != http.StatusOK {
+				t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+			}
+			if !reflect.DeepEqual(captured.Recurrence, tt.wantInput.Recurrence) {
+				t.Errorf("Recurrence: got %+v (spec %+v), want %+v (spec %+v)",
+					captured.Recurrence, captured.Recurrence.Spec, tt.wantInput.Recurrence, tt.wantInput.Recurrence.Spec)
+			}
+			if captured.Scope != tt.wantInput.Scope {
+				t.Errorf("Scope: got %q, want %q", captured.Scope, tt.wantInput.Scope)
+			}
+		})
+	}
+}
+
+// TestEventHandler_UpdateEvent_SeriesPresent_ReturnsRecurringSeries covers a
+// one-off event converted to a series.
+func TestEventHandler_UpdateEvent_SeriesPresent_ReturnsRecurringSeries(t *testing.T) {
+	userID := uuid.New()
+	series := mustBuildWeeklyCount2Series(t, userID)
+	stub := &stubUpdateEventExec{
+		fn: func(_ context.Context, _ uuid.UUID, in eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			ev, _ := domainevent.New(in.ID, userID, in.Title, "", in.StartAt, in.EndAt, "", "")
+			return eventuc.UpdateEventOutput{Event: ev.WithSeriesID(series.ID()), Series: series}, nil
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+	w := httptest.NewRecorder()
+
+	h.UpdateEvent(w, putEventRequestAsUser(t, uuid.NewString(), validUpdateEventBody))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		RecurringSeries json.RawMessage `json:"recurringSeries"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	assertJSONEqual(t, resp.RecurringSeries, `{"id":"`+series.ID().String()+
+		`","pattern":{"type":"weekly"},"end":{"type":"count","count":2},"timezone":"UTC"}`)
+}
+
+// TestEventHandler_UpdateEvent_ScopeValidationError_Returns400WithDetails
+// verifies that a scope error from the command reaches the response details.
+func TestEventHandler_UpdateEvent_ScopeValidationError_Returns400WithDetails(t *testing.T) {
+	stub := &stubUpdateEventExec{
+		fn: func(context.Context, uuid.UUID, eventuc.UpdateEventInput) (eventuc.UpdateEventOutput, error) {
+			return eventuc.UpdateEventOutput{}, &domain.ValidationError{Details: []domain.ValidationDetail{
+				{Field: "scope", Code: "SCOPE_NOT_ALLOWED", Message: "not allowed"},
+			}}
+		},
+	}
+	h := handler.NewEventHandler(&stubListEventsExec{}, &stubCreateEventExec{}, stub, &stubDeleteEventExec{}, testLogger)
+	w := httptest.NewRecorder()
+
+	h.UpdateEvent(w, putEventRequestAsUser(t, uuid.NewString(), validUpdateEventBody))
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		Details []struct{ Field, Code string } `json:"details"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(resp.Details) != 1 || resp.Details[0].Field != "scope" || resp.Details[0].Code != "SCOPE_NOT_ALLOWED" {
+		t.Errorf("details: got %+v", resp.Details)
+	}
+}
+
+func ptrTo[T any](v T) *T { return &v }
