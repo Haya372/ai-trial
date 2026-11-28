@@ -19,6 +19,9 @@ DATABASE_URL = "postgres://{{env.DB_USER}}:{{env.DB_PASSWORD}}@{{env.DB_HOST}}:{
 TURBO_TELEMETRY_DISABLED = "1"
 SEMGREP_ENABLE_VERSION_CHECK = "0"
 SEMGREP_SEND_METRICS = "off"
+# Claude Code's sandbox denies writes to ~/.semgrep, where Semgrep writes these by default.
+SEMGREP_LOG_FILE = "{{ get_env(name='TMPDIR', default='/tmp') }}/semgrep.log"
+SEMGREP_SETTINGS_FILE = "{{ get_env(name='TMPDIR', default='/tmp') }}/semgrep-settings.yml"
 
 [tasks.git-clean]
 run = "bash scripts/git-clean-branches.sh"

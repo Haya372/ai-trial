@@ -25,12 +25,36 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 
 | 原因カテゴリ | 修正対象 | 判断基準・具体的な直し方 |
 |---|---|---|
-| ツールで防げる | `lefthook.yml`（pre-commit/pre-push）、`.github/workflows/*.yml`、linter設定、Claude Codeのhook設定 | まず既存のhook（PostEditでlintを回す設定など）で既に防げていないか確認する。防げているのに再発した場合のみ、検知できるチェックを追加できるか検討する。ローカルで速く実行できるものは pre-commit/PostEdit、ビルドなど重いものは pre-push、ローカルで再現しにくいものは CI に追加する。既存の job があれば流用し、新設は最小限にする |
+| ツールで防げる | `lefthook.yml`（pre-commit/pre-push）、`.github/workflows/*.yml`、linter設定、Semgrepのカスタムルール（`.semgrep/`）、Claude Codeのhook設定 | まず既存のhook（PostEditでlintを回す設定など）で既に防げていないか確認する。防げているのに再発した場合のみ、検知できるチェックを追加できるか検討する。ローカルで速く実行できるものは pre-commit/PostEdit、ビルドなど重いものは pre-push、ローカルで再現しにくいものは CI に追加する。既存の job があれば流用し、新設は最小限にする。コードパターンの検出は、既存linter（golangci-lint・oxlint・Biome等）のルール有効化・設定で表現できればそれを使い、表現できないプロジェクト固有のパターン（特定APIの誤用、レイヤー間の禁止された呼び出し等）だけを下記「Semgrepのカスタムルールを追加する」の手順でSemgrepのカスタムルールにする |
 | スキル不足 | `.agents/skills/<該当スキル>/SKILL.md` | 曖昧だった手順・欠けていた分岐を追記する。既存の見出し構成（目的/手順/チェックリスト）を壊さず、該当ステップに追記する。新規セクションを作る前に既存セクションへの追記で足りないか検討する |
 | スキル未参照 | 該当スキルの `description`、および呼び出し元スキル・`AGENTS.md` の参照表 | `description` に呼び出しトリガーとなる発言例・状況を追加する。呼び出し元からの参照が漏れている場合は `AGENTS.md` の表や関連スキル本文にリンクを追加する |
 | 指示の曖昧さ | `docs/guidelines/` 配下の該当ドキュメント、または該当スキル | プロジェクト全体に適用される制約は `docs/guidelines/` にまとめる（既存ドキュメントに該当する節があれば追記し、重複を避ける）。`AGENTS.md`/`CLAUDE.md` には本文を直接書かず、そのドキュメントへの参照だけを置く。1スキルに閉じる話であればAGENTS.mdでも `docs/guidelines/` でもなく該当スキルに書く |
 | エージェントの判断 | 該当スキルの「よくある落とし穴」「禁止事項」節 | 「〜してはいけない」を明示する。既存スキルに該当節があれば追記、なければ新設する |
 | 承認の繰り返し | `.claude/settings.local.json` の `permissions.allow`、または `scripts/` | 読み取り専用・副作用のない操作は allowlist に追加する。副作用のある操作や複数コマンドの組合せはスクリプト化し、スクリプト単位で許可する |
+
+### Semgrepのカスタムルールを追加する
+
+カスタムルールはCIの `.github/workflows/sast.yml` の Semgrep job で実行する（導入経緯は ADR-040）。
+
+1. テスト対象ファイルを書く。ファイル名は `.semgrep/<rule-id>.<対象の拡張子>`（例: `<rule-id>.go`）にし、YAMLを対象にするルールだけ `<rule-id>.test.yml` にする（`<rule-id>.yml` はルールファイルと衝突するため）。検出すべき行の直前に `ruleid: <rule-id>`、検出してはいけない行の直前に `ok: <rule-id>` を、対象言語のコメントとして書く（Go・TypeScript: `// ruleid: <rule-id>`、YAML: `# ruleid: <rule-id>`）
+2. ルールを `.semgrep/<rule-id>.yml` に書く。`message` には、検出したコードをどう直すかを書く
+3. ルールのテストを実行し、`All tests passed` と表示されることを確認する。`.semgrep/` の中をカレントディレクトリにして `.` を渡す（リポジトリルートから `--test .semgrep/` を渡すと、ドットで始まるディレクトリのテストが見つからず、0件のまま成功する）
+
+   ```bash
+   mise exec -C .semgrep -- semgrep scan --test .
+   ```
+
+4. コードベースに対して実行し、既存コードの検出結果を確認する。既存の違反はこのPRで修正する（`--exclude` は手順1のテスト対象ファイルを検出対象から外す）
+
+   ```bash
+   mise exec -- semgrep scan --config .semgrep/ --exclude .semgrep --error
+   ```
+
+5. `sast.yml` に以下がない場合は追加する
+   - `Run Semgrep` ステップの前に、`working-directory: .semgrep` で `semgrep scan --test .` を実行するステップ
+   - `Run Semgrep` ステップの `semgrep scan` に `--config .semgrep/` と `--exclude .semgrep`
+
+カスタムルールだけを実行する場合も、Claude Codeのhook・lefthookには組み込まず、CIだけで実行する（理由は ADR-040 の「決定」の「SAST」節）。
 
 ---
 
