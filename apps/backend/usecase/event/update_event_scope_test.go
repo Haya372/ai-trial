@@ -27,6 +27,7 @@ const (
 	fieldScope          = "scope"
 	codeNotInSeries     = "NOT_IN_SERIES"
 	codeScopeNotAllowed = "SCOPE_NOT_ALLOWED"
+	fieldTimezone       = "recurrence.timezone"
 )
 
 // The second occurrence of a weekly series that started on Monday 2026-11-23.
@@ -259,7 +260,11 @@ func TestUpdateEventCommand_Execute_OneOff_InvalidRecurrence_ReturnsValidationEr
 		// A new rule still needs 2 occurrences, unlike a rule sent back unchanged.
 		{"count 1", weeklyCountInput(1), fieldCount, codeOutOfRange},
 		{"count 0", weeklyCountInput(0), fieldCount, codeOutOfRange},
-		{"timezone empty", &eventuc.RecurrenceInput{PatternType: patternWeekly, EndType: "indefinite"}, "recurrence.timezone", codeRequired},
+		{
+			"timezone empty",
+			&eventuc.RecurrenceInput{PatternType: patternWeekly, EndType: "indefinite"},
+			fieldTimezone, codeRequired,
+		},
 		{
 			"one occurrence before the until date",
 			&eventuc.RecurrenceInput{

@@ -42,7 +42,9 @@ func TestUpdateEventCommand_Execute_ValidInput_UpdatesAndReturnsEvent(t *testing
 		},
 	)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:          eventID,
 		Title:       newTitle,
@@ -77,7 +79,9 @@ func TestUpdateEventCommand_Execute_EndAtBeforeStartAt_ReturnsValidationError(t 
 
 	// Body validation fails before entering the transaction, so FindByIDForUpdate
 	// must NOT be called.
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -100,7 +104,9 @@ func TestUpdateEventCommand_Execute_EmptyTitle_ReturnsValidationError(t *testing
 
 	// Body validation fails before entering the transaction, so FindByIDForUpdate
 	// must NOT be called.
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   "",
@@ -121,7 +127,9 @@ func TestUpdateEventCommand_Execute_EventNotFound_ReturnsEventNotFoundError(t *t
 
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(nil, domainevent.ErrEventNotFound)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -146,7 +154,9 @@ func TestUpdateEventCommand_Execute_NotOwner_ReturnsEventNotFoundError(t *testin
 	existing, _ := domainevent.New(eventID, ownerID, "Title", "", start, end, "", "")
 	repo.EXPECT().FindByID(gomock.Any(), eventID).Return(existing, nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), otherUserID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -172,7 +182,9 @@ func TestUpdateEventCommand_Execute_PastEvent_AllowsUpdate(t *testing.T) {
 	expectLockTarget(repo, existing)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   "Updated past event",
@@ -197,7 +209,9 @@ func TestUpdateEventCommand_Execute_RepoUpdateError_ReturnsError(t *testing.T) {
 	expectLockTarget(repo, existing)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(errDBFailure)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -268,7 +282,9 @@ func TestUpdateEventCommand_Execute_KeepsExistingTagsLockedForShare(t *testing.T
 		},
 	)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, markingTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, markingTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 	})
@@ -301,7 +317,9 @@ func TestUpdateEventCommand_Execute_DropsTagDeletedConcurrently(t *testing.T) {
 		},
 	)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 	})
@@ -323,7 +341,9 @@ func TestUpdateEventCommand_Execute_TagLockError_ReturnsErrorWithoutUpdate(t *te
 	expectLockTarget(repo, existing)
 	tagRepo.EXPECT().FindByIDsForShare(gomock.Any(), gomock.Any()).Return(nil, errDBFailure)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 	})
@@ -367,7 +387,9 @@ func TestUpdateEventCommand_Execute_FindsAndUpdatesInsideTransaction(t *testing.
 		},
 	)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), markingTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagmock.NewMockRepository(ctrl), markingTxManager{}, testLogger,
+	)
 	if _, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID:      eventID,
 		Title:   newTitle,
@@ -395,7 +417,9 @@ func TestUpdateEventCommand_Execute_NilTagIDs_KeepsExistingTags(t *testing.T) {
 	)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 		TagIDs: nil, // nil = keep existing
@@ -423,7 +447,9 @@ func TestUpdateEventCommand_Execute_NilTagIDs_ReturnsKeptTagViewsInOrder(t *test
 		Return([]tag.Tag{stored3, stored1}, nil)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 	})
@@ -465,7 +491,9 @@ func TestUpdateEventCommand_Execute_EmptyTagIDs_RemovesAllTags(t *testing.T) {
 	)
 
 	emptyTagIDs := []uuid.UUID{}
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 		TagIDs: &emptyTagIDs,
@@ -497,7 +525,9 @@ func TestUpdateEventCommand_Execute_ReplaceTagIDs_UpdatesToNewTags(t *testing.T)
 	repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
 
 	newTagIDs := []uuid.UUID{newTag1, newTag2}
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	out, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 		TagIDs: &newTagIDs,
@@ -529,7 +559,9 @@ func TestUpdateEventCommand_Execute_TooManyReplacementTags_ReturnsValidationErro
 	// Tag count validation fails before entering the transaction, so FindByIDForUpdate
 	// must NOT be called.
 	tooMany := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()}
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: start, EndAt: end,
 		TagIDs: &tooMany,
@@ -565,7 +597,9 @@ func TestUpdateEventCommand_Execute_ForeignReplacementTag_ReturnsValidationError
 	)
 
 	tagIDs := []uuid.UUID{foreignTag}
-	cmd := eventuc.NewUpdateEventCommand(repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger)
+	cmd := eventuc.NewUpdateEventCommand(
+		repo, rsmock.NewMockRepository(ctrl), tagRepo, &testutil.StubTxManager{}, testLogger,
+	)
 	_, err := cmd.Execute(context.Background(), userID, eventuc.UpdateEventInput{
 		ID: eventID, Title: newTitle, StartAt: existing.StartAt(), EndAt: existing.EndAt(),
 		TagIDs: &tagIDs,

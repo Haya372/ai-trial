@@ -413,8 +413,10 @@ func TestExpandOccurrences_skipsDayRemovedFromCalendar(t *testing.T) {
 }
 
 func TestRecurrenceRule_Equal(t *testing.T) {
-	nth2, nthLast := "2", "last"
+	nth2, nthLast := "2", string(res.MonthlyNthLast)
 	base := func() res.RecurrenceRule { return mustRule(t, weekly, nil, mustCount(t, 3), tokyo) }
+	weeklyEnd := func(end res.RecurrenceEnd) res.RecurrenceRule { return mustRule(t, weekly, nil, end, tokyo) }
+	monthlyNth := func(nth *string) res.RecurrenceRule { return mustRule(t, monthlyNthW, nth, mustCount(t, 3), tokyo) }
 	restoredOne, err := res.RestoreCountEnd(1)
 	if err != nil {
 		t.Fatal(err)
@@ -426,12 +428,12 @@ func TestRecurrenceRule_Equal(t *testing.T) {
 	}{
 		// Separate NewSeriesTimezone calls load separate *time.Location values.
 		{"same values loaded separately", base(), base(), true},
-		{"count 1 restored twice", mustRule(t, daily, nil, restoredOne, tokyo), mustRule(t, daily, nil, restoredOne, tokyo), true},
+		{"count 1 restored twice", weeklyEnd(restoredOne), weeklyEnd(restoredOne), true},
 		{"pattern type", base(), mustRule(t, biweekly, nil, mustCount(t, 3), tokyo), false},
-		{"monthly nth", mustRule(t, monthlyNthW, &nth2, mustCount(t, 3), tokyo), mustRule(t, monthlyNthW, &nthLast, mustCount(t, 3), tokyo), false},
-		{"end type", base(), mustRule(t, weekly, nil, res.NewIndefiniteEnd(), tokyo), false},
-		{"count", base(), mustRule(t, weekly, nil, mustCount(t, 4), tokyo), false},
-		{"until date", mustRule(t, weekly, nil, until(t, 2027, 1, 1), tokyo), mustRule(t, weekly, nil, until(t, 2027, 1, 2), tokyo), false},
+		{"monthly nth", monthlyNth(&nth2), monthlyNth(&nthLast), false},
+		{"end type", base(), weeklyEnd(res.NewIndefiniteEnd()), false},
+		{"count", base(), weeklyEnd(mustCount(t, 4)), false},
+		{"until date", weeklyEnd(until(t, 2027, 1, 1)), weeklyEnd(until(t, 2027, 1, 2)), false},
 		{"timezone", base(), mustRule(t, weekly, nil, mustCount(t, 3), newYork), false},
 	}
 	for _, tt := range tests {

@@ -700,8 +700,8 @@ func TestEventHandler_UpdateEvent_RecurrenceAndScope_Mapped(t *testing.T) {
 				`"end":{"type":"count","count":3},"timezone":"Asia/Tokyo"},"scope":"future"}`,
 			eventuc.UpdateEventInput{
 				Recurrence: eventuc.RecurrenceUpdate{Present: true, Spec: &eventuc.RecurrenceInput{
-					PatternType: "monthly_nth_weekday", MonthlyNth: ptrTo("last"),
-					EndType: "count", Count: ptrTo(3), Timezone: "Asia/Tokyo",
+					PatternType: "monthly_nth_weekday", MonthlyNth: new("last"),
+					EndType: "count", Count: new(3), Timezone: "Asia/Tokyo",
 				}},
 				Scope: "future",
 			},
@@ -786,7 +786,10 @@ func TestEventHandler_UpdateEvent_ScopeValidationError_Returns400WithDetails(t *
 		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
 	}
 	var resp struct {
-		Details []struct{ Field, Code string } `json:"details"`
+		Details []struct {
+			Field string `json:"field"`
+			Code  string `json:"code"`
+		} `json:"details"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -795,5 +798,3 @@ func TestEventHandler_UpdateEvent_ScopeValidationError_Returns400WithDetails(t *
 		t.Errorf("details: got %+v", resp.Details)
 	}
 }
-
-func ptrTo[T any](v T) *T { return &v }
