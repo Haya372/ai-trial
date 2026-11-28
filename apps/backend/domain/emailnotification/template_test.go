@@ -74,6 +74,8 @@ func TestNewEmailTemplate_rejectsInvalidDefinitions(t *testing.T) {
 		{"root variable", "Hi", "{{$.url}}", []string{keyURL}},
 		{"bare dot", "Hi", "{{.}}", nil},
 		{"define and template", "Hi", `{{define "x"}}{{.url}}{{end}}{{template "x" .}}`, []string{keyURL}},
+		{"define named like the body", "Hi", `{{define "body"}}{{.url}}{{end}}`, []string{keyURL}},
+		{"define named like the subject", `{{define "subject"}}Hi{{end}}`, bodyText, nil},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

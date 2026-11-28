@@ -42,13 +42,13 @@ func NewEmailTemplate(subject, body string, keys []string) (EmailTemplate, error
 			return EmailTemplate{}, fmt.Errorf("%w: %q", errInvalidTemplateKeys, keys)
 		}
 	}
-	subjectTmpl, err := template.New("subject").Option("missingkey=error").Parse(subject)
+	subjectTmpl, err := parseTemplate("subject", subject)
 	if err != nil {
-		return EmailTemplate{}, fmt.Errorf("parse email subject template: %w", err)
+		return EmailTemplate{}, err
 	}
-	bodyTmpl, err := template.New("body").Option("missingkey=error").Parse(body)
+	bodyTmpl, err := parseTemplate("body", body)
 	if err != nil {
-		return EmailTemplate{}, fmt.Errorf("parse email body template: %w", err)
+		return EmailTemplate{}, err
 	}
 	if err := checkReferencedKeys(sorted, subjectTmpl, bodyTmpl); err != nil {
 		return EmailTemplate{}, err

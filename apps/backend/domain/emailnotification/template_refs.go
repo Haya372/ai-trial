@@ -15,6 +15,26 @@ import (
 // (ADR-041).
 var errUnsupportedTemplateSyntax = errors.New("unsupported email template syntax")
 
+// parseTemplate parses text as a single template and rejects define and
+// block. A define named like the template itself replaces it and leaves one
+// template, so the text is parsed under a second name as well: a define
+// can match at most one of the two names, so one of the parses always
+// ends up with more than one template.
+func parseTemplate(name, text string) (*template.Template, error) {
+	t, err := template.New(name).Option("missingkey=error").Parse(text)
+	if err != nil {
+		return nil, fmt.Errorf("parse email %s template: %w", name, err)
+	}
+	renamed, err := template.New(name + "-renamed").Parse(text)
+	if err != nil {
+		return nil, fmt.Errorf("parse email %s template: %w", name, err)
+	}
+	if len(t.Templates()) > 1 || len(renamed.Templates()) > 1 {
+		return nil, fmt.Errorf("%w: define or block in the %s", errUnsupportedTemplateSyntax, name)
+	}
+	return t, nil
+}
+
 // checkReferencedKeys requires the keys referenced across the templates to
 // be exactly keys (sorted), so neither an undeclared nor an unused key gets
 // through.
@@ -36,9 +56,6 @@ func checkReferencedKeys(keys []string, templates ...*template.Template) error {
 // referencedKeys returns the keys t references as {{.key}}, in every branch
 // whether or not it runs for some params.
 func referencedKeys(t *template.Template) (map[string]struct{}, error) {
-	if len(t.Templates()) > 1 {
-		return nil, fmt.Errorf("%w: define or block", errUnsupportedTemplateSyntax)
-	}
 	keys := map[string]struct{}{}
 	if err := collectList(t.Root, keys); err != nil {
 		return nil, err
