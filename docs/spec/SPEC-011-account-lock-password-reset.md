@@ -253,7 +253,7 @@ sequenceDiagram
             Note over UC,DB: 失敗回数・ロック・通知メールのいずれも変更しない
             UC->>DB: COMMIT
             UC-->>API: ErrPasswordMismatch
-        else パスワード不一致
+        else BEGIN 前の bcrypt 照合で不一致
             Note over UC,DB: locked_until <= NOW（自動解除済み）なら失敗回数を0から数え直す。<br/>加算後の失敗回数がちょうど5なら locked_until = NOW + 15分 を設定する
             UC->>DB: UPDATE users SET failed_login_count=…, locked_until=… WHERE id=?
             alt 加算後の失敗回数が5（このリクエストでロックした）
@@ -262,7 +262,7 @@ sequenceDiagram
             end
             UC->>DB: COMMIT
             UC-->>API: ErrPasswordMismatch
-        else パスワード一致
+        else BEGIN 前の bcrypt 照合で一致
             UC->>DB: UPDATE users SET failed_login_count=0, locked_until=NULL WHERE id=?
             UC->>DB: INSERT sessions（user_id, token_hash, expires_at）
             UC->>DB: COMMIT
