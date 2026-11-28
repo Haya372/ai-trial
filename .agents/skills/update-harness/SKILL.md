@@ -36,21 +36,23 @@ description: retrospectiveで洗い出した改善アクションを実際のフ
 
 カスタムルールはCIの `.github/workflows/sast.yml` の Semgrep job で実行する（導入経緯は ADR-040）。
 
-1. ルールを `.semgrep/<rule-id>.yml` に書く。`message` には、検出したコードをどう直すかを書く
-2. 同じディレクトリに同名のテスト対象ファイル（例: `.semgrep/<rule-id>.go`）を置き、検出すべき行の直前に `// ruleid: <rule-id>`、検出してはいけない行の直前に `// ok: <rule-id>` を書く。ルールより先にこのファイルを書く
-3. ルールのテストを実行し、全件パスすることを確認する
+1. テスト対象ファイルを書く。ファイル名は `.semgrep/<rule-id>.<対象の拡張子>`（例: `<rule-id>.go`）にし、YAMLを対象にするルールだけ `<rule-id>.test.yml` にする（`<rule-id>.yml` はルールファイルと衝突するため）。検出すべき行の直前に `ruleid: <rule-id>`、検出してはいけない行の直前に `ok: <rule-id>` を、対象言語のコメント記法（`//`・`#` 等）で書く
+2. ルールを `.semgrep/<rule-id>.yml` に書く。`message` には、検出したコードをどう直すかを書く
+3. ルールのテストを実行し、`All tests passed` と表示されることを確認する。`.semgrep/` の中をカレントディレクトリにして `.` を渡す（リポジトリルートから `--test .semgrep/` を渡すと、ドットで始まるディレクトリのテストが見つからず、0件のまま成功する）
 
    ```bash
-   mise exec -- semgrep scan --test .semgrep/
+   mise exec -C .semgrep -- semgrep scan --test .
    ```
 
-4. 対象のコードベースに対して実行し、既存コードの検出結果を確認する。既存の違反はこのPRで修正する
+4. コードベースに対して実行し、既存コードの検出結果を確認する。既存の違反はこのPRで修正する（`--exclude` は手順1のテスト対象ファイルを検出対象から外す）
 
    ```bash
-   mise exec -- semgrep scan --config .semgrep/ --error
+   mise exec -- semgrep scan --config .semgrep/ --exclude .semgrep --error
    ```
 
-5. `sast.yml` の `semgrep scan` に `--config .semgrep/` と `--exclude .semgrep` がない場合は追加する（`--exclude` は手順2のテスト対象ファイルを検出対象から外すため）
+5. `sast.yml` に以下がない場合は追加する
+   - `Run Semgrep` ステップの前に、`working-directory: .semgrep` で `semgrep scan --test .` を実行するステップ
+   - `Run Semgrep` ステップの `semgrep scan` に `--config .semgrep/` と `--exclude .semgrep`
 
 lefthookには組み込まない（Semgrepはレジストリのルールセットを含め実行に時間がかかるため、CIだけで実行する）。
 
