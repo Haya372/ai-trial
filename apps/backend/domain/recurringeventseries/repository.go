@@ -14,6 +14,8 @@ import (
 // Repository stores series and their occurrences. The occurrences are Event
 // aggregates, but their bulk operations live here because they are always
 // selected by series.
+//
+//nolint:interfacebloat // the series and the bulk operations on its occurrences, always selected by series
 type Repository interface {
 	// Create saves the whole aggregate, including s.ExcludedDates(). It
 	// writes several rows, so call it inside a transaction (ADR-024).

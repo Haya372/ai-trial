@@ -225,32 +225,6 @@ func (r *seriesRepository) CreateOccurrences(ctx context.Context, occurrences []
 	return r.insertOccurrenceTags(ctx, tags)
 }
 
-func appendOccurrenceTags(tags []query.InsertOccurrenceTagsParams, e domainevent.Event) []query.InsertOccurrenceTagsParams {
-	for _, t := range e.Tags() {
-		tags = append(tags, query.InsertOccurrenceTagsParams{
-			EventID: toPgUUID(e.ID()),
-			TagID:   toPgUUID(t.TagID()),
-			//nolint:gosec // position is validated to be 1..MaxTagsPerEvent by the domain
-			Position: int16(t.Position()),
-		})
-	}
-	return tags
-}
-
-func (r *seriesRepository) insertOccurrenceTags(ctx context.Context, tags []query.InsertOccurrenceTagsParams) error {
-	if len(tags) == 0 {
-		return nil
-	}
-	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventTagsTable)
-	_, err := r.querier(spanCtx).InsertOccurrenceTags(spanCtx, tags)
-	endDBSpan(span, err)
-	if err != nil {
-		r.logger.Error("insert occurrence tags query failed", "error", err)
-		return fmt.Errorf("insert occurrence tags: %w", err)
-	}
-	return nil
-}
-
 // UpdateOccurrences writes every event in one UPDATE and replaces their tags
 // with one DELETE and a COPY, instead of a round trip per event.
 func (r *seriesRepository) UpdateOccurrences(ctx context.Context, occurrences []domainevent.Event) error {
@@ -326,6 +300,34 @@ func (r *seriesRepository) DeleteOccurrences(ctx context.Context, seriesID uuid.
 	if err != nil {
 		r.logger.Error("delete occurrences query failed", "error", err)
 		return fmt.Errorf("delete occurrences: %w", err)
+	}
+	return nil
+}
+
+func appendOccurrenceTags(
+	tags []query.InsertOccurrenceTagsParams, e domainevent.Event,
+) []query.InsertOccurrenceTagsParams {
+	for _, t := range e.Tags() {
+		tags = append(tags, query.InsertOccurrenceTagsParams{
+			EventID: toPgUUID(e.ID()),
+			TagID:   toPgUUID(t.TagID()),
+			//nolint:gosec // position is validated to be 1..MaxTagsPerEvent by the domain
+			Position: int16(t.Position()),
+		})
+	}
+	return tags
+}
+
+func (r *seriesRepository) insertOccurrenceTags(ctx context.Context, tags []query.InsertOccurrenceTagsParams) error {
+	if len(tags) == 0 {
+		return nil
+	}
+	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventTagsTable)
+	_, err := r.querier(spanCtx).InsertOccurrenceTags(spanCtx, tags)
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("insert occurrence tags query failed", "error", err)
+		return fmt.Errorf("insert occurrence tags: %w", err)
 	}
 	return nil
 }

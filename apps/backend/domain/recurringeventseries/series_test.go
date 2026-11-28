@@ -464,7 +464,9 @@ func TestRegeneratedFirstStart(t *testing.T) {
 		"two days later":          {fifth, localAt(t, tokyo, 2027, 1, 6, 9, 0), localAt(t, tokyo, 2026, 12, 9, 9, 0)},
 		"a day earlier":           {fifth, localAt(t, tokyo, 2027, 1, 3, 9, 0), localAt(t, tokyo, 2026, 12, 6, 9, 0)},
 		// 00:30 JST on 2027-01-05 is 2027-01-04 in UTC.
-		"the next local date, same UTC date": {fifth, localAt(t, tokyo, 2027, 1, 5, 0, 30), localAt(t, tokyo, 2026, 12, 8, 0, 30)},
+		"the next local date, same UTC date": {
+			fifth, localAt(t, tokyo, 2027, 1, 5, 0, 30), localAt(t, tokyo, 2026, 12, 8, 0, 30),
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			got, err := res.RegeneratedFirstStart(first, c.target, c.newStart, tz)
