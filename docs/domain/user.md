@@ -36,7 +36,7 @@
 ## 不変条件
 
 - `failed_login_count >= 0`
-- `locked_until` は NULL か、`created_at` より未来の時刻
+- ロックを設定するとき、`locked_until` は設定した時刻の15分後
 
 ## エラー
 
