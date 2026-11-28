@@ -392,3 +392,107 @@ func TestRestoreCountEnd(t *testing.T) {
 		t.Errorf("RestoreCountEnd(0): got %v, want ErrRecurringEndInvalid", err)
 	}
 }
+
+func TestMoveOccurrences_keepsEachDateAtTheNewTimeAndDuration(t *testing.T) {
+	s := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 3), tokyo))
+	starts := []time.Time{
+		localAt(t, tokyo, 2026, 12, 7, 10, 0),
+		localAt(t, tokyo, 2026, 12, 14, 10, 0),
+		localAt(t, tokyo, 2026, 12, 21, 10, 0),
+	}
+	newStart := localAt(t, tokyo, 2026, 12, 14, 13, 30)
+	newEnd := localAt(t, tokyo, 2026, 12, 14, 15, 0)
+
+	got, err := s.MoveOccurrences(starts, starts[1], newStart, newEnd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := []time.Time{
+		localAt(t, tokyo, 2026, 12, 7, 13, 30),
+		newStart,
+		localAt(t, tokyo, 2026, 12, 21, 13, 30),
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d occurrences, want %d", len(got), len(want))
+	}
+	for i, w := range want {
+		if !got[i].StartAt.Equal(w) || !got[i].EndAt.Equal(w.Add(90*time.Minute)) {
+			t.Errorf("occurrence %d: got [%v, %v], want [%v, %v]", i, got[i].StartAt, got[i].EndAt, w, w.Add(90*time.Minute))
+		}
+	}
+}
+
+// Adding the UTC difference would put the occurrences after the DST change
+// an hour off; each one keeps the wall-clock time instead.
+func TestMoveOccurrences_keepsWallClockAcrossDST(t *testing.T) {
+	s := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 2), newYork))
+	before := localAt(t, newYork, 2026, time.March, 2, 10, 0)
+	after := localAt(t, newYork, 2026, time.March, 9, 10, 0)
+	newStart := localAt(t, newYork, 2026, time.March, 2, 11, 0)
+
+	got, err := s.MoveOccurrences([]time.Time{before, after}, before, newStart, newStart.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := localAt(t, newYork, 2026, time.March, 9, 11, 0); !got[1].StartAt.Equal(want) {
+		t.Errorf("got %v, want %v", got[1].StartAt, want)
+	}
+}
+
+func TestMoveOccurrences_rejectsTargetThatIsNotAnOccurrence(t *testing.T) {
+	s := mustSeries(t, mustRule(t, weekly, nil, mustCount(t, 2), tokyo))
+	first := localAt(t, tokyo, 2026, 12, 7, 10, 0)
+
+	if _, err := s.MoveOccurrences([]time.Time{first}, first.Add(time.Minute), first, first.Add(time.Hour)); err == nil {
+		t.Error("expected an error, got nil")
+	}
+}
+
+func TestRegeneratedFirstStart(t *testing.T) {
+	tz, err := res.NewSeriesTimezone(tokyo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := localAt(t, tokyo, 2026, 12, 7, 10, 0)
+	fifth := localAt(t, tokyo, 2027, 1, 4, 10, 0)
+
+	for name, c := range map[string]struct {
+		target, newStart, want time.Time
+	}{
+		"the target is the first": {first, localAt(t, tokyo, 2026, 12, 8, 9, 0), localAt(t, tokyo, 2026, 12, 8, 9, 0)},
+		"only the time changes":   {fifth, localAt(t, tokyo, 2027, 1, 4, 14, 0), localAt(t, tokyo, 2026, 12, 7, 14, 0)},
+		"two days later":          {fifth, localAt(t, tokyo, 2027, 1, 6, 9, 0), localAt(t, tokyo, 2026, 12, 9, 9, 0)},
+		"a day earlier":           {fifth, localAt(t, tokyo, 2027, 1, 3, 9, 0), localAt(t, tokyo, 2026, 12, 6, 9, 0)},
+		// 00:30 JST on 2027-01-05 is 2027-01-04 in UTC.
+		"the next local date, same UTC date": {
+			fifth, localAt(t, tokyo, 2027, 1, 5, 0, 30), localAt(t, tokyo, 2026, 12, 8, 0, 30),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := res.RegeneratedFirstStart(first, c.target, c.newStart, tz)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !got.Equal(c.want) {
+				t.Errorf("got %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
+func TestRegeneratedFirstStart_crossesMonthAndYear(t *testing.T) {
+	tz, err := res.NewSeriesTimezone(tokyo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := localAt(t, tokyo, 2026, 12, 30, 10, 0)
+	target := localAt(t, tokyo, 2027, 2, 24, 10, 0)
+
+	got, err := res.RegeneratedFirstStart(first, target, localAt(t, tokyo, 2027, 3, 1, 10, 0), tz)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := localAt(t, tokyo, 2027, 1, 4, 10, 0); !got.Equal(want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}

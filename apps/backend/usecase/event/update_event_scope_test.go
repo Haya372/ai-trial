@@ -412,26 +412,6 @@ func TestUpdateEventCommand_Execute_Occurrence_ScopeNotAllowed(t *testing.T) {
 	}
 }
 
-func TestUpdateEventCommand_Execute_Occurrence_FutureOrAll_NotImplementedYet(t *testing.T) {
-	for _, scope := range []string{scopeFuture, scopeAll} {
-		t.Run(scope, func(t *testing.T) {
-			f := newScopeFixture(t)
-			series := newSeries(t, f.userID, weeklyCount(t, 3))
-			f.expectLockOccurrence(f.occurrence(t, series), series)
-			in := f.input(secondOccStart)
-			in.Scope = scope
-
-			_, err := f.command().Execute(context.Background(), f.userID, in)
-			if err == nil {
-				t.Fatal("expected an error until #407 implements the scope")
-			}
-			if _, ok := errors.AsType[*domain.ValidationError](err); ok {
-				t.Fatalf("expected an internal error, got %v", err)
-			}
-		})
-	}
-}
-
 // A concurrent "single" can detach the last occurrence and delete the empty
 // series while keeping the event, so a missing series does not mean a missing
 // event.

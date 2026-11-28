@@ -14,6 +14,8 @@ import (
 // Repository stores series and their occurrences. The occurrences are Event
 // aggregates, but their bulk operations live here because they are always
 // selected by series.
+//
+//nolint:interfacebloat // the series and the bulk operations on its occurrences, always selected by series
 type Repository interface {
 	// Create saves the whole aggregate, including s.ExcludedDates(). It
 	// writes several rows, so call it inside a transaction (ADR-024).
@@ -44,6 +46,12 @@ type Repository interface {
 	// occurrences) with their tags at once. Each event must already carry
 	// its series ID. Call it inside a transaction (ADR-024).
 	CreateOccurrences(ctx context.Context, occurrences []event.Event) error
+	// UpdateOccurrences saves the content, times, series ID and tags of up
+	// to about 730 existing events at once, for "all" and "this and
+	// following" changes that keep the occurrences and so their share links
+	// and subscriptions. Each event must carry a series ID. Call it inside a
+	// transaction (ADR-024).
+	UpdateOccurrences(ctx context.Context, occurrences []event.Event) error
 	// DeleteOccurrencesFrom deletes the events of the series that start at or
 	// after from, for "this and following" changes and deletes.
 	DeleteOccurrencesFrom(ctx context.Context, seriesID uuid.UUID, from time.Time) error

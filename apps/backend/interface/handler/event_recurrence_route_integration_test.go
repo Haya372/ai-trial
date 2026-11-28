@@ -283,3 +283,240 @@ func TestRoute_UpdateEvent_otherUsersOccurrence_returns404(t *testing.T) {
 		t.Errorf("expected the owner's series to remain, got %d series", n)
 	}
 }
+
+type routeTestSeries struct {
+	ID  string `json:"id"`
+	End struct {
+		Type  string `json:"type"`
+		Count *int   `json:"count"`
+	} `json:"end"`
+}
+
+func decodeSeries(t *testing.T, raw json.RawMessage) routeTestSeries {
+	t.Helper()
+	var s routeTestSeries
+	if err := json.Unmarshal(raw, &s); err != nil {
+		t.Fatalf("decode recurringSeries %s: %v", raw, err)
+	}
+	return s
+}
+
+// postDailyCount5Series creates a daily/count=5 series and returns its
+// occurrences in order of start.
+func postDailyCount5Series(
+	t *testing.T, router *chi.Mux, cookie *http.Cookie, start time.Time,
+) []routeTestEventWithSeries {
+	t.Helper()
+	body := fmt.Sprintf(`{
+		"title": "Daily series",
+		"startAt": "%s",
+		"endAt":   "%s",
+		"recurrence": {
+			"pattern":  {"type": "daily"},
+			"end":      {"type": "count", "count": 5},
+			"timezone": "Asia/Tokyo"
+		}
+	}`, start.Format(time.RFC3339), start.Add(time.Hour).Format(time.RFC3339))
+	req := httptest.NewRequest(http.MethodPost, "/events", strings.NewReader(body))
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST /events expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	occs := getEventsWithSeries(t, router, cookie, start.Add(-time.Hour), start.AddDate(0, 0, 5))
+	if len(occs) != 5 {
+		t.Fatalf("expected 5 occurrences, got %d", len(occs))
+	}
+	return occs
+}
+
+// "future" without a recurrence keeps the rule: the occurrences from the
+// target on move to a new series with the remaining count and keep their ids.
+func TestRoute_UpdateEvent_futureScope_keepingRule_splitsSeries(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	cookie := signupAndGetCookie(t, router, "put-future@ex.com")
+
+	start := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
+	before := postDailyCount5Series(t, router, cookie, start)
+	oldSeries := decodeSeries(t, before[0].RecurringSeries)
+
+	// Two hours later on the same date in Asia/Tokyo.
+	newStart := before[2].StartAt.Add(2 * time.Hour)
+	updated := decodeEventWithSeries(t,
+		putEventWithSeries(t, router, cookie, before[2].ID, newStart, `, "scope": "future"`))
+	newSeries := decodeSeries(t, updated.RecurringSeries)
+	if updated.ID != before[2].ID || newSeries.ID == oldSeries.ID {
+		t.Fatalf("expected the target %s in a new series, got %s in %s", before[2].ID, updated.ID, newSeries.ID)
+	}
+	if newSeries.End.Type != "count" || newSeries.End.Count == nil || *newSeries.End.Count != 3 {
+		t.Errorf("expected the new series to have count 3, got %+v", newSeries.End)
+	}
+
+	after := getEventsWithSeries(t, router, cookie, start.Add(-time.Hour), start.AddDate(0, 0, 5))
+	if len(after) != 5 {
+		t.Fatalf("expected 5 events, got %d", len(after))
+	}
+	for i, e := range after {
+		if e.ID != before[i].ID {
+			t.Errorf("event %d: id %s, want %s", i, e.ID, before[i].ID)
+		}
+		s := decodeSeries(t, e.RecurringSeries)
+		if i < 2 {
+			if e.Title != "Daily series" || !e.StartAt.Equal(before[i].StartAt) || s.ID != oldSeries.ID {
+				t.Errorf("event %d before the target changed: %+v", i, e)
+			}
+			continue
+		}
+		if e.Title != "Edited" || !e.StartAt.Equal(before[i].StartAt.Add(2*time.Hour)) || s.ID != newSeries.ID {
+			t.Errorf("event %d from the target: %+v", i, e)
+		}
+	}
+}
+
+// "all" updates every occurrence in place but leaves a detached event alone.
+func TestRoute_UpdateEvent_allScope_keepingRule_updatesEveryOccurrence(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	cookie := signupAndGetCookie(t, router, "put-all@ex.com")
+
+	start := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
+	before := postDailyCount5Series(t, router, cookie, start)
+	decodeEventWithSeries(t, putEventWithSeries(t, router, cookie, before[1].ID, before[1].StartAt.AddDate(0, 0, 10),
+		`, "scope": "single"`))
+
+	newStart := before[3].StartAt.Add(-30 * time.Minute)
+	updated := decodeEventWithSeries(t, putEventWithSeries(t, router, cookie, before[3].ID, newStart, `, "scope": "all"`))
+	if updated.ID != before[3].ID || !updated.StartAt.Equal(newStart) {
+		t.Errorf("expected the target at %v, got %+v", newStart, updated)
+	}
+
+	after := getEventsWithSeries(t, router, cookie, start.Add(-time.Hour), start.AddDate(0, 0, 12))
+	if len(after) != 5 {
+		t.Fatalf("expected 4 occurrences and the detached event, got %d", len(after))
+	}
+	for _, e := range after {
+		if e.ID == before[1].ID {
+			if e.Title != "Edited" || string(e.RecurringSeries) != jsonNull ||
+				!e.StartAt.Equal(before[1].StartAt.AddDate(0, 0, 10)) {
+				t.Errorf("detached event changed: %+v", e)
+			}
+			continue
+		}
+		var orig routeTestEventWithSeries
+		for _, b := range before {
+			if b.ID == e.ID {
+				orig = b
+			}
+		}
+		if orig.ID == "" || e.Title != "Edited" || !e.StartAt.Equal(orig.StartAt.Add(-30*time.Minute)) {
+			t.Errorf("occurrence %s: %+v, want the original moved 30 minutes earlier", e.ID, e)
+		}
+	}
+}
+
+// "all" with a new rule regenerates the series from its first occurrence.
+func TestRoute_UpdateEvent_allScope_newRule_regeneratesOccurrences(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	cookie := signupAndGetCookie(t, router, "put-all-rule@ex.com")
+
+	start := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
+	before := postDailyCount5Series(t, router, cookie, start)
+	oldSeries := decodeSeries(t, before[0].RecurringSeries)
+
+	updated := decodeEventWithSeries(t, putEventWithSeries(t, router, cookie, before[2].ID, before[2].StartAt,
+		`, "scope": "all", "recurrence": {"pattern": {"type": "weekly"},`+
+			` "end": {"type": "count", "count": 2}, "timezone": "Asia/Tokyo"}`))
+	if !updated.StartAt.Equal(start) || decodeSeries(t, updated.RecurringSeries).ID != oldSeries.ID {
+		t.Errorf("expected the regenerated first occurrence at %v in the same series, got %+v", start, updated)
+	}
+
+	after := getEventsWithSeries(t, router, cookie, start.Add(-time.Hour), start.AddDate(0, 0, 14))
+	if len(after) != 2 || !after[0].StartAt.Equal(start) || !after[1].StartAt.Equal(start.AddDate(0, 0, 7)) {
+		t.Fatalf("expected 2 weekly occurrences from %v, got %+v", start, after)
+	}
+	for _, e := range after {
+		for _, b := range before {
+			if e.ID == b.ID {
+				t.Errorf("expected new ids, got the old %s", e.ID)
+			}
+		}
+	}
+}
+
+// Keeping the rule keeps the date: moving it would break the weekday and the
+// excluded dates of the series.
+func TestRoute_UpdateEvent_futureOrAllScope_dateChanged_returns400(t *testing.T) {
+	for _, scope := range []string{"future", "all"} {
+		t.Run(scope, func(t *testing.T) {
+			setupRouteTest(t)
+			router := buildEventTestRouter()
+			cookie := signupAndGetCookie(t, router, "put-date-"+scope+"@ex.com")
+
+			start := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
+			before := postDailyCount5Series(t, router, cookie, start)
+
+			rec := putEventWithSeries(t, router, cookie, before[2].ID, before[2].StartAt.Add(24*time.Hour),
+				`, "scope": "`+scope+`"`)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), `"code":"DATE_CHANGE_NOT_ALLOWED"`) ||
+				!strings.Contains(rec.Body.String(), `"field":"startAt"`) {
+				t.Errorf("expected startAt DATE_CHANGE_NOT_ALLOWED in details, got %s", rec.Body.String())
+			}
+		})
+	}
+}
+
+// "future" with null turns the target into a one-off event and ends the
+// series before it.
+func TestRoute_UpdateEvent_futureScope_nullRecurrence_endsSeries(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	cookie := signupAndGetCookie(t, router, "put-future-null@ex.com")
+
+	start := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
+	before := postDailyCount5Series(t, router, cookie, start)
+
+	updated := decodeEventWithSeries(t, putEventWithSeries(t, router, cookie, before[2].ID, before[2].StartAt,
+		`, "scope": "future", "recurrence": null`))
+	if string(updated.RecurringSeries) != jsonNull {
+		t.Errorf("expected a one-off event, got %s", updated.RecurringSeries)
+	}
+
+	after := getEventsWithSeries(t, router, cookie, start.Add(-time.Hour), start.AddDate(0, 0, 5))
+	if len(after) != 3 {
+		t.Fatalf("expected 2 occurrences and the one-off event, got %d", len(after))
+	}
+	for i, e := range after {
+		if e.ID != before[i].ID {
+			t.Errorf("event %d: id %s, want %s", i, e.ID, before[i].ID)
+		}
+	}
+	if string(after[2].RecurringSeries) != jsonNull || string(after[0].RecurringSeries) == jsonNull {
+		t.Errorf("expected the earlier occurrences to stay in the series: %+v", after)
+	}
+}
+
+func TestRoute_UpdateEvent_allScope_otherUsersOccurrence_returns404(t *testing.T) {
+	setupRouteTest(t)
+	router := buildEventTestRouter()
+	ownerCookie := signupAndGetCookie(t, router, "put-all-owner@ex.com")
+	otherCookie := signupAndGetCookie(t, router, "put-all-other@ex.com")
+
+	start := time.Date(2027, 1, 4, 1, 0, 0, 0, time.UTC)
+	before := postDailyCount5Series(t, router, ownerCookie, start)
+
+	rec := putEventWithSeries(t, router, otherCookie, before[0].ID, start, `, "scope": "all"`)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+	for _, e := range getEventsWithSeries(t, router, ownerCookie, start.Add(-time.Hour), start.AddDate(0, 0, 5)) {
+		if e.Title != "Daily series" {
+			t.Errorf("owner's occurrence %s changed: %q", e.ID, e.Title)
+		}
+	}
+}

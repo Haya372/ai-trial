@@ -24,6 +24,7 @@ properties:
       - TOO_FEW_OCCURRENCES
       - NOT_IN_SERIES
       - SCOPE_NOT_ALLOWED
+      - DATE_CHANGE_NOT_ALLOWED
     example: "INVALID_FORMAT"
   message:
     type: string

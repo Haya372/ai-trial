@@ -25,6 +25,26 @@ func (r RecurrenceRule) initialized() bool {
 	return r.Pattern.typ != "" && r.End.typ != "" && r.Timezone.loc != nil
 }
 
+// RegeneratedFirstStart returns the first start of a series that an "all"
+// change regenerates with a new rule: firstStart's local date moved by the
+// days target moved to newStart, at newStart's wall-clock time, all in tz.
+// Starting from the first occurrence keeps the earlier occurrences, which an
+// "all" change covers too. When firstStart is target, it returns newStart.
+func RegeneratedFirstStart(firstStart, target, newStart time.Time, tz SeriesTimezone) (time.Time, error) {
+	if firstStart.Equal(target) {
+		return newStart.UTC(), nil
+	}
+	loc := tz.Location()
+	clock := newStart.In(loc)
+	moved := LocalDateOf(target.In(loc)).daysUntil(LocalDateOf(clock))
+	d := LocalDateOf(firstStart.In(loc)).addDays(moved)
+	at, ok := atWallClock(d, clock, loc)
+	if !ok {
+		return time.Time{}, fmt.Errorf("%w: %s", errDateRemoved, d)
+	}
+	return at, nil
+}
+
 // Occurrence is the start and end of one occurrence, in UTC (ADR-036).
 type Occurrence struct {
 	StartAt time.Time

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -476,6 +477,16 @@ func decodeUpdateEventInput(r *http.Request, id uuid.UUID) (eventuc.UpdateEventI
 }
 
 func (h *EventHandler) writeEventError(w http.ResponseWriter, r *http.Request, err error) {
+	// The domain error has no field, and the mapping below cannot return
+	// details, so name startAt here for the form to show it inline.
+	if errors.Is(err, rs.ErrRecurringOccurrenceDateChangeNotAllowed) {
+		response.WriteValidationError(w, []response.ErrorDetail{{
+			Field:   "startAt",
+			Code:    rs.CodeRecurringOccurrenceDateChangeNotAllowed,
+			Message: "The date cannot change without changing the recurrence",
+		}})
+		return
+	}
 	writeDomainError(w, r, h.logger, err, map[string]domainErrorResponse{
 		domainevent.CodeEventNotFound: {status: http.StatusNotFound, code: errCodeNotFound, message: msgResourceNotFound},
 	})

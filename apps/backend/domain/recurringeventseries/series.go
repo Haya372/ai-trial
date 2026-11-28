@@ -46,6 +46,14 @@ type RecurringEventSeries interface {
 	// and nth of the series come from its first occurrence, so the excluded
 	// dates and a monthly nth would no longer match. The time may change.
 	CheckDateKept(target, newStart time.Time) error
+	// MoveOccurrences returns where each occurrence goes in an "all" or a
+	// "this and following" change that keeps the rule, in the order of
+	// occurrenceStarts: its own local date at newStart's wall-clock time,
+	// lasting newEnd - newStart. Adding the UTC difference instead would move
+	// the wall-clock time of occurrences across a DST change. target goes to
+	// newStart itself, which tells which of two repeated wall-clock times was
+	// meant. The caller checks the date with CheckDateKept first.
+	MoveOccurrences(occurrenceStarts []time.Time, target, newStart, newEnd time.Time) ([]Occurrence, error)
 }
 
 type seriesEntity struct {
@@ -135,6 +143,33 @@ func (s *seriesEntity) CheckDateKept(target, newStart time.Time) error {
 	}
 	return nil
 }
+
+func (s *seriesEntity) MoveOccurrences(
+	occurrenceStarts []time.Time, target, newStart, newEnd time.Time,
+) ([]Occurrence, error) {
+	if !slices.ContainsFunc(occurrenceStarts, target.Equal) {
+		return nil, fmt.Errorf("%w: %s", errTargetNotAnOccurrence, target)
+	}
+	loc := s.rule.Timezone.Location()
+	clock := newStart.In(loc)
+	duration := newEnd.Sub(newStart)
+	moved := make([]Occurrence, len(occurrenceStarts))
+	for i, start := range occurrenceStarts {
+		at := newStart.UTC()
+		if !start.Equal(target) {
+			var ok bool
+			if at, ok = atWallClock(s.LocalDateOf(start), clock, loc); !ok {
+				return nil, fmt.Errorf("%w: %s", errDateRemoved, start)
+			}
+		}
+		moved[i] = Occurrence{StartAt: at, EndAt: at.Add(duration)}
+	}
+	return moved, nil
+}
+
+// errDateRemoved is not a DomainError: a date that already has an occurrence
+// or a first occurrence exists, so reaching it means a bug or broken tzdata.
+var errDateRemoved = errors.New("the date does not exist in the timezone")
 
 // excludedFrom returns the index of the first excluded date on or after the
 // occurrence's local date; s.excluded is sorted, so those dates form its tail.

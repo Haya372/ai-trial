@@ -96,3 +96,34 @@ WHERE series_id = sqlc.arg('series_id')
 -- name: DeleteOccurrencesBySeriesID :exec
 DELETE FROM events
 WHERE series_id = $1;
+
+-- name: UpdateOccurrences :exec
+-- Updates every occurrence in one statement: updating them one by one would
+-- take a round trip per occurrence, up to about 730. Empty strings become
+-- NULL like the single-event writes, since a text[] cannot carry NULLs.
+UPDATE events AS e
+SET title = v.title,
+    description = NULLIF(v.description, ''),
+    start_at = v.start_at,
+    end_at = v.end_at,
+    location = NULLIF(v.location, ''),
+    url = NULLIF(v.url, ''),
+    series_id = v.series_id,
+    updated_at = NOW()
+FROM (
+    -- Parallel unnest calls in one SELECT zip the arrays row by row; sqlc
+    -- cannot type the multi-argument form unnest(a, b, ...).
+    SELECT unnest(sqlc.arg('ids')::uuid[]) AS id,
+           unnest(sqlc.arg('titles')::text[]) AS title,
+           unnest(sqlc.arg('descriptions')::text[]) AS description,
+           unnest(sqlc.arg('start_ats')::timestamptz[]) AS start_at,
+           unnest(sqlc.arg('end_ats')::timestamptz[]) AS end_at,
+           unnest(sqlc.arg('locations')::text[]) AS location,
+           unnest(sqlc.arg('urls')::text[]) AS url,
+           unnest(sqlc.arg('series_ids')::uuid[]) AS series_id
+) AS v
+WHERE e.id = v.id;
+
+-- name: DeleteEventTagsByEventIDs :exec
+DELETE FROM event_tags
+WHERE event_id = ANY(sqlc.arg('event_ids')::uuid[]);

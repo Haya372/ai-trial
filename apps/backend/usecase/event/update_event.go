@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,10 +52,6 @@ const (
 	scopeFuture = "future"
 	scopeAll    = "all"
 )
-
-// errScopeNotImplemented is not a DomainError, so it surfaces as a 500: no
-// client sends these scopes before #407 implements them.
-var errScopeNotImplemented = errors.New("scope future and all are not implemented yet")
 
 // errSeriesMissing is not a DomainError: an event row refers to its series
 // through a foreign key, so it comes from inconsistent data, not user input.
@@ -231,7 +228,274 @@ func (c *UpdateEventCommand) updateOccurrence(
 			return UpdateEventOutput{}, scopeNotAllowed()
 		}
 	}
-	return UpdateEventOutput{}, errScopeNotImplemented
+
+	return c.updateRange(ctx, userID, in, existing, series, rule)
+}
+
+// updateRange applies a "future" or "all" change.
+func (c *UpdateEventCommand) updateRange(
+	ctx context.Context,
+	userID uuid.UUID,
+	in UpdateEventInput,
+	existing domainevent.Event,
+	series rs.RecurringEventSeries,
+	rule *rs.RecurrenceRule,
+) (UpdateEventOutput, error) {
+	occs, err := c.seriesRepo.FindOccurrences(ctx, series.ID())
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("find occurrences: %w", err)
+	}
+	// Detached events have no series ID, so occs never includes them. The
+	// first occurrence is the earliest one left: nothing would stay before it.
+	isFirst := len(occs) > 0 && occs[0].ID() == existing.ID()
+	t := occurrenceTarget{in: in, existing: existing, series: series, occs: occs}
+	if in.Recurrence.Present && in.Recurrence.Spec == nil {
+		return c.endAsOneOff(ctx, userID, t, isFirst)
+	}
+	// A rule sent back unchanged is not a change, so its range is not checked.
+	keepsRule := rule == nil || rule.Equal(series.Rule())
+	if in.Scope == scopeFuture && !isFirst {
+		if keepsRule {
+			return c.splitKeepingRule(ctx, userID, t)
+		}
+		return c.splitWithNewRule(ctx, userID, t, *rule)
+	}
+	if keepsRule {
+		return c.updateAllKeepingRule(ctx, userID, t)
+	}
+	return c.regenerateAll(ctx, userID, t, *rule)
+}
+
+// occurrenceTarget is what the "future" and "all" changes work on: the
+// request, the locked target and its series, and the series' occurrences in
+// ascending order of start.
+type occurrenceTarget struct {
+	in       UpdateEventInput
+	existing domainevent.Event
+	series   rs.RecurringEventSeries
+	occs     []domainevent.Event
+}
+
+func (t occurrenceTarget) content() occurrenceContent {
+	return occurrenceContent{title: t.in.Title, description: t.in.Description, location: t.in.Location, url: t.in.URL}
+}
+
+// endAsOneOff turns the target into a one-off event and ends the series
+// before it. On the first occurrence nothing of the series would remain, so
+// it deletes the series instead of rejecting the request like "all" with
+// null: the client offers only "future" when the repetition stops.
+func (c *UpdateEventCommand) endAsOneOff(
+	ctx context.Context, userID uuid.UUID, t occurrenceTarget, isFirst bool,
+) (UpdateEventOutput, error) {
+	updated, views, err := c.applyContent(ctx, userID, t.in, t.existing)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	updated = updated.DetachFromSeries()
+	if err := c.repo.Update(ctx, updated); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update event: %w", err)
+	}
+	if isFirst {
+		if err := c.seriesRepo.Delete(ctx, t.series.ID()); err != nil {
+			return UpdateEventOutput{}, fmt.Errorf("delete series: %w", err)
+		}
+		return UpdateEventOutput{Event: updated, Tags: views}, nil
+	}
+	if err := c.endSeriesBefore(ctx, t); err != nil {
+		return UpdateEventOutput{}, err
+	}
+	return UpdateEventOutput{Event: updated, Tags: views}, nil
+}
+
+// endSeriesBefore ends the series the day before the target and deletes the
+// occurrences from the target on. The caller moves the target out of the
+// series first, so it is not deleted.
+func (c *UpdateEventCommand) endSeriesBefore(ctx context.Context, t occurrenceTarget) error {
+	ended, _ := t.series.EndBefore(t.existing.StartAt())
+	if err := c.seriesRepo.Update(ctx, ended); err != nil {
+		return fmt.Errorf("end series: %w", err)
+	}
+	if err := c.seriesRepo.DeleteOccurrencesFrom(ctx, t.series.ID(), t.existing.StartAt()); err != nil {
+		return fmt.Errorf("delete following occurrences: %w", err)
+	}
+	return nil
+}
+
+// splitKeepingRule moves the occurrences from the target on to a new series
+// with the same rule. Updating them in place, rather than recreating them,
+// keeps their IDs, share links and subscriptions; FollowingEnd makes the new
+// series produce exactly those occurrences.
+func (c *UpdateEventCommand) splitKeepingRule(
+	ctx context.Context, userID uuid.UUID, t occurrenceTarget,
+) (UpdateEventOutput, error) {
+	if err := t.series.CheckDateKept(t.existing.StartAt(), t.in.StartAt); err != nil {
+		return UpdateEventOutput{}, err
+	}
+	end, excluded, err := t.series.FollowingEnd(occurrenceStarts(t.occs), t.existing.StartAt())
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("following end: %w", err)
+	}
+	following := t.occs[slices.IndexFunc(t.occs, func(e domainevent.Event) bool { return e.ID() == t.existing.ID() }):]
+	moved, err := t.series.MoveOccurrences(occurrenceStarts(following), t.existing.StartAt(), t.in.StartAt, t.in.EndAt)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("move occurrences: %w", err)
+	}
+	newTags, views, err := c.determineTagsInTx(ctx, userID, t.existing, t.in.TagIDs)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+
+	ended, _ := t.series.EndBefore(t.existing.StartAt())
+	if err := c.seriesRepo.Update(ctx, ended); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("end series: %w", err)
+	}
+	rule := t.series.Rule()
+	rule.End = end
+	next, err := rs.New(uuid.New(), userID, rule, excluded)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("create series: %w", err)
+	}
+	// The new series row comes first: events refer to it by foreign key.
+	saved, err := c.seriesRepo.Create(ctx, next)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("create series: %w", err)
+	}
+	events, err := withOccurrenceChanges(following, t.content(), moved, newTags, saved.ID())
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	if err := c.seriesRepo.UpdateOccurrences(ctx, events); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update occurrences: %w", err)
+	}
+	return UpdateEventOutput{Event: events[0], Tags: views, Series: saved}, nil
+}
+
+// splitWithNewRule ends the series before the target and makes the target the
+// first occurrence of a new series with the new rule.
+func (c *UpdateEventCommand) splitWithNewRule(
+	ctx context.Context, userID uuid.UUID, t occurrenceTarget, rule rs.RecurrenceRule,
+) (UpdateEventOutput, error) {
+	if err := checkNewRule(rule); err != nil {
+		return UpdateEventOutput{}, err
+	}
+	occs, err := rs.ExpandOccurrences(t.in.StartAt, t.in.EndAt, rule, nil)
+	if err != nil {
+		return UpdateEventOutput{}, toExpandValidationError(err)
+	}
+	updated, views, err := c.applyContent(ctx, userID, t.in, t.existing)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	ended, _ := t.series.EndBefore(t.existing.StartAt())
+	if err := c.seriesRepo.Update(ctx, ended); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("end series: %w", err)
+	}
+	updated, saved, err := c.startSeries(ctx, userID, t.content(), updated, rule, occs)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	if err := c.seriesRepo.DeleteOccurrencesFrom(ctx, t.series.ID(), t.existing.StartAt()); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("delete following occurrences: %w", err)
+	}
+	return UpdateEventOutput{Event: updated, Tags: views, Series: saved}, nil
+}
+
+// updateAllKeepingRule gives every occurrence the requested content and time
+// in place, keeping their IDs; the rule and excluded dates do not change.
+func (c *UpdateEventCommand) updateAllKeepingRule(
+	ctx context.Context, userID uuid.UUID, t occurrenceTarget,
+) (UpdateEventOutput, error) {
+	if err := t.series.CheckDateKept(t.existing.StartAt(), t.in.StartAt); err != nil {
+		return UpdateEventOutput{}, err
+	}
+	moved, err := t.series.MoveOccurrences(occurrenceStarts(t.occs), t.existing.StartAt(), t.in.StartAt, t.in.EndAt)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("move occurrences: %w", err)
+	}
+	newTags, views, err := c.determineTagsInTx(ctx, userID, t.existing, t.in.TagIDs)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	events, err := withOccurrenceChanges(t.occs, t.content(), moved, newTags, t.series.ID())
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	if err := c.seriesRepo.UpdateOccurrences(ctx, events); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update occurrences: %w", err)
+	}
+	updated := events[slices.IndexFunc(events, func(e domainevent.Event) bool { return e.ID() == t.existing.ID() })]
+	return UpdateEventOutput{Event: updated, Tags: views, Series: t.series}, nil
+}
+
+// regenerateAll replaces the rule, excluded dates and occurrences of the
+// series, keeping its ID. It starts from the first occurrence, which an
+// "all" change covers too, moved as far as the target moved (SPEC-009).
+func (c *UpdateEventCommand) regenerateAll(
+	ctx context.Context, userID uuid.UUID, t occurrenceTarget, rule rs.RecurrenceRule,
+) (UpdateEventOutput, error) {
+	if err := checkNewRule(rule); err != nil {
+		return UpdateEventOutput{}, err
+	}
+	firstStart, err := rs.RegeneratedFirstStart(t.occs[0].StartAt(), t.existing.StartAt(), t.in.StartAt, rule.Timezone)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("regenerated first start: %w", err)
+	}
+	occs, err := rs.ExpandOccurrences(firstStart, firstStart.Add(t.in.EndAt.Sub(t.in.StartAt)), rule, nil)
+	if err != nil {
+		return UpdateEventOutput{}, toExpandValidationError(err)
+	}
+	newTags, views, err := c.determineTagsInTx(ctx, userID, t.existing, t.in.TagIDs)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	regenerated, err := rs.New(t.series.ID(), userID, rule, nil)
+	if err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("regenerate series: %w", err)
+	}
+	if err := c.seriesRepo.Update(ctx, regenerated); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("update series: %w", err)
+	}
+	if err := c.seriesRepo.DeleteOccurrences(ctx, t.series.ID()); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("delete occurrences: %w", err)
+	}
+	events, err := newOccurrenceEvents(userID, t.content(), t.series.ID(), occs, newTags)
+	if err != nil {
+		return UpdateEventOutput{}, err
+	}
+	if err := c.seriesRepo.CreateOccurrences(ctx, events); err != nil {
+		return UpdateEventOutput{}, fmt.Errorf("create occurrences: %w", err)
+	}
+	return UpdateEventOutput{Event: events[0], Tags: views, Series: regenerated}, nil
+}
+
+func occurrenceStarts(events []domainevent.Event) []time.Time {
+	starts := make([]time.Time, len(events))
+	for i, e := range events {
+		starts[i] = e.StartAt()
+	}
+	return starts
+}
+
+// withOccurrenceChanges returns the events with the content, the times in
+// moved (in the same order), the tags and the series ID.
+func withOccurrenceChanges(
+	events []domainevent.Event, content occurrenceContent, moved []rs.Occurrence,
+	tags []domainevent.EventTag, seriesID uuid.UUID,
+) ([]domainevent.Event, error) {
+	out := make([]domainevent.Event, len(events))
+	for i, e := range events {
+		changed, err := e.WithContent(
+			content.title, content.description, moved[i].StartAt, moved[i].EndAt, content.location, content.url,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if changed, err = changed.WithTags(tags); err != nil {
+			return nil, err
+		}
+		out[i] = changed.WithSeriesID(seriesID)
+	}
+	return out, nil
 }
 
 func scopeNotAllowed() error {
@@ -292,28 +556,45 @@ func (c *UpdateEventCommand) convertToSeries(
 	if err != nil {
 		return UpdateEventOutput{}, err
 	}
-	series, err := rs.New(uuid.New(), userID, rule, nil)
-	if err != nil {
-		return UpdateEventOutput{}, fmt.Errorf("create series: %w", err)
-	}
-	saved, err := c.seriesRepo.Create(ctx, series)
-	if err != nil {
-		return UpdateEventOutput{}, fmt.Errorf("create series: %w", err)
-	}
-	updated = updated.WithSeriesID(saved.ID())
-	if err := c.repo.Update(ctx, updated); err != nil {
-		return UpdateEventOutput{}, fmt.Errorf("update event: %w", err)
-	}
-	// occs[0] is the event itself; ExpandOccurrences keeps the given instant.
 	content := occurrenceContent{title: in.Title, description: in.Description, location: in.Location, url: in.URL}
-	rest, err := newOccurrenceEvents(userID, content, saved.ID(), occs[1:], updated.Tags())
+	updated, saved, err := c.startSeries(ctx, userID, content, updated, rule, occs)
 	if err != nil {
 		return UpdateEventOutput{}, err
 	}
-	if err := c.seriesRepo.CreateOccurrences(ctx, rest); err != nil {
-		return UpdateEventOutput{}, fmt.Errorf("create occurrences: %w", err)
-	}
 	return UpdateEventOutput{Event: updated, Tags: views, Series: saved}, nil
+}
+
+// startSeries creates a series with the rule and makes first, already
+// updated, its first occurrence, so its ID, share links and subscriptions
+// survive. occs[0] is first itself: ExpandOccurrences keeps the given instant.
+func (c *UpdateEventCommand) startSeries(
+	ctx context.Context,
+	userID uuid.UUID,
+	content occurrenceContent,
+	first domainevent.Event,
+	rule rs.RecurrenceRule,
+	occs []rs.Occurrence,
+) (domainevent.Event, rs.RecurringEventSeries, error) {
+	series, err := rs.New(uuid.New(), userID, rule, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create series: %w", err)
+	}
+	saved, err := c.seriesRepo.Create(ctx, series)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create series: %w", err)
+	}
+	first = first.WithSeriesID(saved.ID())
+	if err := c.repo.Update(ctx, first); err != nil {
+		return nil, nil, fmt.Errorf("update event: %w", err)
+	}
+	rest, err := newOccurrenceEvents(userID, content, saved.ID(), occs[1:], first.Tags())
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := c.seriesRepo.CreateOccurrences(ctx, rest); err != nil {
+		return nil, nil, fmt.Errorf("create occurrences: %w", err)
+	}
+	return first, saved, nil
 }
 
 // applyContent returns existing with the requested content and tags.
