@@ -14,6 +14,12 @@ type RecurrenceRule struct {
 	Timezone SeriesTimezone
 }
 
+// Equal reports whether o is the same rule. Timezones are compared by name
+// because time.LoadLocation returns a new *Location on each call.
+func (r RecurrenceRule) Equal(o RecurrenceRule) bool {
+	return r.Pattern == o.Pattern && r.End == o.End && r.Timezone.Name() == o.Timezone.Name()
+}
+
 // initialized is false when a part of the rule skipped its constructor.
 func (r RecurrenceRule) initialized() bool {
 	return r.Pattern.typ != "" && r.End.typ != "" && r.Timezone.loc != nil

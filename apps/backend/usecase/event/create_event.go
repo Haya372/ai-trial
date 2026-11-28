@@ -155,7 +155,10 @@ func (c *CreateEventCommand) createRecurring(
 		if err != nil {
 			return err
 		}
-		events, err := c.buildOccurrences(userID, in, savedSeries.ID(), occs, eventTags)
+		content := occurrenceContent{
+			title: in.Title, description: in.Description, location: in.Location, url: in.URL,
+		}
+		events, err := newOccurrenceEvents(userID, content, savedSeries.ID(), occs, eventTags)
 		if err != nil {
 			return err
 		}
@@ -174,11 +177,16 @@ func (c *CreateEventCommand) createRecurring(
 	return CreateEventOutput{Event: first, Tags: tagViews, Series: savedSeries}, nil
 }
 
-// buildOccurrences constructs one Event per occurrence, attaching the series ID
-// and the tags to each.
-func (c *CreateEventCommand) buildOccurrences(
+// occurrenceContent is what every occurrence of a series shares.
+type occurrenceContent struct {
+	title, description, location, url string
+}
+
+// newOccurrenceEvents constructs one Event per occurrence, attaching the
+// series ID and the tags to each.
+func newOccurrenceEvents(
 	userID uuid.UUID,
-	in CreateEventInput,
+	content occurrenceContent,
 	seriesID uuid.UUID,
 	occs []rs.Occurrence,
 	eventTags []domainevent.EventTag,
@@ -186,8 +194,8 @@ func (c *CreateEventCommand) buildOccurrences(
 	events := make([]domainevent.Event, len(occs))
 	for i, occ := range occs {
 		e, err := domainevent.New(
-			uuid.New(), userID, in.Title, in.Description,
-			occ.StartAt, occ.EndAt, in.Location, in.URL,
+			uuid.New(), userID, content.title, content.description,
+			occ.StartAt, occ.EndAt, content.location, content.url,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create occurrence %d: %w", i, err)
