@@ -71,7 +71,8 @@
 - 失敗回数は登録済みのアカウントごとに数える。未登録のメールアドレスでの失敗は数えない
 - ロックするのは、ロック中でないときの連続失敗が5回になったとき。ロック時間は15分で固定し、失敗回数に応じて延長しない
 - 失敗回数を0に戻すのは、ログインに成功したとき・ロックが解除された後に試行したとき・パスワードを再設定したとき
-- 同じアカウントへの同時のログイン試行でも、失敗回数の加算漏れでロックを回避できないようにする
+- ログイン（成功・失敗とも）・再設定の申請・パスワードの再設定は、対象アカウントの users 行を `SELECT ... FOR UPDATE` でロックしてから、ロック状態・失敗回数・パスワードハッシュを読み直して判定・更新する。同じアカウントへの同時のリクエストを直列化し、ロック後の正解パスワードでのログイン・加算漏れ・ロックの延長・再設定と並行したセッション発行を防ぐ
+- users 行と password_reset_tokens 行の両方をロックする処理は、users 行を先にロックする（デッドロックを防ぐため）
 - ロック通知メールの送信要求は、失敗回数の更新・ロックと同じトランザクションで行う（SPEC-010 のアウトボックス方式）
 - ロック通知メールは1回のロックにつき1通だけ送る
 
@@ -100,7 +101,8 @@
 ### エッジケース・境界値
 
 - 失敗回数が4のときにパスワードが一致した → ログインに成功し、失敗回数を0に戻す
-- 失敗回数が4のときに同じアカウントへ同時に2回失敗した → 失敗回数は5以上になってロックされ、ロック通知メールは1通だけ送る
+- 失敗回数が4のときに同じアカウントへ同時に2回失敗した → 先に users 行をロックした1件目で失敗回数が5になってロックされ、ロック通知メールを1通送る。2件目はロック中として扱い、失敗回数・ロック期限を変えない
+- ロック前に送られた正しいパスワードでのログインが、同時の失敗でロックされた後に処理された → ロック中として扱い、ログインを拒否する
 - ロックからちょうど15分経過した時点の試行 → ロック中ではないものとして扱う
 - ロック中に正しいパスワードを入力した → ログインを拒否し、通常のログイン失敗と同じ表示にする
 - ロック中にパスワードを再設定した → ロックを解除し、新しいパスワードでログインできる
@@ -111,6 +113,7 @@
 - 新しいパスワードが条件を満たさない → 条件を満たしていない項目を表示し、再設定リンクは無効にしない
 - 新しいパスワードが現在のパスワードと同じ → 再設定を受け付ける（同じパスワードの再利用は禁止しない）
 - 再設定中に別の端末でログインしていた → その端末のセッションも削除され、次の操作で未ログインとして扱われる
+- 旧パスワードでのログインの照合中に再設定が完了した → 照合に使ったパスワードハッシュが users 行の現在の値と異なるため、セッションを発行せずログインを拒否する
 - 再設定リンクを開いたままの状態で、同じアカウントのユーザーが削除された → リンクが無効な場合と同じ表示にする
 - ロック通知メール・再設定メールの送信に失敗した → SPEC-010 の再送・送信失敗の扱いに従う。ログイン・申請の応答には影響しない
 
@@ -212,7 +215,7 @@
 
 [SPEC-001](./SPEC-001-auth.md#post-authlogin) を参照。本仕様では以下だけを追加する。
 
-- 401 `UNAUTHORIZED` の発生条件に「対象アカウントがロック中（`locked_until IS NOT NULL AND locked_until > now`）」を追加する
+- 401 `UNAUTHORIZED` の発生条件に「対象アカウントがロック中（`locked_until IS NOT NULL AND locked_until > now`）」と「照合に使ったパスワードハッシュが、users 行をロックして読み直した値と異なる（照合中にパスワードが再設定された）」を追加する
 - ロック中・未登録・パスワード不一致・パスワード形式不正の4ケースを区別せず、同じ 401 レスポンスを返す
 - ロック中でも bcrypt 照合を1回行い、応答時間で区別できないようにする（[#240](https://github.com/Haya372/ai-trial/issues/240) のタイミング対策と同じ方針）
 
@@ -220,7 +223,7 @@
 
 ##### ログイン失敗とアカウントロック
 
-4つのケースすべてで bcrypt 照合（ユーザー未検出・ロック中はダミーハッシュ）を1回実行してから分岐する。
+登録済みなら現在のハッシュ、未登録ならダミーのハッシュで bcrypt 照合を1回行ってから、登録済みの場合だけ users 行をロックして判定する。
 
 ```mermaid
 sequenceDiagram
@@ -236,30 +239,33 @@ sequenceDiagram
     API->>UC: Execute(email, password)
     UC->>DB: FindByEmail(email)
     DB-->>UC: User or NotFound
-    UC->>UC: bcrypt 照合（未登録・ロック中はダミーハッシュで実行）
+    UC->>UC: bcrypt 照合（未登録はダミーハッシュ、登録済みは読んだ password_hash。形式不正は不一致として扱う）
     alt 未登録
         Note over UC: users テーブルは更新しない（未登録は数えない）
         UC-->>API: ErrPasswordMismatch
-    else 登録済み・ロック中（locked_until > NOW）
-        Note over UC: 失敗回数・ロック・通知メールのいずれも変更しない
-        UC-->>API: ErrPasswordMismatch
-    else 登録済み・ロック中でない・パスワード不一致（形式不正を含む）
+    else 登録済み
         UC->>DB: BEGIN
-        Note over UC,DB: 1つのUPDATEで、加算前後の失敗回数とロック状態を取得する。<br/>加算前に「ロックが自動解除済み」なら失敗回数を0から数え直し、加算後に5に到達したら<br/>locked_until = NOW + 15分 を設定する（SELECT FOR UPDATE もしくは条件付きUPDATEで直列化）
-        UC->>DB: UPDATE users（failed_login_count 加算、必要なら locked_until 更新）
-        DB-->>UC: 加算前の失敗回数と locked_until、加算後の失敗回数と locked_until
-        alt このUPDATEで未ロック→ロック中に遷移した
-            UC->>Send: Execute(UserID, account_locked, {resetRequestUrl})
-            Send->>DB: INSERT email_notifications（pending, kind=account_locked）
+        UC->>DB: SELECT password_hash, failed_login_count, locked_until FROM users WHERE id=? FOR UPDATE
+        DB-->>UC: 現在の値
+        alt ロック中（locked_until > NOW）、または password_hash が照合に使った値と異なる
+            Note over UC,DB: 失敗回数・ロック・通知メールのいずれも変更しない
+            UC->>DB: COMMIT
+            UC-->>API: ErrPasswordMismatch
+        else パスワード不一致
+            Note over UC,DB: locked_until <= NOW（自動解除済み）なら失敗回数を0から数え直す。<br/>加算後の失敗回数がちょうど5なら locked_until = NOW + 15分 を設定する
+            UC->>DB: UPDATE users SET failed_login_count=…, locked_until=… WHERE id=?
+            alt 加算後の失敗回数が5（このリクエストでロックした）
+                UC->>Send: Execute(UserID, account_locked, {resetRequestUrl})
+                Send->>DB: INSERT email_notifications（pending, kind=account_locked）
+            end
+            UC->>DB: COMMIT
+            UC-->>API: ErrPasswordMismatch
+        else パスワード一致
+            UC->>DB: UPDATE users SET failed_login_count=0, locked_until=NULL WHERE id=?
+            UC->>DB: INSERT sessions（user_id, token_hash, expires_at）
+            UC->>DB: COMMIT
+            UC-->>API: AuthOutput{User, SessionToken}
         end
-        UC->>DB: COMMIT
-        UC-->>API: ErrPasswordMismatch
-    else 登録済み・ロック中でない・パスワード一致
-        UC->>DB: BEGIN
-        UC->>DB: UPDATE users SET failed_login_count=0, locked_until=NULL WHERE id=?
-        UC->>DB: INSERT sessions（user_id, token_hash, expires_at）
-        UC->>DB: COMMIT
-        UC-->>API: AuthOutput{User, SessionToken}
     end
     alt 401
         API-->>UI: 401 { code: "UNAUTHORIZED", message: "..." }
@@ -289,6 +295,7 @@ sequenceDiagram
         Note over UC,DB: 何もしない（登録の有無を応答で区別しない）
     else 登録済み
         UC->>DB: BEGIN
+        UC->>DB: SELECT id FROM users WHERE id=? FOR UPDATE（同じアカウントへの同時の申請を直列化）
         UC->>DB: DELETE FROM password_reset_tokens WHERE user_id=?（既存の未使用トークンを無効化）
         UC->>UC: Token = base64url(crypto/rand.Read(32)); TokenHash = sha256(Token)
         UC->>DB: INSERT password_reset_tokens (user_id, token_hash, expires_at=NOW+30min)
@@ -318,9 +325,14 @@ sequenceDiagram
     UI->>API: POST /auth/password-reset { token, password }
     API->>UC: Execute(token, password)
     UC->>UC: password の形式を検証（不正なら 400 VALIDATION_ERROR）
+    UC->>DB: SELECT user_id FROM password_reset_tokens WHERE token_hash = sha256(token)
+    alt 存在しない
+        API-->>UI: 410 { code: "GONE", message: "..." }
+    else 存在する
     UC->>DB: BEGIN
-    UC->>DB: SELECT id, user_id, expires_at FROM password_reset_tokens WHERE token_hash = sha256(token) FOR UPDATE
-    Note over UC,DB: 同じトークンでの同時送信は行ロックで直列化し、後続は削除済みのため 410 になる
+    UC->>DB: SELECT id FROM users WHERE id=user_id FOR UPDATE（users 行を先にロックする）
+    UC->>DB: SELECT id, expires_at FROM password_reset_tokens WHERE token_hash = sha256(token) FOR UPDATE
+    Note over UC,DB: 同じトークンでの同時送信・同時の申請は行ロックで直列化され、後続は削除済みのため 410 になる
     alt 存在しない or expires_at <= NOW
         UC->>DB: ROLLBACK
         API-->>UI: 410 { code: "GONE", message: "..." }
@@ -330,6 +342,7 @@ sequenceDiagram
         UC->>DB: DELETE FROM password_reset_tokens WHERE id=?（使用済みトークンを削除）
         UC->>DB: COMMIT
         API-->>UI: 204 No Content
+    end
     end
     UI->>User: 410 なら「リンクが無効です」を表示し再申請を促す、204 なら「パスワードを再設定しました」を表示しログイン画面へ遷移
 ```

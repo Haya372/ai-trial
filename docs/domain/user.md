@@ -23,14 +23,14 @@
 
 ### アカウントロック
 
-- `failed_login_count >= 5` に到達した時点でアカウントをロックする。ロックは `locked_until = now + 15分` を設定して表現する
+- ロック中でないときの失敗で、加算後の `failed_login_count` がちょうど5になった時点でアカウントをロックする。ロックは `locked_until = now + 15分` を設定して表現する。ロック中の失敗では `failed_login_count`・`locked_until` を変えない
 - ロック中の判定は `locked_until IS NOT NULL AND locked_until > now`。`locked_until <= now` は自動解除済みとして未ロック扱い
 - 1回のロック期間（`locked_until` が更新されてから自動解除までの間）に、ロック通知メールは1通だけ送る
 - 以下のいずれかで `failed_login_count` を 0 に、`locked_until` を NULL に戻す
   - ログインに成功した（ロック中でなく、パスワードが一致した）とき
   - 自動解除後の最初のログイン試行で状態を評価したとき（試行自体の成否は別に判定する）
   - パスワードを再設定したとき
-- 加算・ロック・ロック通知メールの送信要求は同一トランザクション（[ADR-024](../adr/ADR-024-transaction-management.md)）で行い、同じアカウントへの同時ログイン失敗でも加算漏れが起きないよう直列化する。送信要求は [SPEC-010](../spec/SPEC-010-email-notification.md) のアウトボックスに参加する
+- 加算・ロック・ロック通知メールの送信要求は同一トランザクション（[ADR-024](../adr/ADR-024-transaction-management.md)）で行い、users 行を `SELECT ... FOR UPDATE` でロックしてから値を読み直して判定することで、同じアカウントへの同時のログインを直列化する。送信要求は [SPEC-010](../spec/SPEC-010-email-notification.md) のアウトボックスに参加する
 - 未登録のメールアドレスに対する失敗は数えない（登録済みの User に対してだけ加算する）
 
 ## 不変条件
