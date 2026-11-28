@@ -47,6 +47,7 @@ jobs:
       - uses: jdx/mise-action@v5.2.8
         with:
           install: true
+          install_args: sqlc gomigrate
       - uses: pnpm/action-setup@v6.1.1
       - uses: actions/setup-node@v7.1.0
         with:

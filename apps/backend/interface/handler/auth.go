@@ -148,7 +148,7 @@ func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(respBody) //nolint:gosec
+	_, _ = w.Write(respBody) //nolint:gosec // marshaled JSON served as application/json, not HTML
 }
 
 func (h *AuthHandler) writeAuthError(w http.ResponseWriter, r *http.Request, err error) {

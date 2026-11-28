@@ -25,7 +25,7 @@ type LoginPassword struct {
 const (
 	CodePasswordTooShort               = "TOO_SHORT"
 	CodePasswordTooLong                = "TOO_LONG"
-	CodePasswordNotASCII               = "INVALID_CHARACTER" //nolint:gosec
+	CodePasswordNotASCII               = "INVALID_CHARACTER" //nolint:gosec // an error code, not a credential
 	CodePasswordInsufficientComplexity = "INSUFFICIENT_COMPLEXITY"
 )
 

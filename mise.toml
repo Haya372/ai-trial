@@ -11,11 +11,14 @@ sqlc          = "1.31.1"
 gomigrate     = "4.19.1"
 gh            = "2.100.0"
 "npm:markdownlint-cli2" = "0.23.3"
+semgrep       = "1.161.0"
 
 [env]
 _.file = ".env.example"
 DATABASE_URL = "postgres://{{env.DB_USER}}:{{env.DB_PASSWORD}}@{{env.DB_HOST}}:{{env.DB_PORT}}/{{env.DB_NAME}}?sslmode=disable"
 TURBO_TELEMETRY_DISABLED = "1"
+SEMGREP_ENABLE_VERSION_CHECK = "0"
+SEMGREP_SEND_METRICS = "off"
 
 [tasks.git-clean]
 run = "bash scripts/git-clean-branches.sh"

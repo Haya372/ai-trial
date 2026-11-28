@@ -1,0 +1,41 @@
+# This workflow is managed by gh actions-lock.
+
+name: SAST
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@v5.2.8
+        with:
+          install: true
+          install_args: semgrep
+      - name: Run Semgrep
+        id: semgrep
+        run: |
+          semgrep scan \
+            --config p/golang \
+            --config p/typescript \
+            --config p/react \
+            --error \
+            --json-output semgrep.json \
+            --text
+      - name: Annotate findings
+        # Skip when the job failed before Semgrep wrote semgrep.json (e.g. install failure).
+        if: failure() && steps.semgrep.outcome == 'failure' && hashFiles('semgrep.json') != ''
+        run: |
+          jq -r '.results[] | "::error file=\(.path),line=\(.start.line),endLine=\(.end.line),title=\(.check_id)::\(.extra.message | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A"))"' semgrep.json

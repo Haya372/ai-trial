@@ -33,7 +33,7 @@ type SubscribeToShareExecutor interface {
 // Deliberately separate port from DeleteEventExecutor: different usecase,
 // coincidentally same shape.
 //
-//nolint:iface
+//nolint:iface // separate ports for separate usecases, see above
 type DeleteSubscriptionExecutor interface {
 	Execute(ctx context.Context, userID, id uuid.UUID) error
 }

@@ -23,5 +23,6 @@ jobs:
       - uses: jdx/mise-action@v5.2.8
         with:
           install: true
+          install_args: node npm:markdownlint-cli2
       - name: Run markdownlint
         run: mise exec -- markdownlint-cli2 "**/*.md"
