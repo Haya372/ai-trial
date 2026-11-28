@@ -21,6 +21,16 @@ func TestSendResult_accepted(t *testing.T) {
 	}
 }
 
+func TestSendResult_zeroValueIsPermanentFailure(t *testing.T) {
+	var r emailnotification.SendResult
+	if r.Outcome() != emailnotification.OutcomePermanentFailure {
+		t.Errorf("zero SendResult Outcome() = %v, want permanent failure", r.Outcome())
+	}
+	if code, ok := r.FailureCode(); !ok || code != emailnotification.FailurePermanentRejection {
+		t.Errorf("zero SendResult FailureCode() = %v, %v, want permanent_rejection, true", code, ok)
+	}
+}
+
 func TestSendResult_failedOutcomeFollowsFailureCode(t *testing.T) {
 	tests := map[emailnotification.FailureCode]emailnotification.SendOutcome{
 		emailnotification.FailureTimeout:           emailnotification.OutcomeTransientFailure,

@@ -62,17 +62,22 @@ const (
 
 // SendResult is either accepted or failed with a FailureCode. Whether a
 // failure is transient follows from its code, so it is not stored apart.
+//
+// The zero value is a permanent failure with permanent_rejection, so a
+// transport that returns SendResult{} by mistake never marks an email as
+// sent, and retrying would not fix such a bug.
 type SendResult struct {
-	failure *FailureCode
+	accepted bool
+	failure  FailureCode
 }
 
-func SendAccepted() SendResult { return SendResult{} }
+func SendAccepted() SendResult { return SendResult{accepted: true} }
 
-func SendFailed(code FailureCode) SendResult { return SendResult{failure: &code} }
+func SendFailed(code FailureCode) SendResult { return SendResult{failure: code} }
 
 func (r SendResult) Outcome() SendOutcome {
 	switch {
-	case r.failure == nil:
+	case r.accepted:
 		return OutcomeAccepted
 	case r.failure.IsTransient():
 		return OutcomeTransientFailure
@@ -81,4 +86,13 @@ func (r SendResult) Outcome() SendOutcome {
 	}
 }
 
-func (r SendResult) FailureCode() (FailureCode, bool) { return deref(r.failure) }
+func (r SendResult) FailureCode() (FailureCode, bool) {
+	switch {
+	case r.accepted:
+		return "", false
+	case r.failure == "":
+		return FailurePermanentRejection, true
+	default:
+		return r.failure, true
+	}
+}
