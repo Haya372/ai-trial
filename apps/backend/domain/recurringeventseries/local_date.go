@@ -52,6 +52,13 @@ func (d LocalDate) addDays(n int) LocalDate {
 	return LocalDateOf(time.Date(d.year, d.month, d.day+n, 0, 0, 0, 0, time.UTC))
 }
 
+// daysUntil returns how many days o is after d, negative when it is before.
+func (d LocalDate) daysUntil(o LocalDate) int {
+	from := time.Date(d.year, d.month, d.day, 0, 0, 0, 0, time.UTC)
+	to := time.Date(o.year, o.month, o.day, 0, 0, 0, 0, time.UTC)
+	return int(to.Sub(from).Hours() / 24)
+}
+
 func (d LocalDate) weekday() time.Weekday {
 	return time.Date(d.year, d.month, d.day, 0, 0, 0, 0, time.UTC).Weekday()
 }
