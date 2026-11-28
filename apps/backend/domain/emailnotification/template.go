@@ -30,9 +30,11 @@ var (
 	errSubjectHasLineBreak   = errors.New("rendered email subject contains a line break")
 )
 
-// NewEmailTemplate parses the templates and trial-renders them with every
-// key set, so a syntax error or a reference to an undeclared key fails at
-// startup instead of failing each send with template_render_failed.
+// NewEmailTemplate checks the templates at startup so that a mistake fails
+// there instead of failing each send with template_render_failed: the keys
+// referenced in every branch must equal keys, and a trial render catches
+// errors the tree does not show, such as a function given the wrong number
+// of arguments.
 func NewEmailTemplate(subject, body string, keys []string) (EmailTemplate, error) {
 	sorted := slices.Sorted(slices.Values(keys))
 	for i, k := range sorted {
@@ -47,6 +49,9 @@ func NewEmailTemplate(subject, body string, keys []string) (EmailTemplate, error
 	bodyTmpl, err := template.New("body").Option("missingkey=error").Parse(body)
 	if err != nil {
 		return EmailTemplate{}, fmt.Errorf("parse email body template: %w", err)
+	}
+	if err := checkReferencedKeys(sorted, subjectTmpl, bodyTmpl); err != nil {
+		return EmailTemplate{}, err
 	}
 	t := EmailTemplate{subject: subjectTmpl, body: bodyTmpl, keys: sorted}
 

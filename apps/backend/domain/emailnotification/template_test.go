@@ -64,6 +64,16 @@ func TestNewEmailTemplate_rejectsInvalidDefinitions(t *testing.T) {
 		{"undeclared key in body", "Hi", "{{.url}}", []string{keyName}},
 		{"duplicated key", "{{.name}}", bodyText, []string{keyName, keyName}},
 		{"empty key", "Hi", bodyText, []string{""}},
+		{"undeclared key in an untaken branch", "Hi", `{{if eq .plan "pro"}}{{.pro_url}}{{end}}`, []string{"plan"}},
+		{"undeclared key in an else branch", "Hi", `{{if .url}}a{{else}}{{.other}}{{end}}`, []string{keyURL}},
+		{"declared but unused key", "Hi", "{{.url}}", []string{keyName, keyURL}},
+		{"nested field", "Hi", "{{.url.host}}", []string{keyURL}},
+		{"range", "Hi", "{{range .url}}x{{end}}", []string{keyURL}},
+		{"with", "Hi", "{{with .url}}{{.}}{{end}}", []string{keyURL}},
+		{"variable", "Hi", "{{$u := .url}}{{$u}}", []string{keyURL}},
+		{"root variable", "Hi", "{{$.url}}", []string{keyURL}},
+		{"bare dot", "Hi", "{{.}}", nil},
+		{"define and template", "Hi", `{{define "x"}}{{.url}}{{end}}{{template "x" .}}`, []string{keyURL}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -71,6 +81,23 @@ func TestNewEmailTemplate_rejectsInvalidDefinitions(t *testing.T) {
 				t.Fatal("NewEmailTemplate error = nil, want error")
 			}
 		})
+	}
+}
+
+func TestNewEmailTemplate_acceptsConditionalsAndFunctions(t *testing.T) {
+	tmpl := mustTemplate(t,
+		`{{if eq .plan "pro"}}Pro{{else}}Free{{end}} notice`,
+		`{{if eq .plan "pro"}}{{.pro_url}}{{else if .name}}{{printf "%s" .name}}{{end}}`,
+		"plan", "pro_url", keyName,
+	)
+	got, err := tmpl.Render(emailnotification.NewTemplateParams(map[string]string{
+		"plan": "pro", "pro_url": testURL, keyName: "taro",
+	}))
+	if err != nil {
+		t.Fatalf("Render error = %v", err)
+	}
+	if got.Subject != "Pro notice" || got.Body != testURL {
+		t.Errorf("Render = %+v", got)
 	}
 }
 
