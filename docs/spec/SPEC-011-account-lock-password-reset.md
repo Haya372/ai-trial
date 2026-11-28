@@ -203,8 +203,8 @@
 
 | HTTPステータス | code | details[].code | 発生条件 |
 |---|---|---|---|
-| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した、または `token`・`password` フィールドが空 |
-| 400 | VALIDATION_ERROR | TOO_SHORT | `password` が 8 文字未満 |
+| 400 | VALIDATION_ERROR | - | リクエストボディの JSON デコードに失敗した、または `token` が空（空の `password` は `TOO_SHORT`） |
+| 400 | VALIDATION_ERROR | TOO_SHORT | `password` が 8 文字未満（空文字を含む） |
 | 400 | VALIDATION_ERROR | TOO_LONG | `password` が 72 バイト超 |
 | 400 | VALIDATION_ERROR | INVALID_CHARACTER | `password` に ASCII 印字可能範囲外の文字が含まれる |
 | 400 | VALIDATION_ERROR | INSUFFICIENT_COMPLEXITY | `password` に英大文字・英小文字・数字・記号のいずれかが含まれない |
