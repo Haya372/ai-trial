@@ -129,9 +129,11 @@
 
 | `EmailKind` | 用途 | `TemplateParams` のキー |
 |---|---|---|
-| `account_locked` | ロック通知メール | `resetRequestUrl`（再設定申請画面の完全URL。トークンは含まない） |
-| `password_reset` | 再設定リンクメール | `resetUrl`（再設定画面の完全URL。URLフラグメントに平文トークンを含む） |
+| `account_locked` | ロック通知メール | `resetRequestUrl`（`WEB_APP_ORIGIN + "/password-reset/request"`。再設定申請画面の完全URLで、トークンは含まない） |
+| `password_reset` | 再設定リンクメール | `resetUrl`（`WEB_APP_ORIGIN + "/password-reset#token=" + 平文トークン`。再設定画面の完全URL） |
 
+- メールのURLは、バックエンドの環境変数 `WEB_APP_ORIGIN`（Webアプリのオリジン）を前置して作る。`WEB_APP_ORIGIN` は必須で、スキーム・ホスト（・ポート）だけを書き、末尾に `/` を付けない（例: `https://app.example.com`）。未設定・空文字・末尾が `/` の場合は、バックエンドの起動時にエラーにする
+- Webアプリは、再設定申請画面を `/password-reset/request`、再設定画面を `/password-reset` に置く。ログイン画面の「パスワードを忘れた方」は `/password-reset/request` へ遷移する
 - トークンの平文・トークンハッシュ・`TemplateParams` の値はログ・トレース・レスポンスに出さない（[情報取り扱いガイドライン](../guidelines/data-handling-guidelines.md)）
 
 ### DB設計
