@@ -44,6 +44,12 @@ type Repository interface {
 	// occurrences) with their tags at once. Each event must already carry
 	// its series ID. Call it inside a transaction (ADR-024).
 	CreateOccurrences(ctx context.Context, occurrences []event.Event) error
+	// UpdateOccurrences saves the content, times, series ID and tags of up
+	// to about 730 existing events at once, for "all" and "this and
+	// following" changes that keep the occurrences and so their share links
+	// and subscriptions. Each event must carry a series ID. Call it inside a
+	// transaction (ADR-024).
+	UpdateOccurrences(ctx context.Context, occurrences []event.Event) error
 	// DeleteOccurrencesFrom deletes the events of the series that start at or
 	// after from, for "this and following" changes and deletes.
 	DeleteOccurrencesFrom(ctx context.Context, seriesID uuid.UUID, from time.Time) error

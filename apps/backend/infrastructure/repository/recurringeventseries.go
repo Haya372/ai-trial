@@ -209,14 +209,7 @@ func (r *seriesRepository) CreateOccurrences(ctx context.Context, occurrences []
 			Url:         textOrNull(e.URL()),
 			SeriesID:    toPgUUID(seriesID),
 		})
-		for _, t := range e.Tags() {
-			tags = append(tags, query.InsertOccurrenceTagsParams{
-				EventID: toPgUUID(e.ID()),
-				TagID:   toPgUUID(t.TagID()),
-				//nolint:gosec // position is validated to be 1..MaxTagsPerEvent by the domain
-				Position: int16(t.Position()),
-			})
-		}
+		tags = appendOccurrenceTags(tags, e)
 	}
 	if len(events) == 0 {
 		return nil
@@ -229,18 +222,85 @@ func (r *seriesRepository) CreateOccurrences(ctx context.Context, occurrences []
 		r.logger.Error("insert occurrences query failed", "error", err)
 		return fmt.Errorf("insert occurrences: %w", err)
 	}
+	return r.insertOccurrenceTags(ctx, tags)
+}
+
+func appendOccurrenceTags(tags []query.InsertOccurrenceTagsParams, e domainevent.Event) []query.InsertOccurrenceTagsParams {
+	for _, t := range e.Tags() {
+		tags = append(tags, query.InsertOccurrenceTagsParams{
+			EventID: toPgUUID(e.ID()),
+			TagID:   toPgUUID(t.TagID()),
+			//nolint:gosec // position is validated to be 1..MaxTagsPerEvent by the domain
+			Position: int16(t.Position()),
+		})
+	}
+	return tags
+}
+
+func (r *seriesRepository) insertOccurrenceTags(ctx context.Context, tags []query.InsertOccurrenceTagsParams) error {
 	if len(tags) == 0 {
 		return nil
 	}
-
-	spanCtx, span = r.startDBSpan(ctx, "INSERT", eventTagsTable)
-	_, err = r.querier(spanCtx).InsertOccurrenceTags(spanCtx, tags)
+	spanCtx, span := r.startDBSpan(ctx, "INSERT", eventTagsTable)
+	_, err := r.querier(spanCtx).InsertOccurrenceTags(spanCtx, tags)
 	endDBSpan(span, err)
 	if err != nil {
 		r.logger.Error("insert occurrence tags query failed", "error", err)
 		return fmt.Errorf("insert occurrence tags: %w", err)
 	}
 	return nil
+}
+
+// UpdateOccurrences writes every event in one UPDATE and replaces their tags
+// with one DELETE and a COPY, instead of a round trip per event.
+func (r *seriesRepository) UpdateOccurrences(ctx context.Context, occurrences []domainevent.Event) error {
+	if len(occurrences) == 0 {
+		return nil
+	}
+	n := len(occurrences)
+	params := query.UpdateOccurrencesParams{
+		Ids:          make([]pgtype.UUID, 0, n),
+		Titles:       make([]string, 0, n),
+		Descriptions: make([]string, 0, n),
+		StartAts:     make([]pgtype.Timestamptz, 0, n),
+		EndAts:       make([]pgtype.Timestamptz, 0, n),
+		Locations:    make([]string, 0, n),
+		Urls:         make([]string, 0, n),
+		SeriesIds:    make([]pgtype.UUID, 0, n),
+	}
+	var tags []query.InsertOccurrenceTagsParams
+	for _, e := range occurrences {
+		seriesID, ok := e.SeriesID()
+		if !ok {
+			return fmt.Errorf("update occurrences: event %v: %w", e.ID(), errOccurrenceWithoutSeries)
+		}
+		params.Ids = append(params.Ids, toPgUUID(e.ID()))
+		params.Titles = append(params.Titles, e.Title())
+		params.Descriptions = append(params.Descriptions, e.Description())
+		params.StartAts = append(params.StartAts, pgtype.Timestamptz{Time: e.StartAt(), Valid: true})
+		params.EndAts = append(params.EndAts, pgtype.Timestamptz{Time: e.EndAt(), Valid: true})
+		params.Locations = append(params.Locations, e.Location())
+		params.Urls = append(params.Urls, e.URL())
+		params.SeriesIds = append(params.SeriesIds, toPgUUID(seriesID))
+		tags = appendOccurrenceTags(tags, e)
+	}
+
+	spanCtx, span := r.startDBSpan(ctx, "UPDATE", eventsTable)
+	err := r.querier(spanCtx).UpdateOccurrences(spanCtx, params)
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("update occurrences query failed", "error", err)
+		return fmt.Errorf("update occurrences: %w", err)
+	}
+
+	spanCtx, span = r.startDBSpan(ctx, "DELETE", eventTagsTable)
+	err = r.querier(spanCtx).DeleteEventTagsByEventIDs(spanCtx, params.Ids)
+	endDBSpan(span, err)
+	if err != nil {
+		r.logger.Error("delete occurrence tags query failed", "error", err)
+		return fmt.Errorf("delete occurrence tags: %w", err)
+	}
+	return r.insertOccurrenceTags(ctx, tags)
 }
 
 func (r *seriesRepository) DeleteOccurrencesFrom(

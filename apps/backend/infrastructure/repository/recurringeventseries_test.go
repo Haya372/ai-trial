@@ -527,3 +527,143 @@ func assertUntouched(t *testing.T, otherSeriesID, detachedID uuid.UUID) {
 		t.Errorf("expected the detached event to remain, got %d", n)
 	}
 }
+
+func TestRecurringSeriesRepository_UpdateOccurrences_SavesContentTimesSeriesAndTags(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	private := createTestTag(t, u.ID(), "Private")
+	s := buildSeries(t, uuid.New(), u.ID(), "daily", nil, rs.NewIndefiniteEnd())
+	next := buildSeries(t, uuid.New(), u.ID(), "daily", nil, rs.NewIndefiniteEnd())
+	createSeries(t, s)
+	createSeries(t, next)
+	repo := newSeriesRepo()
+	base := time.Date(2026, time.November, 30, 1, 0, 0, 0, time.UTC)
+	original := []event.Event{
+		occurrence(t, u.ID(), s.ID(), base, 0, mustEventTag(t, work.ID(), 1)),
+		occurrence(t, u.ID(), s.ID(), base, 1, mustEventTag(t, work.ID(), 1)),
+		occurrence(t, u.ID(), s.ID(), base, 2, mustEventTag(t, work.ID(), 1)),
+	}
+	if err := repo.CreateOccurrences(context.Background(), original); err != nil {
+		t.Fatalf("create occurrences: %v", err)
+	}
+	var createdAt time.Time
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT created_at FROM events WHERE id = $1", original[1].ID()).Scan(&createdAt); err != nil {
+		t.Fatalf("read created_at: %v", err)
+	}
+
+	newTags := []event.EventTag{mustEventTag(t, private.ID(), 1), mustEventTag(t, work.ID(), 2)}
+	updated := make([]event.Event, 0, 2)
+	for _, e := range original[1:] {
+		start := e.StartAt().Add(2 * time.Hour)
+		moved, err := e.WithContent("Retro", "notes", start, start.Add(time.Hour), "", "https://example.com")
+		if err != nil {
+			t.Fatalf("change content: %v", err)
+		}
+		moved, err = moved.WithTags(newTags)
+		if err != nil {
+			t.Fatalf("change tags: %v", err)
+		}
+		updated = append(updated, moved.WithSeriesID(next.ID()))
+	}
+
+	if err := repo.UpdateOccurrences(context.Background(), updated); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	kept, err := repo.FindOccurrences(context.Background(), s.ID())
+	if err != nil {
+		t.Fatalf("find occurrences: %v", err)
+	}
+	if len(kept) != 1 || kept[0].ID() != original[0].ID() || kept[0].Title() != "Standup" {
+		t.Fatalf("expected only the untouched first occurrence in the old series, got %d", len(kept))
+	}
+	assertEventTags(t, kept[0].Tags(), original[0].Tags())
+
+	got, err := repo.FindOccurrences(context.Background(), next.ID())
+	if err != nil {
+		t.Fatalf("find occurrences: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 occurrences in the new series, got %d", len(got))
+	}
+	for i, e := range got {
+		w := updated[i]
+		if e.ID() != w.ID() || e.Title() != "Retro" || e.Description() != "notes" || e.URL() != "https://example.com" {
+			t.Errorf("occurrence[%d] content mismatch: %+v", i, e)
+		}
+		if !e.StartAt().Equal(w.StartAt()) || !e.EndAt().Equal(w.EndAt()) {
+			t.Errorf("occurrence[%d] times mismatch: got [%v, %v], want [%v, %v]",
+				i, e.StartAt(), e.EndAt(), w.StartAt(), w.EndAt())
+		}
+		assertEventTags(t, e.Tags(), newTags)
+	}
+	if n := countRows(t, "SELECT COUNT(*) FROM events WHERE series_id = $1 AND location IS NULL", next.ID()); n != 2 {
+		t.Errorf("expected an empty location to be stored as NULL, got %d rows", n)
+	}
+	var after time.Time
+	if err := testPool.QueryRow(context.Background(),
+		"SELECT created_at FROM events WHERE id = $1", original[1].ID()).Scan(&after); err != nil {
+		t.Fatalf("read created_at: %v", err)
+	}
+	if !after.Equal(createdAt) {
+		t.Errorf("expected created_at to stay %v, got %v", createdAt, after)
+	}
+}
+
+func TestRecurringSeriesRepository_UpdateOccurrences_WithNoTags_RemovesTags(t *testing.T) {
+	setupTest(t)
+	u := createTestUser(t)
+	work := createTestTag(t, u.ID(), "Work")
+	s := buildSeries(t, uuid.New(), u.ID(), "daily", nil, rs.NewIndefiniteEnd())
+	createSeries(t, s)
+	repo := newSeriesRepo()
+	base := time.Date(2026, time.November, 30, 1, 0, 0, 0, time.UTC)
+	e := occurrence(t, u.ID(), s.ID(), base, 0, mustEventTag(t, work.ID(), 1))
+	if err := repo.CreateOccurrences(context.Background(), []event.Event{e}); err != nil {
+		t.Fatalf("create occurrences: %v", err)
+	}
+	untagged, err := e.WithTags(nil)
+	if err != nil {
+		t.Fatalf("remove tags: %v", err)
+	}
+
+	if err := repo.UpdateOccurrences(context.Background(), []event.Event{untagged}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if n := countRows(t, "SELECT COUNT(*) FROM event_tags WHERE event_id = $1", e.ID()); n != 0 {
+		t.Errorf("expected no tags, got %d", n)
+	}
+}
+
+func TestRecurringSeriesRepository_UpdateOccurrences_WithoutSeriesID_WritesNothing(t *testing.T) {
+	setupTest(t)
+	seriesID, _, _, base := seedOccurrences(t, 2)
+	repo := newSeriesRepo()
+	occs, err := repo.FindOccurrences(context.Background(), seriesID)
+	if err != nil {
+		t.Fatalf("find occurrences: %v", err)
+	}
+	renamed, err := occs[0].WithContent("Renamed", "", base, base.Add(time.Hour), "", "")
+	if err != nil {
+		t.Fatalf("change content: %v", err)
+	}
+
+	err = repo.UpdateOccurrences(context.Background(), []event.Event{renamed, occs[1].DetachFromSeries()})
+	if err == nil {
+		t.Fatal("expected an error for an event without a series")
+	}
+	if n := countRows(t, "SELECT COUNT(*) FROM events WHERE title = 'Renamed'"); n != 0 {
+		t.Errorf("expected nothing to be written, got %d", n)
+	}
+}
+
+func TestRecurringSeriesRepository_UpdateOccurrences_Empty_DoesNothing(t *testing.T) {
+	setupTest(t)
+
+	if err := newSeriesRepo().UpdateOccurrences(context.Background(), nil); err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
