@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "lefthook": "2.2.2",
-    "npm-run-all2": "9.0.4",
-    "turbo": "2.11.11"
+    "npm-run-all2": "9.1.0",
+    "turbo": "2.11.13"
   }
 }
